@@ -64,6 +64,7 @@ const SYSTEM_LINKS: NavLinkItem[] = [
 const BRANCH_OPTIONS = [
   { value: "AIDS", label: "AIDS" },
   { value: "CSE", label: "CSE" },
+  { value: "ECE", label: "ECE" },
 ];
 
 const SEMESTER_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8].map((sem) => ({

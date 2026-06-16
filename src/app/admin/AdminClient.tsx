@@ -392,6 +392,7 @@ export default function AdminClient() {
                   >
                     <option value="AIDS">AIDS</option>
                     <option value="CSE">CSE</option>
+                    <option value="ECE">ECE</option>
                   </select>
                   <ChevronDown className="absolute right-4 top-3.5 w-4 h-4 text-muted pointer-events-none" />
                 </div>

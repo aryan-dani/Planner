@@ -134,13 +134,16 @@ async function startUpload() {
   console.log(`\n📤 Starting Google Drive Upload from: ${localTarget}\n`);
   
   try {
-    // Determine target parent folder on Drive (either root folder or subfolder match)
+    // Determine target parent folder on Drive (either root folder or branch folder match)
     const targetFolderBasename = basename(localTarget);
     let targetParentId = driveFolderId;
 
-    // If uploading a standard Sem_X folder (like Sem_4_AIDS), create/use it on Drive root
-    if (targetFolderBasename.toLowerCase().startsWith("sem_")) {
-      targetParentId = await getOrCreateFolder(targetFolderBasename, driveFolderId);
+    // If uploading a standard Sem_X folder (like Sem_4_ECE), create/use it inside the branch parent folder
+    const semMatch = targetFolderBasename.match(/Sem_\d+_(.+)/i);
+    if (semMatch) {
+      const branchName = semMatch[1].toUpperCase();
+      const branchFolderId = await getOrCreateFolder(branchName, driveFolderId);
+      targetParentId = await getOrCreateFolder(targetFolderBasename, branchFolderId);
       await uploadDirectory(localTarget, targetParentId);
     } else {
       await uploadDirectory(localTarget, driveFolderId);

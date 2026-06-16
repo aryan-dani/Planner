@@ -30,7 +30,11 @@ export async function POST(req: Request) {
     const { type, topic, context } = parseResult.data;
 
     const branch = context?.branch || 'AIDS';
-    const branchName = branch === 'AIDS' ? 'Artificial Intelligence & Data Science Engineering' : branch;
+    const branchName = branch === 'AIDS' 
+      ? 'Artificial Intelligence & Data Science Engineering' 
+      : branch === 'ECE'
+      ? 'Electronics & Communication Engineering'
+      : branch;
     const semester = context?.semester || 4;
 
     const cleanTopic = topic.trim().toLowerCase().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?]/g, "").replace(/\s+/g, " ");
@@ -72,6 +76,7 @@ export async function POST(req: Request) {
 CRITICAL DOMAIN NOTICE:
 - The student is in an Engineering / Computer Science / AI & Data Science degree.
 - "AIDS" stands for Artificial Intelligence & Data Science Engineering. It is NOT related to medical science or viral diseases.
+- "ECE" stands for Electronics & Communication Engineering.
 - "DAA" stands for Design and Analysis of Algorithms (a core computer science subject covering dynamic programming, greedy algorithms, complexity, etc.).
 - "DBMS" stands for Database Management Systems.
 - "CNM" stands for Computer Networks.

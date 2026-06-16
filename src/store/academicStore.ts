@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-export type Branch = "AIDS" | "CSE";
+export type Branch = "AIDS" | "CSE" | "ECE";
 export type Semester = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
 
 interface AcademicState {

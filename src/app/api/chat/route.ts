@@ -104,7 +104,7 @@ export async function POST(req: Request) {
   const systemPrompt = `You are the Academic OS AI, a high-performance tutor for university students.
   
 STUDENT IDENTITY:
-- Program: ${branch} ${branch === 'AIDS' ? '(Artificial Intelligence & Data Science)' : ''}
+- Program: ${branch} ${branch === 'AIDS' ? '(Artificial Intelligence & Data Science)' : branch === 'ECE' ? '(Electronics & Communication Engineering)' : ''}
 - Year/Semester: ${semester}
 - Current Subjects: ${subjectList}
 

@@ -90,6 +90,25 @@ const COURSE_DATA: Record<string, BranchData> = {
       {id:'ai_aies',name:'AI & Expert Sys.',credits:2}, 
       {id:'ai_daa',name:'DAA',credits:3}
     ]
+  },
+  'ECE': { 
+    name: 'Electronics & Communication (ECE)', 
+    totalCredits: 22,
+    completed: [
+      {id:'ece_acal',name:'Analog Circuits Lab',credits:1}, 
+      {id:'ece_csfll',name:'Control Systems Lab',credits:1}, 
+      {id:'ece_mal',name:'Microcontroller Lab',credits:1}, 
+      {id:'ece_ue3',name:'UE-III',credits:3}, 
+      {id:'ece_cog',name:'Cognitive Skills',credits:1}, 
+      {id:'ece_ruip',name:'Rural Immersion',credits:1}, 
+      {id:'ece_iks',name:'IKS',credits:2}
+    ],
+    finals: [
+      {id:'ece_aca',name:'Analog Circuits & App.',credits:3}, 
+      {id:'ece_cos',name:'Communication Systems',credits:3}, 
+      {id:'ece_csfl',name:'Control Systems & Fuzzy Logic',credits:3}, 
+      {id:'ece_ma',name:'Microcontroller App.',credits:3}
+    ]
   }
 };
 
@@ -389,7 +408,7 @@ export default function GPAClient() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-px bg-border/60 rounded-xl overflow-hidden border border-border/70 shadow-sm">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-px bg-border/60 rounded-xl overflow-hidden border border-border/70 shadow-sm">
             {Object.entries(COURSE_DATA).map(([key, data]) => (
               <ScaleButton
                 key={key}

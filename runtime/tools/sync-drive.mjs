@@ -79,19 +79,20 @@ async function syncDrive() {
     const liveResourceIds = new Set();
 
     for (const file of files) {
-      // Expected path: Semester_Branch/Category/Subject/File
+      // Expected path: [optional_branch_parent/]Semester_Branch/Category/Subject/File
       const parts = file.path.split("/");
       if (parts.length < 1) continue;
 
-      const semBranchFolder = parts[0];
-      const semMatch = semBranchFolder.match(/Sem_(\d+)_(\w+)/i);
+      const semIndex = parts.findIndex((p) => p.match(/Sem_(\d+)_(\w+)/i));
 
-      if (!semMatch) {
+      if (semIndex === -1) {
         console.log(`  ⚠️  Skipping non-standard path: ${file.path}`);
         stats.skipped++;
         continue;
       }
 
+      const semBranchFolder = parts[semIndex];
+      const semMatch = semBranchFolder.match(/Sem_(\d+)_(\w+)/i);
       const semester = parseInt(semMatch[1]);
       const branch = semMatch[2].toUpperCase();
 
@@ -101,9 +102,9 @@ async function syncDrive() {
       // Syllabus special case
       if (fileName.toLowerCase().includes("syllabus")) {
         subjectName = "Syllabus";
-      } else if (parts.length >= 4) {
-        subjectName = parts[2];
-      } else if (parts.length === 3) {
+      } else if (parts.length >= semIndex + 4) {
+        subjectName = parts[semIndex + 2];
+      } else if (parts.length === semIndex + 3) {
         subjectName = "General";
       }
 
@@ -136,8 +137,8 @@ async function syncDrive() {
       const resourceRef = db.collection("resources").doc(resourceId);
 
       let category = "other";
-      if (parts.length >= 2) {
-        const catSegment = parts[1].toLowerCase();
+      if (parts.length >= semIndex + 2) {
+        const catSegment = parts[semIndex + 1].toLowerCase();
         if (catSegment.includes("notes")) category = "notes";
         else if (
           catSegment.includes("ppt") ||

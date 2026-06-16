@@ -167,6 +167,38 @@ function getModulesForSubject(name: string) {
       { title: 'Application Layer & Security', desc: 'DNS, HTTP, FTP, SMTP, cryptography basics, SSL/TLS, and network security protocols.' }
     ];
   }
+  if (upper.includes('ANALOG CIRCUITS') || upper === 'ACA') {
+    return [
+      { title: 'Unit I: MOSFET Characteristics & DC Analysis', desc: 'MOSFET DC analysis, biasing circuits, and load line configuration.' },
+      { title: 'Unit II: Amplifiers & Feedback Systems', desc: 'MOSFET AC analysis, differential amplifiers, and feedback topologies.' },
+      { title: 'Unit III: Operational Amplifiers (Op-Amps)', desc: 'Linear and non-linear Op-Amp applications, summing amplifiers, and frequency response.' },
+      { title: 'Unit IV: Data Converters (DAC & ADC)', desc: 'Weighted binary DAC, R-2R ladder, Flash ADC, and Successive Approximation Register (SAR) ADC.' }
+    ];
+  }
+  if (upper.includes('COMMUNICATION SYSTEMS') || upper === 'COS') {
+    return [
+      { title: 'Unit I: Amplitude Modulation (AM)', desc: 'Double sideband, single sideband, vestigial sideband transmission, and AM demodulators.' },
+      { title: 'Unit II: Angle Modulation (FM & PM)', desc: 'Frequency modulation, phase modulation, narrow-band FM, wide-band FM, and demodulation techniques.' },
+      { title: 'Unit III: Random Processes & Noise', desc: 'Probability theory, random variables, stationary processes, power spectral density, and noise in modulation.' },
+      { title: 'Unit IV: Pulse & Digital Modulation', desc: 'Sampling theorem, PAM, PWM, PPM, and introduction to digital encoding schemes.' }
+    ];
+  }
+  if (upper.includes('CONTROL SYSTEMS') || upper === 'CSFL') {
+    return [
+      { title: 'Unit I: Control Systems & Modeling', desc: 'Mathematical modeling of physical systems, transfer functions, and block diagram reduction.' },
+      { title: 'Unit II: Time Domain Analysis & Stability', desc: 'Transient and steady-state response, Routh-Hurwitz stability criterion, and Root Locus techniques.' },
+      { title: 'Unit III: Frequency Domain Analysis', desc: 'Bode plots, Nyquist stability criterion, polar plots, and design of compensators.' },
+      { title: 'Unit IV: Fuzzy Logic Controllers', desc: 'Fuzzy sets, membership functions, fuzzification, fuzzy rules, defuzzification, and controller applications.' }
+    ];
+  }
+  if (upper.includes('MICROCONTROLLER') || upper === 'MA') {
+    return [
+      { title: 'Unit I: 8051 Microcontroller Architecture', desc: 'Pin diagram, internal memory organization, register banks, SFRs, and addressing modes.' },
+      { title: 'Unit II: Programming & Instruction Set', desc: 'Assembly language programming, data transfer, arithmetic and logical instructions, and I/O programming.' },
+      { title: 'Unit III: Hardware & Peripheral Interfacing', desc: 'Interfacing displays (LCD, 7-Segment), keyboards, ADCs/DACs, and DC/Stepper motors.' },
+      { title: 'Unit IV: Timers, Interrupts & Serial Communication', desc: 'Timer/Counter programming, external interrupts, serial port programming, and RS-232 standards.' }
+    ];
+  }
   return [
     { title: 'Unit I: Core Principles & Theoretical Foundations', desc: 'Fundamental definitions, historical context, underlying mathematical models, and primary architectural concepts.' },
     { title: 'Unit II: Operational Workflows & System Mechanisms', desc: 'Detailed structural breakdown, core operational workflows, intermediate theorems, and standard analytical methodologies.' },
