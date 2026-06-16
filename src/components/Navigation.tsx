@@ -314,8 +314,10 @@ function NavigationInner() {
     pathname.startsWith("/resources");
 
   const renderNavLink = useCallback((link: NavLinkItem) => {
-    const params = new URLSearchParams(searchParamsRef.current.toString());
-    const finalHref = `${link.href}?${params.toString()}`;
+    const currentParams = searchParamsRef.current;
+    const bParam = currentParams.get("branch") || "AIDS";
+    const sParam = currentParams.get("semester") || "4";
+    const finalHref = `${link.href}?branch=${bParam}&semester=${sParam}`;
     const active = isActive(link.href);
     return (
       <Link

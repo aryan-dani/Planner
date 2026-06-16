@@ -3,6 +3,7 @@
 import { useMemo, useState, useEffect } from 'react';
 import { SubjectItem, ResourceItem } from '@/lib/dataFetcher';
 import { useAcademicStore } from '@/store/academicStore';
+import { cleanResourceTitle } from '@/lib/titleUtils';
 import { 
   BookMarked, 
   Layers, 
@@ -594,13 +595,13 @@ export default function SyllabusClient({ subjects, branch, semester, syllabusUrl
                 {/* Subject Header */}
                 <div
                   onClick={() => setExpandedSubject(isExpanded ? null : subject.id)}
-                  className="p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-5 cursor-pointer hover:bg-surface/30 transition-colors"
+                  className="p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-5 cursor-pointer transition-colors"
                 >
                   <div className="flex items-center gap-4 min-w-0">
-                    <div className={`w-12 h-12 flex items-center justify-center shrink-0 border border-border rounded-xl transition-colors ${
+                    <div className={`w-12 h-12 flex items-center justify-center shrink-0 border rounded-xl transition-all duration-300 ${
                       isExpanded 
-                        ? 'bg-foreground text-background shadow-sm' 
-                        : 'bg-surface text-foreground'
+                        ? 'bg-foreground border-foreground text-background shadow-md scale-105' 
+                        : 'bg-surface/80 border-border text-foreground group-hover:border-foreground/45 group-hover:bg-card'
                     }`}>
                       <SubjectIcon className="w-6 h-6" />
                     </div>
@@ -610,7 +611,7 @@ export default function SyllabusClient({ subjects, branch, semester, syllabusUrl
                         <h2 className="text-lg font-bold text-foreground tracking-tight truncate max-w-[280px] sm:max-w-md">
                           {subject.name}
                         </h2>
-                        <span className="text-[10px] font-mono font-bold text-primary bg-primary/10 border border-primary/20 px-2 py-0.5 rounded-lg shrink-0">
+                        <span className="text-[10px] font-mono font-bold text-foreground bg-foreground/10 border border-foreground/20 px-2.5 py-0.5 rounded-lg shrink-0">
                           {subject.code}
                         </span>
                         <span className="text-[10px] font-bold text-muted-foreground bg-surface border border-border px-2 py-0.5 rounded-lg shrink-0">
@@ -639,27 +640,30 @@ export default function SyllabusClient({ subjects, branch, semester, syllabusUrl
                             cy="18"
                             r="15.915"
                             className="stroke-surface"
-                            strokeWidth="3.5"
+                            strokeWidth="4"
                             fill="none"
                           />
                           <circle
                             cx="18"
                             cy="18"
                             r="15.915"
-                            className="stroke-primary transition-all duration-500"
-                            strokeWidth="3.5"
+                            className="stroke-foreground transition-all duration-500"
+                            strokeWidth="4"
                             strokeDasharray={`${subPercentage}, 100`}
                             strokeLinecap="round"
                             fill="none"
+                            style={{
+                              filter: subPercentage > 0 ? 'drop-shadow(0 0 3px rgb(var(--foreground) / 0.2))' : 'none'
+                            }}
                           />
                         </svg>
                         {subPercentage === 100 && (
-                          <Check className="w-4 h-4 text-primary absolute" />
+                          <Check className="w-4 h-4 text-foreground absolute stroke-[3]" />
                         )}
                       </div>
                     </div>
 
-                    <div className="w-9 h-9 rounded-xl bg-surface border border-border flex items-center justify-center text-muted-foreground hover:text-foreground transition-all shrink-0">
+                    <div className="w-9 h-9 rounded-xl bg-surface border border-border flex items-center justify-center text-muted-foreground group-hover:text-foreground transition-all shrink-0">
                       {isExpanded ? <ChevronUp className="w-4.5 h-4.5" /> : <ChevronDown className="w-4.5 h-4.5" />}
                     </div>
                   </div>
@@ -677,7 +681,7 @@ export default function SyllabusClient({ subjects, branch, semester, syllabusUrl
                     >
                       <div className="p-6 space-y-4">
                         <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">
-                          <BookOpen className="w-3.5 h-3.5 text-primary" />
+                          <BookOpen className="w-3.5 h-3.5 text-foreground" />
                           Curriculum Units
                         </div>
 
@@ -691,12 +695,12 @@ export default function SyllabusClient({ subjects, branch, semester, syllabusUrl
                             return (
                               <div
                                 key={modIdx}
-                                className={`flex flex-col p-5 rounded-2xl border transition-all relative overflow-hidden group ${
+                                className={`flex flex-col p-5 rounded-2xl border transition-all duration-300 relative overflow-hidden ${
                                   isDone
-                                    ? 'bg-foreground/5 border-foreground/20 text-foreground shadow-xs'
+                                    ? 'bg-foreground/[0.02] dark:bg-foreground/[0.03] border-foreground/35 text-foreground shadow-xs'
                                     : isInProgress
-                                    ? 'bg-surface border-border-strong text-muted-hover shadow-3xs'
-                                    : 'bg-card border-border/80 hover:border-border-strong hover:scale-[1.005] hover:shadow-xs text-foreground'
+                                    ? 'bg-foreground/[0.01] dark:bg-foreground/[0.015] border-foreground/60 text-foreground shadow-3xs'
+                                    : 'bg-card border-border/85 hover:border-foreground/35 hover:scale-[1.005] hover:shadow-sm text-foreground'
                                 }`}
                               >
                                 <div className="flex items-start gap-4 z-10">
@@ -710,18 +714,18 @@ export default function SyllabusClient({ subjects, branch, semester, syllabusUrl
                                         : 'in-progress';
                                       updateModuleStatus(subject.id, modIdx, next);
                                     }}
-                                    className={`w-6 h-6 rounded-lg border flex items-center justify-center shrink-0 mt-0.5 transition-all ${
+                                    className={`w-6 h-6 rounded-lg border flex items-center justify-center shrink-0 mt-0.5 hover:scale-110 active:scale-90 transition-all duration-200 ${
                                       isDone 
-                                        ? 'bg-foreground border-foreground text-background shadow-xs' 
+                                        ? 'bg-foreground border-foreground text-background shadow-sm' 
                                         : isInProgress
-                                        ? 'bg-foreground/70 border-foreground/70 text-background shadow-xs'
-                                        : 'bg-surface border-border hover:border-border-strong text-transparent'
+                                        ? 'bg-foreground/75 border-foreground/75 text-background shadow-xs'
+                                        : 'bg-surface border-border hover:border-foreground/40 text-transparent'
                                     }`}
                                   >
                                     {isDone ? (
-                                      <Check className="w-4 h-4 stroke-[3]" />
+                                      <Check className="w-3.5 h-3.5 stroke-[3.5]" />
                                     ) : isInProgress ? (
-                                      <span className="text-[10px] font-black leading-none">-</span>
+                                      <span className="text-[11px] font-black leading-none">-</span>
                                     ) : null}
                                   </button>
 
@@ -738,20 +742,22 @@ export default function SyllabusClient({ subjects, branch, semester, syllabusUrl
                                 {/* Study resources pill cards */}
                                 {matches.length > 0 && (
                                   <div 
-                                    className="mt-4 flex flex-wrap gap-2 items-center pl-10 z-10" 
+                                    className="mt-4 flex flex-wrap gap-2.5 items-center pl-10 z-10" 
                                     onClick={(e) => e.stopPropagation()}
                                   >
-                                    <span className="text-[9px] text-muted-foreground font-bold uppercase tracking-wider">Vault Files:</span>
+                                    <span className="text-[9px] text-muted-foreground font-extrabold uppercase tracking-widest">Vault Files:</span>
                                     {matches.map(file => (
                                       <a
                                         key={file.id}
                                         href={file.file_url}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="inline-flex items-center gap-1.5 text-xs font-semibold bg-surface hover:bg-surface-hover hover:border-border-strong border border-border/80 px-2.5 py-1 rounded-xl text-foreground transition-all shadow-3xs"
+                                        className="inline-flex items-center gap-1.5 text-xs font-bold bg-surface/50 hover:bg-surface hover:border-foreground/30 border border-border/80 px-3 py-1.5 rounded-xl text-foreground transition-all shadow-3xs hover:-translate-y-0.5"
                                       >
-                                        <FileText className="w-3.5 h-3.5 text-primary" />
-                                        <span className="truncate max-w-[140px] font-bold">{file.title}</span>
+                                        <FileText className="w-3.5 h-3.5 text-foreground/70" />
+                                        <span className="truncate max-w-[150px]" title={file.title}>
+                                          {cleanResourceTitle(file.title)}
+                                        </span>
                                       </a>
                                     ))}
                                   </div>
@@ -792,31 +798,31 @@ export default function SyllabusClient({ subjects, branch, semester, syllabusUrl
                                         setScheduleTitle(`Study: ${subject.name} - ${mod.title}`);
                                         setPlannerModalOpen(true);
                                       }}
-                                      className="inline-flex items-center gap-1.5 text-xs font-bold text-muted-foreground hover:text-primary bg-surface hover:bg-surface-hover border border-border hover:border-primary/30 px-3.5 py-2 rounded-xl transition-all shadow-3xs"
+                                      className="inline-flex items-center gap-1.5 text-xs font-bold text-muted-foreground hover:text-foreground bg-surface hover:bg-surface-hover border border-border hover:border-foreground/30 px-3 py-1.5 rounded-xl transition-all shadow-3xs hover:-translate-y-0.5 active:scale-95"
                                       title="Schedule in Planner"
                                     >
-                                      <Calendar className="w-3.5 h-3.5 text-primary shrink-0" />
+                                      <Calendar className="w-3.5 h-3.5 text-foreground/80 shrink-0" />
                                       Schedule
                                     </button>
                                     <a
                                       href={`/ask?tab=chat&prompt=${encodeURIComponent(`Create a detailed study guide explaining this syllabus topic: "${subject.name} - ${mod.title}". Focus on: ${mod.desc}`)}`}
-                                      className="inline-flex items-center gap-1.5 text-xs font-bold text-muted-foreground hover:text-primary bg-surface hover:bg-surface-hover border border-border hover:border-primary/30 px-3.5 py-2 rounded-xl transition-all shadow-3xs"
+                                      className="inline-flex items-center gap-1.5 text-xs font-bold text-muted-foreground hover:text-foreground bg-surface hover:bg-surface-hover border border-border hover:border-foreground/30 px-3 py-1.5 rounded-xl transition-all shadow-3xs hover:-translate-y-0.5 active:scale-95"
                                     >
-                                      <Brain className="w-3.5 h-3.5 text-primary shrink-0" />
+                                      <Brain className="w-3.5 h-3.5 text-foreground/80 shrink-0" />
                                       Guide
                                     </a>
                                     <a
                                       href={`/ask?tab=flashcards&topic=${encodeURIComponent(`${subject.name} - ${mod.title}`)}&auto=true`}
-                                      className="inline-flex items-center gap-1.5 text-xs font-bold text-muted-foreground hover:text-primary bg-surface hover:bg-surface-hover border border-border hover:border-primary/30 px-3.5 py-2 rounded-xl transition-all shadow-3xs"
+                                      className="inline-flex items-center gap-1.5 text-xs font-bold text-muted-foreground hover:text-foreground bg-surface hover:bg-surface-hover border border-border hover:border-foreground/30 px-3 py-1.5 rounded-xl transition-all shadow-3xs hover:-translate-y-0.5 active:scale-95"
                                     >
-                                      <Layers className="w-3.5 h-3.5 text-primary shrink-0" />
+                                      <Layers className="w-3.5 h-3.5 text-foreground/80 shrink-0" />
                                       Cards
                                     </a>
                                     <a
                                       href={`/ask?tab=quiz&topic=${encodeURIComponent(`${subject.name} - ${mod.title}`)}&auto=true`}
-                                      className="inline-flex items-center gap-1.5 text-xs font-bold text-muted-foreground hover:text-primary bg-surface hover:bg-surface-hover border border-border hover:border-primary/30 px-3.5 py-2 rounded-xl transition-all shadow-3xs"
+                                      className="inline-flex items-center gap-1.5 text-xs font-bold text-muted-foreground hover:text-foreground bg-surface hover:bg-surface-hover border border-border hover:border-foreground/30 px-3 py-1.5 rounded-xl transition-all shadow-3xs hover:-translate-y-0.5 active:scale-95"
                                     >
-                                      <HelpCircle className="w-3.5 h-3.5 text-primary shrink-0" />
+                                      <HelpCircle className="w-3.5 h-3.5 text-foreground/80 shrink-0" />
                                       Quiz
                                     </a>
                                   </div>
@@ -831,10 +837,10 @@ export default function SyllabusClient({ subjects, branch, semester, syllabusUrl
                           <span className="text-xs text-muted-foreground italic font-medium">Click any unit block to log completion progress.</span>
                           <a
                             href={`/ask?topic=${encodeURIComponent(subject.name)}`}
-                            className="inline-flex items-center gap-1 text-xs font-bold text-primary hover:underline hover:gap-1.5 transition-all"
+                            className="inline-flex items-center gap-1 text-xs font-bold text-foreground hover:underline hover:gap-1.5 transition-all"
                           >
                             Query AI on Subject
-                            <ChevronRight className="w-4.5 h-4.5" />
+                            <ChevronRight className="w-4.5 h-4.5 text-foreground" />
                           </a>
                         </div>
                       </div>

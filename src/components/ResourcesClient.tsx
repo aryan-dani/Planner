@@ -22,6 +22,7 @@ import ResourceViewer from "./ResourceViewer";
 import SummaryModal from "./SummaryModal";
 import ResourceCard from "./resources/ResourceCard";
 import ResourceSection from "./resources/ResourceSection";
+import { cleanResourceTitle } from "@/lib/titleUtils";
 
 interface ResourcesClientProps {
   initialResources: ResourceItem[];
@@ -443,8 +444,8 @@ export default function ResourcesClient({
                                 <span className="text-[10px] font-medium text-muted bg-surface border border-border px-2 py-0.5 rounded-md">
                                   {result.subject_name}
                                 </span>
-                                <h4 className="text-sm font-medium text-foreground mt-2 mb-2 line-clamp-1 group-hover:text-primary transition-colors">
-                                  {result.title}
+                                <h4 className="text-sm font-medium text-foreground mt-2 mb-2 line-clamp-1 group-hover:text-primary transition-colors" title={result.title}>
+                                  {cleanResourceTitle(result.title)}
                                 </h4>
                                 <div
                                   className="border-l-2 border-border-strong pl-3 text-xs text-muted leading-relaxed font-mono line-clamp-3"
@@ -504,7 +505,7 @@ export default function ResourcesClient({
       {summarizingResource && (
         <SummaryModal
           resourceId={summarizingResource.id}
-          resourceTitle={summarizingResource.title}
+          resourceTitle={cleanResourceTitle(summarizingResource.title)}
           onClose={() => setSummarizingResource(null)}
         />
       )}

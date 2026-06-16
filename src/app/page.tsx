@@ -114,9 +114,12 @@ export default function Home() {
     <div className="flex-1 w-full flex flex-col relative overflow-hidden page-fade-in">
       {/* Subtle Dot Grid Pattern */}
       <div className="absolute inset-0 bg-[linear-gradient(to_right,rgb(var(--foreground)/0.08)_1px,transparent_1px),linear-gradient(to_bottom,rgb(var(--foreground)/0.08)_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_50%,#000_70%,transparent_100%)] pointer-events-none -z-20" />
+      
+      {/* Ambient Premium background glows */}
+      <div className="absolute top-[-10%] left-[-20%] w-[500px] h-[500px] rounded-full bg-indigo-500/10 blur-[130px] pointer-events-none -z-10 dark:bg-indigo-500/5 animate-pulse" style={{ animationDuration: '8s' }} />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] rounded-full bg-violet-500/10 blur-[130px] pointer-events-none -z-10 dark:bg-violet-500/5 animate-pulse" style={{ animationDuration: '12s' }} />
+      
       <div className="noise-overlay" />
-
-
 
       {/* Hero */}
       <section className="w-full max-w-7xl mx-auto px-6 pt-28 pb-36 flex flex-col items-center justify-center text-center relative min-h-[82vh]">
@@ -205,7 +208,7 @@ export default function Home() {
       </section>
 
       {/* Stats Strip */}
-      <section className="w-full border-t border-border bg-surface/5 py-12">
+      <section className="w-full border-t border-border bg-surface/5 py-14">
         <div className="max-w-7xl mx-auto px-6 grid grid-cols-2 md:grid-cols-4 gap-6">
           {[
             { label: "Subjects", value: "10+" },
@@ -213,11 +216,12 @@ export default function Home() {
             { label: "Semesters", value: "8" },
             { label: "Branches", value: "2" },
           ].map(({ label, value }) => (
-            <div key={label} className="bg-card border border-border/60 p-5 rounded-2xl shadow-xs hover:border-border-strong/30 transition-all text-center">
-              <p className="text-3xl font-black text-foreground tracking-tight">
+            <div key={label} className="bg-card/50 backdrop-blur-md border border-border/50 p-6 rounded-2xl shadow-xs hover:border-foreground/15 hover:shadow-md hover:-translate-y-1 transition-all duration-300 text-center relative overflow-hidden group">
+              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgb(var(--foreground)/0.03),transparent_70%)] opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+              <p className="text-4xl font-black text-foreground tracking-tight">
                 <StatsCounter value={value} />
               </p>
-              <p className="text-xs font-bold uppercase tracking-wider text-muted mt-1">{label}</p>
+              <p className="text-[10px] font-extrabold uppercase tracking-widest text-muted mt-2">{label}</p>
             </div>
           ))}
         </div>

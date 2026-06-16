@@ -13,6 +13,7 @@ import {
 import { ResourceItem } from "@/lib/dataFetcher";
 import { getFileExtension, getDriveFileId } from "@/lib/fileUtils";
 import { motion } from "framer-motion";
+import { cleanResourceTitle } from "@/lib/titleUtils";
 
 interface ResourceViewerProps {
   resource: ResourceItem;
@@ -188,8 +189,8 @@ export default function ResourceViewer({
           <FileIcon className="h-5 w-5 text-foreground" />
         </div>
         <div className="min-w-0">
-          <h2 id="viewer-title" className="truncate text-sm font-bold text-foreground">
-            {resource.title}
+          <h2 id="viewer-title" className="truncate text-sm font-bold text-foreground" title={resource.title}>
+            {cleanResourceTitle(resource.title)}
           </h2>
           <div className="flex items-center gap-2 mt-0.5">
             <p className="text-[10px] uppercase font-semibold tracking-wide text-muted">

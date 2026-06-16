@@ -47,7 +47,7 @@ function highlightMatch(text: string, query: string) {
             {part}
           </mark>
         ) : (
-          part
+          <span key={i}>{part}</span>
         )
       )}
     </span>

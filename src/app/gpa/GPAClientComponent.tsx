@@ -408,20 +408,24 @@ export default function GPAClient() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-px bg-border/60 rounded-xl overflow-hidden border border-border/70 shadow-sm">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {Object.entries(COURSE_DATA).map(([key, data]) => (
               <ScaleButton
                 key={key}
                 onClick={() => setSelectedBranch(key)}
-                className="group relative bg-card p-8 hover:bg-surface/50 transition-all text-left w-full h-full"
+                className="group relative resource-card-hover rounded-2xl bg-card p-8 text-left w-full h-full border border-border transition-all duration-300 flex flex-col justify-between overflow-hidden"
               >
-                <div className="w-12 h-12 bg-surface border border-border rounded-xl flex items-center justify-center mb-6 transition-transform shadow-xs">
-                  <GraduationCap className="w-6 h-6 text-foreground" />
+                {/* Glow highlight */}
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(var(--foreground),0.02),transparent_70%)] opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+                <div>
+                  <div className="w-12 h-12 bg-surface border border-border rounded-xl flex items-center justify-center mb-6 transition-all duration-300 group-hover:bg-foreground group-hover:text-background group-hover:border-foreground shadow-xs">
+                    <GraduationCap className="w-6 h-6 text-foreground group-hover:text-background transition-colors" />
+                  </div>
+                  <h3 className="text-xl font-extrabold text-foreground mb-2 leading-tight tracking-tight">
+                    {data.name}
+                  </h3>
                 </div>
-                <h3 className="text-xl font-bold text-foreground mb-2 leading-tight">
-                  {data.name}
-                </h3>
-                <p className="text-muted text-xs font-bold uppercase tracking-widest">
+                <p className="text-muted text-[10px] font-extrabold uppercase tracking-widest mt-6">
                   {data.totalCredits} Credits Total
                 </p>
               </ScaleButton>

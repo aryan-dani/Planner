@@ -571,6 +571,14 @@ export default function AskClient() {
     }
   }, [searchParams]);
   
+  // Auto-resize textarea when input state updates (handles both programmatic set and typing)
+  useEffect(() => {
+    if (inputRef.current) {
+      inputRef.current.style.height = 'auto';
+      inputRef.current.style.height = Math.min(inputRef.current.scrollHeight, 160) + 'px';
+    }
+  }, [input]);
+
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInput(e.target.value);
   };
@@ -792,28 +800,28 @@ export default function AskClient() {
           
           {/* Chat Sessions Collapsible Sidebar */}
           {sidebarOpen && (
-            <div className="w-64 border-r border-border bg-surface flex flex-col shrink-0">
+            <div className="w-64 border-r border-border bg-background-subtle/80 backdrop-blur-md flex flex-col shrink-0">
               <div className="p-3.5 border-b border-border flex items-center justify-between">
                 <span className="text-[10px] uppercase font-bold text-muted tracking-wider">Chat History</span>
                 <button
                   onClick={handleNewChat}
-                  className="p-1 rounded-lg border border-border bg-card hover:bg-surface-hover text-muted hover:text-foreground transition-all flex items-center justify-center"
+                  className="p-1 rounded-lg border border-border bg-card hover:bg-surface-hover text-muted hover:text-foreground transition-all flex items-center justify-center hover:scale-105 active:scale-95"
                   title="New Chat"
                 >
                   <Plus className="w-3.5 h-3.5" />
                 </button>
               </div>
-              <div className="flex-1 overflow-y-auto p-2 space-y-1">
+              <div className="flex-1 overflow-y-auto p-2 space-y-1 custom-scrollbar">
                 {sessions.map(s => {
                   const isActive = s.id === activeSessionId;
                   return (
                     <div
                       key={s.id}
                       onClick={() => handleSwitchSession(s.id)}
-                      className={`group/session w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold cursor-pointer transition-colors border ${
+                      className={`group/session w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold cursor-pointer transition-all duration-250 border ${
                         isActive 
-                          ? 'bg-surface border-border-strong text-foreground shadow-sm' 
-                          : 'border-transparent text-muted hover:text-foreground hover:bg-surface-hover'
+                          ? 'bg-card border-border-strong text-foreground shadow-sm translate-x-0.5' 
+                          : 'border-transparent text-muted hover:text-foreground hover:bg-card hover:border-border hover:shadow-2xs'
                       }`}
                     >
                       <span className="truncate max-w-[130px]">{s.title}</span>
@@ -943,7 +951,7 @@ export default function AskClient() {
                   {messages.map((m: any) => (
                     <div
                       key={m.id}
-                      className={`flex gap-3 group ${m.role === 'user' ? 'justify-end' : ''}`}
+                      className={`flex gap-3 group/msg ${m.role === 'user' ? 'justify-end' : ''}`}
                     >
                       {m.role === 'assistant' && (
                         <div className="w-7 h-7 rounded-lg bg-surface border border-border flex items-center justify-center shrink-0 mt-0.5 shadow-xs">
@@ -955,7 +963,7 @@ export default function AskClient() {
                         className={`max-w-[85%] ${
                           m.role === 'user'
                             ? 'bg-foreground text-background rounded-2xl rounded-br-md px-4 py-2.5 shadow-sm'
-                            : 'flex-1 min-w-0'
+                            : 'bg-card border border-border/80 rounded-2xl px-5 py-4 shadow-xs relative overflow-hidden group/bubble'
                         }`}
                       >
                         {m.role === 'user' ? (
@@ -966,7 +974,7 @@ export default function AskClient() {
                               content={getMessageContent(m)} 
                               showCursor={isLoading && m.id === messages[messages.length - 1].id}
                             />
-                            <div className="mt-2">
+                            <div className="absolute top-0 right-0 opacity-0 group-hover/bubble:opacity-100 transition-opacity">
                               <CopyButton text={getMessageContent(m)} />
                             </div>
                           </div>
@@ -1028,8 +1036,8 @@ export default function AskClient() {
                 </div>
               )}
 
-              <form id="chat-form" onSubmit={handleSubmit} className="relative group">
-                <div className="flex items-end gap-2 bg-surface border border-border p-2 rounded-2xl transition-all shadow-sm focus-within:border-border-strong">
+              <form id="chat-form" onSubmit={handleSubmit} className="relative group max-w-4xl mx-auto w-full">
+                <div className="flex items-end gap-2 bg-card border border-border p-2 rounded-2xl transition-all duration-300 shadow-md focus-within:border-border-strong focus-within:shadow-lg focus-within:ring-4 focus-within:ring-foreground/[0.02]">
                   <textarea
                     ref={inputRef}
                     value={input || ''}
@@ -1038,19 +1046,22 @@ export default function AskClient() {
                     onInput={handleTextareaInput}
                     placeholder={selectedResourceId !== 'all' ? "Ask about this document..." : "Type your question..."}
                     rows={1}
-                    className="flex-1 bg-transparent border-0 rounded-xl pl-3 pr-2 py-2.5 text-sm outline-none text-foreground placeholder:text-muted resize-none overflow-hidden font-medium"
+                    className="flex-1 bg-transparent border-0 rounded-xl pl-3 pr-2 py-2.5 text-sm outline-none text-foreground placeholder:text-muted/70 resize-none overflow-y-auto font-bold custom-scrollbar"
                     disabled={isLoading}
                   />
                   
-                  <div className="flex items-center gap-1.5 flex-shrink-0 mb-0.5 mr-0.5">
+                  <div className="flex items-center gap-2 flex-shrink-0 mb-0.5 mr-0.5">
+                    <span className="hidden sm:inline-flex items-center text-[9px] font-mono text-muted border border-border px-1.5 py-0.5 rounded-md bg-surface select-none">
+                      Enter
+                    </span>
                     {/* Speech to Text Microphone button */}
                     <button
                       type="button"
                       onClick={toggleListening}
-                      className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all ${
+                      className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-205 hover:scale-105 active:scale-95 ${
                         isListening
-                          ? 'bg-red-500 text-white animate-pulse'
-                          : 'bg-card text-muted hover:text-foreground border border-border hover:bg-surface'
+                          ? 'bg-red-500 text-white animate-pulse shadow-md shadow-red-500/25'
+                          : 'bg-surface text-muted hover:text-foreground border border-border hover:bg-surface-hover'
                       }`}
                       title={isListening ? "Listening... click to stop" : "Start Voice Query"}
                     >
@@ -1060,7 +1071,7 @@ export default function AskClient() {
                     <button
                       type="submit"
                       disabled={isLoading || !(input || '').trim()}
-                      className="w-9 h-9 rounded-xl bg-foreground text-background flex items-center justify-center disabled:opacity-30 hover:opacity-90 transition-all shadow-sm"
+                      className="w-9 h-9 rounded-xl bg-foreground text-background flex items-center justify-center disabled:opacity-30 hover:scale-105 active:scale-95 transition-all duration-200 shadow-sm"
                     >
                       {isLoading ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
@@ -1150,28 +1161,61 @@ export default function AskClient() {
                 </span>
               </div>
 
-              {/* The Flashcard */}
-              <div
+              {/* The 3D Flashcard */}
+              <div 
+                className="w-full min-h-[300px] cursor-pointer"
+                style={{ perspective: '1000px' }}
                 onClick={() => setIsFlipped(!isFlipped)}
-                className="w-full min-h-[280px] bg-card border border-border p-8 flex flex-col items-center justify-center text-center cursor-pointer hover:shadow-card-hover rounded-2xl hover:-translate-y-1 transition-all shadow-card relative group select-none"
               >
-                <div className="absolute top-4 right-4 text-[10px] font-bold uppercase tracking-wider text-muted bg-surface px-2.5 py-1 rounded-md border border-border shadow-xs">
-                  {isFlipped ? 'Answer' : 'Question'}
+                <div 
+                  className="w-full h-full min-h-[300px] relative transition-transform duration-500 ease-out"
+                  style={{ 
+                    transformStyle: 'preserve-3d',
+                    transform: isFlipped ? 'rotateY(180deg)' : 'none'
+                  }}
+                >
+                  {/* Front Side (Question) */}
+                  <div 
+                    className="absolute inset-0 w-full h-full p-8 flex flex-col items-center justify-center text-center rounded-2xl border border-border bg-card shadow-md group select-none hover:border-foreground/35 transition-colors"
+                    style={{ backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden' }}
+                  >
+                    <div className="absolute top-4 right-4 text-[10px] font-extrabold uppercase tracking-widest text-muted bg-surface px-2.5 py-1 rounded-md border border-border shadow-xs">
+                      Question
+                    </div>
+                    <div className="absolute top-4 left-4 text-muted group-hover:text-foreground transition-colors">
+                      <RotateCw className="w-4 h-4" />
+                    </div>
+                    <p className="text-lg sm:text-xl font-bold text-foreground max-w-md leading-snug px-4">
+                      {flashcards[currentCardIndex].question}
+                    </p>
+                    <p className="absolute bottom-4 text-[11px] font-bold text-muted uppercase tracking-wider">
+                      Click to reveal answer
+                    </p>
+                  </div>
+
+                  {/* Back Side (Answer) */}
+                  <div 
+                    className="absolute inset-0 w-full h-full p-8 flex flex-col items-center justify-center text-center rounded-2xl border border-border bg-card shadow-md group select-none hover:border-foreground/35 transition-colors"
+                    style={{ 
+                      backfaceVisibility: 'hidden', 
+                      WebkitBackfaceVisibility: 'hidden',
+                      transform: 'rotateY(180deg)' 
+                    }}
+                  >
+                    <div className="absolute top-4 right-4 text-[10px] font-extrabold uppercase tracking-widest text-muted bg-surface px-2.5 py-1 rounded-md border border-border shadow-xs">
+                      Answer
+                    </div>
+                    <div className="absolute top-4 left-4 text-muted group-hover:text-foreground transition-colors">
+                      <RotateCw className="w-4 h-4" />
+                    </div>
+                    <p className="text-lg sm:text-xl font-bold text-foreground max-w-md leading-snug px-4">
+                      {flashcards[currentCardIndex].answer}
+                    </p>
+                    <p className="absolute bottom-4 text-[11px] font-bold text-muted uppercase tracking-wider">
+                      Click to view question
+                    </p>
+                  </div>
                 </div>
-
-                <div className="absolute top-4 left-4 text-muted group-hover:text-foreground transition-colors">
-                  <RotateCw className="w-4 h-4" />
-                </div>
-
-                <p className="text-lg sm:text-xl font-bold text-foreground max-w-md leading-snug px-4">
-                  {isFlipped 
-                    ? flashcards[currentCardIndex].answer 
-                    : flashcards[currentCardIndex].question}
-                </p>
-
-                <p className="absolute bottom-4 text-[11px] font-medium text-muted">
-                  Click anywhere to flip
-                </p>
               </div>
 
               {/* Controls */}

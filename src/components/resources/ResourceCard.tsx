@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { ResourceItem, ResourceCategory } from "@/lib/dataFetcher";
 import { getFileExtension } from "@/lib/fileUtils";
+import { cleanResourceTitle } from "@/lib/titleUtils";
 
 interface ResourceCardProps {
   item: ResourceItem;
@@ -33,12 +34,7 @@ const CATEGORY_CONFIG: Record<
   other: { color: "var(--accent-other)", label: "Other" },
 };
 
-function isNewResource(createdAt: string): boolean {
-  const created = new Date(createdAt);
-  const sevenDaysAgo = new Date();
-  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-  return created > sevenDaysAgo;
-}
+// Removed isNewResource utility
 
 export default function ResourceCard({
   item,
@@ -53,7 +49,7 @@ export default function ResourceCard({
   const opensInViewer = isPdf || isPpt || isDrivePreview;
   const isSummarizable = isPdf || isPpt || isDoc || isDrivePreview;
   const isSolved = item.category === "solved-question-bank";
-  const isNew = isNewResource(item.created_at);
+  const isNew = false;
   const config = CATEGORY_CONFIG[item.category] || CATEGORY_CONFIG["other"];
 
   const handleOpen = () => {
@@ -75,15 +71,21 @@ export default function ResourceCard({
   return (
     <div
       onClick={handleOpen}
-      className="group bg-card p-4 flex flex-col gap-3 text-left cursor-pointer relative overflow-hidden h-full hover:bg-surface/50 transition-colors"
+      className="group bg-card hover:bg-surface/50 p-5 flex flex-col gap-3.5 text-left cursor-pointer relative overflow-hidden h-full transition-colors duration-200"
       style={{
         ["--card-accent" as any]: config.color,
       }}
     >
       {/* Accent top border */}
       <div
-        className="absolute top-0 left-0 right-0 h-[2px] opacity-60 group-hover:opacity-100 transition-opacity"
+        className="absolute top-0 left-0 right-0 h-[3px] opacity-60 group-hover:opacity-100 transition-opacity"
         style={{ background: "var(--card-accent)" }}
+      />
+      
+      {/* Premium accent radial background glow */}
+      <div 
+        className="absolute inset-0 opacity-0 group-hover:opacity-[0.025] transition-opacity duration-300 pointer-events-none"
+        style={{ background: `radial-gradient(circle at center, var(--card-accent) 0%, transparent 80%)` }}
       />
 
       <div className="flex items-start justify-between gap-2">
@@ -107,17 +109,12 @@ export default function ResourceCard({
             className="text-sm font-medium text-foreground line-clamp-2 leading-snug"
             title={item.title}
           >
-            {item.title}
+            {cleanResourceTitle(item.title)}
           </p>
         </div>
 
         {/* Badges */}
         <div className="flex items-center gap-1.5 flex-shrink-0">
-          {isNew && (
-            <span className="inline-flex items-center text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md bg-primary/10 text-primary border border-primary/20">
-              New
-            </span>
-          )}
           {isSolved && (
             <span
               className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md"

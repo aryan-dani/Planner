@@ -241,10 +241,10 @@ export default function TimerClient() {
   }, [mode]);
 
   const strokeColorClass = useMemo(() => {
-    if (mode === 'work') return isActive ? 'stroke-foreground [filter:drop-shadow(0_0_8px_rgb(var(--foreground)/0.3))]' : 'stroke-foreground';
-    if (mode === 'break') return isActive ? 'stroke-muted-hover [filter:drop-shadow(0_0_8px_rgb(var(--muted)/0.3))]' : 'stroke-foreground';
-    return isActive ? 'stroke-muted [filter:drop-shadow(0_0_8px_rgb(var(--muted)/0.3))]' : 'stroke-foreground';
-  }, [mode, isActive]);
+    if (mode === 'work') return 'stroke-foreground';
+    if (mode === 'break') return 'stroke-muted-hover';
+    return 'stroke-muted';
+  }, [mode]);
 
   // Load focus history
   useEffect(() => {
@@ -470,24 +470,50 @@ export default function TimerClient() {
           </FadeIn>
         )}
 
-        <FadeIn delay={0.1} className="relative mb-8">
+        <FadeIn delay={0.1} className="relative mb-8 flex items-center justify-center">
+          {/* Active timer breathing ambient glow */}
+          {isActive && (
+            <motion.div 
+              animate={{ 
+                scale: [1, 1.12, 1],
+                opacity: [0.12, 0.22, 0.12]
+              }}
+              transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+              className="absolute w-72 h-72 rounded-full bg-foreground/[0.02] dark:bg-foreground/[0.04] blur-2xl -z-10 pointer-events-none"
+            />
+          )}
+
           {/* Progress Circle */}
-          <div className="relative w-64 h-64 sm:w-72 sm:h-72">
+          <div className="relative w-64 h-64 sm:w-72 sm:h-72 flex items-center justify-center">
+            {isActive && (
+              <motion.div
+                initial={{ scale: 0.96, opacity: 0.1 }}
+                animate={{ scale: 1.04, opacity: [0.1, 0.18, 0.1] }}
+                transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                className="absolute inset-[-12px] rounded-full border border-foreground/[0.06] pointer-events-none"
+              />
+            )}
+
             <svg className="w-full h-full -rotate-90">
               <circle
                 cx="50%"
                 cy="50%"
-                r="48%"
-                className="fill-none stroke-surface-hover stroke-[6]"
+                r="46%"
+                className="fill-none stroke-surface-hover stroke-[8]"
               />
               <circle
                 cx="50%"
                 cy="50%"
-                r="48%"
-                className={`fill-none stroke-[6] transition-all duration-1000 ease-linear ${strokeColorClass}`}
-                strokeDasharray="301.6%"
-                strokeDashoffset={`${301.6 - (301.6 * progress) / 100}%`}
+                r="46%"
+                className={`fill-none stroke-[8] transition-all duration-1000 ease-linear ${strokeColorClass}`}
+                strokeDasharray="289%"
+                strokeDashoffset={`${289 - (289 * progress) / 100}%`}
                 strokeLinecap="round"
+                style={{
+                  filter: isActive 
+                    ? `drop-shadow(0 0 6px ${mode === 'work' ? 'rgb(var(--foreground) / 0.22)' : 'rgb(var(--muted) / 0.22)'})` 
+                    : 'none'
+                }}
               />
             </svg>
             
@@ -513,10 +539,10 @@ export default function TimerClient() {
 
         {/* Controls */}
         <FadeIn delay={0.2} className="w-full space-y-6 flex flex-col items-center">
-          <div className="flex items-center justify-center gap-4">
+          <div className="flex items-center justify-center gap-5">
             <button
               onClick={resetTimer}
-              className="w-12 h-12 rounded-xl border border-border bg-card flex items-center justify-center text-foreground hover:scale-105 active:scale-95 shadow-sm transition-all duration-200"
+              className="w-12 h-12 rounded-xl border border-border bg-card flex items-center justify-center text-foreground hover:border-foreground/35 hover:scale-110 active:scale-90 shadow-2xs transition-all duration-200"
               title="Reset"
               aria-label="Reset timer"
             >
@@ -525,19 +551,19 @@ export default function TimerClient() {
             
             <button
               onClick={toggleTimer}
-              className={`w-28 h-12 rounded-xl border border-transparent flex items-center justify-center shadow-md hover:scale-105 active:scale-95 transition-all duration-200 ${
+              className={`w-32 h-12 rounded-xl border flex items-center justify-center hover:scale-105 active:scale-95 transition-all duration-200 font-extrabold text-xs uppercase tracking-widest shadow-sm ${
                 isActive 
-                  ? 'bg-destructive text-destructive-foreground hover:bg-destructive/95' 
-                  : 'bg-primary text-primary-foreground hover:bg-primary/95'
+                  ? 'bg-card border-foreground/30 text-foreground hover:bg-surface' 
+                  : 'bg-foreground border-foreground text-background hover:opacity-95'
               }`}
               aria-label={isActive ? "Pause timer" : "Start timer"}
             >
-              {isActive ? <span className="font-bold text-xs uppercase tracking-widest">Pause</span> : <span className="font-bold text-xs uppercase tracking-widest">Start</span>}
+              {isActive ? 'Pause' : 'Start'}
             </button>
 
             <button
               onClick={() => setShowSettings(true)}
-              className="w-12 h-12 rounded-xl border border-border bg-card flex items-center justify-center text-foreground hover:scale-105 active:scale-95 shadow-sm transition-all duration-200"
+              className="w-12 h-12 rounded-xl border border-border bg-card flex items-center justify-center text-foreground hover:border-foreground/35 hover:scale-110 active:scale-90 shadow-2xs transition-all duration-200"
               title="Settings"
               aria-label="Timer settings"
             >
@@ -547,10 +573,10 @@ export default function TimerClient() {
 
           <button
             onClick={isFocusMode ? exitFocusMode : enterFocusMode}
-            className={`px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all duration-300 border flex items-center gap-2 shadow-xs ${
+            className={`px-5 py-2.5 rounded-xl text-[10px] font-extrabold uppercase tracking-widest transition-all duration-300 border flex items-center gap-2 shadow-3xs hover:scale-[1.02] active:scale-[0.98] ${
               isFocusMode
-                ? 'bg-destructive/10 border-destructive/30 text-destructive hover:bg-destructive/20'
-                : 'bg-surface/50 border-border text-foreground hover:bg-surface-hover/80 hover:border-border-strong'
+                ? 'bg-foreground/[0.04] border-foreground/35 text-foreground hover:bg-foreground/[0.08]'
+                : 'bg-surface/50 border-border text-foreground hover:bg-surface-hover hover:border-foreground/30'
             }`}
           >
             <ShieldCheck className="w-4 h-4" />
@@ -618,7 +644,7 @@ export default function TimerClient() {
             {soundscape !== 'none' && (
               <button 
                 onClick={toggleSoundscapePlay}
-                className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 bg-surface border border-border rounded-md text-foreground hover:bg-surface-hover transition-all"
+                className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 bg-surface border border-border rounded-lg text-foreground hover:bg-surface-hover hover:border-foreground/35 transition-all shadow-3xs"
                 aria-label={soundPlaying ? 'Pause soundscape' : 'Play soundscape'}
               >
                 {soundPlaying ? 'Pause' : 'Play'}
@@ -638,14 +664,22 @@ export default function TimerClient() {
                 <button
                   key={s}
                   onClick={() => setSoundscape(soundscape === s ? 'none' : s)}
-                  className={`flex items-center justify-center gap-1.5 px-2 py-2.5 rounded-xl text-xs font-semibold transition-all border ${
+                  className={`flex items-center justify-center gap-2 px-2 py-2.5 rounded-xl text-xs font-semibold transition-all border ${
                     soundscape === s
-                      ? 'bg-primary text-primary-foreground border-transparent font-bold shadow-xs'
+                      ? 'bg-foreground border-foreground text-background shadow-xs hover:opacity-90 font-bold'
                       : 'bg-surface/40 border-border text-muted hover:border-border-strong hover:text-foreground'
                   }`}
                   aria-label={`Select ${s} soundscape`}
                 >
-                  <Icon className="w-3.5 h-3.5 shrink-0" />
+                  {soundscape === s && soundPlaying ? (
+                    <div className="flex items-end gap-0.5 h-3.5 w-3.5 shrink-0 mb-0.5">
+                      <span className="w-0.5 bg-background animate-pulse h-2 block" style={{ animationDelay: '0.1s', animationDuration: '0.6s' }} />
+                      <span className="w-0.5 bg-background animate-pulse h-3 block" style={{ animationDelay: '0.3s', animationDuration: '0.8s' }} />
+                      <span className="w-0.5 bg-background animate-pulse h-1.5 block" style={{ animationDelay: '0.2s', animationDuration: '0.5s' }} />
+                    </div>
+                  ) : (
+                    <Icon className="w-3.5 h-3.5 shrink-0" />
+                  )}
                   <span>{label}</span>
                 </button>
               );
