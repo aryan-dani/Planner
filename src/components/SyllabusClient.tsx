@@ -140,6 +140,46 @@ function getModulesForSubject(name: string) {
       { title: 'Advanced Data Structures', desc: 'Tries, B-Trees, Fibonacci heaps, and disjoint set data structures.' }
     ];
   }
+  if (upper.includes('DIGITAL ELECTRONICS') || upper === 'DE') {
+    return [
+      { title: 'Unit I: Number Systems & Boolean Algebra', desc: 'Binary codes, Boolean minimization using K-maps and Quine-McCluskey method, and logic gate implementation.' },
+      { title: 'Unit II: Combinational Logic Design', desc: 'Design of adders, subtractors, code converters, decoders, encoders, multiplexers, and demultiplexers.' },
+      { title: 'Unit III: Sequential Logic Design', desc: 'Latches, flip-flops (SR, JK, D, T), excitation tables, shift registers, and design of synchronous/asynchronous counters.' },
+      { title: 'Unit IV: Finite State Machines & Logic Families', desc: 'State diagrams, state reduction, Mealy and Moore models, and TTL/CMOS logic families.' }
+    ];
+  }
+  if (upper.includes('SIGNALS') || upper === 'SS') {
+    return [
+      { title: 'Unit I: Classification of Signals & Systems', desc: 'Continuous-time and discrete-time signals, operations on signals, and system properties (causality, linearity, time-invariance).' },
+      { title: 'Unit II: Linear Time-Invariant Systems & Convolution', desc: 'Impulse response, convolution integral and sum, and LTI system properties in time domain.' },
+      { title: 'Unit III: Fourier Analysis', desc: 'Continuous-Time Fourier Transform (CTFT), Discrete-Time Fourier Transform (DTFT), properties, and frequency response.' },
+      { title: 'Unit IV: Laplace & Z-Transforms', desc: 'Laplace transform, Z-transform, Region of Convergence (ROC), properties, inverse transforms, and LTI system analysis.' }
+    ];
+  }
+  if (upper.includes('ELECTRONIC DEVICES') || upper === 'EDC') {
+    return [
+      { title: 'Unit I: Semiconductor Diodes & Special Devices', desc: 'PN junction diode, Zener diode, Varactor diode, BJT structure/characteristics, and MOSFET structure/characteristics.' },
+      { title: 'Unit II: MOSFET DC Analysis & Biasing', desc: 'MOSFET DC biasing configurations, load lines, and bias stability analysis.' },
+      { title: 'Unit III: MOSFET AC Analysis & Amplifiers', desc: 'MOSFET small-signal model, Common Source, Common Gate, and Common Drain amplifier configurations.' },
+      { title: 'Unit IV: Feedback Amplifiers & Oscillators', desc: 'Feedback concepts, feedback topologies (voltage/current, series/shunt), and Barkhausen criterion for oscillators.' }
+    ];
+  }
+  if (upper.includes('CALCULUS') || upper === 'CSM') {
+    return [
+      { title: 'Unit I: Vector Calculus', desc: 'Gradient, divergence, curl, line integrals, surface integrals, volume integrals, and Green’s, Stokes’, and Divergence theorems.' },
+      { title: 'Unit II: Multiple Integrals & Applications', desc: 'Double and triple integrals, change of variables, jacobians, area, and volume calculation.' },
+      { title: 'Unit III: Probability Distributions', desc: 'Random variables, probability mass/density functions, mathematical expectation, Binomial, Poisson, and Normal distributions.' },
+      { title: 'Unit IV: Statistical Inference & Hypothesis Testing', desc: 'Sampling distributions, central limit theorem, testing of hypothesis (Z-test, t-test, Chi-square test), and confidence intervals.' }
+    ];
+  }
+  if (upper.includes('PEACE') || upper.includes('SCIENCE, RELIGION') || upper === 'SRS' || upper === 'PEACE') {
+    return [
+      { title: 'Unit I: Science and Spirituality Integration', desc: 'Methods of science vs methods of religion, philosophy of science, and synthesis of science and spirituality.' },
+      { title: 'Unit II: Human Values & Ethics', desc: 'Truth, right conduct, peace, love, non-violence, professional ethics, and moral development models.' },
+      { title: 'Unit III: World Religions & Spiritual Philosophies', desc: 'Core teachings of major world religions, common values, and inter-religious dialogue for peace.' },
+      { title: 'Unit IV: Mind, Consciousness & Well-being', desc: 'Stress management, mindfulness, meditation, spiritual practices, and holistic health and wellness.' }
+    ];
+  }
   if (upper.includes('DATABASE') || upper.includes('DBMS')) {
     return [
       { title: 'Introduction & ER Modeling', desc: 'Database architecture, entity-relationship diagrams, relational models, and schema design.' },

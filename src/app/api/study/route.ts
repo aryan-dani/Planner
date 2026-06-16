@@ -77,6 +77,12 @@ CRITICAL DOMAIN NOTICE:
 - The student is in an Engineering / Computer Science / AI & Data Science degree.
 - "AIDS" stands for Artificial Intelligence & Data Science Engineering. It is NOT related to medical science or viral diseases.
 - "ECE" stands for Electronics & Communication Engineering.
+- "CSM" stands for Calculus and Statistical Methods.
+- "DE" stands for Digital Electronics.
+- "SS" stands for Signals and Systems.
+- "EDC" stands for Electronic Devices & Circuits.
+- "DSA" stands for Data Structures and Algorithms.
+- "PBL" stands for Project-Based Learning.
 - "DAA" stands for Design and Analysis of Algorithms (a core computer science subject covering dynamic programming, greedy algorithms, complexity, etc.).
 - "DBMS" stands for Database Management Systems.
 - "CNM" stands for Computer Networks.
