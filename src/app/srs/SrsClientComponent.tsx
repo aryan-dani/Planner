@@ -689,7 +689,7 @@ export default function SrsClient() {
             
             {/* Create Card Form */}
             <div className="lg:col-span-1">
-              <div className="bg-card border border-border p-5 space-y-4 rounded-2xl shadow-sm sticky top-24">
+              <div className="bg-card border border-border p-5 space-y-4 rounded-2xl shadow-sm lg:sticky lg:top-24 z-10">
                 <h3 className="text-xs font-bold uppercase tracking-wider text-foreground flex items-center gap-1.5">
                   <PlusCircle className="w-4.5 h-4.5" />
                   Add New Card

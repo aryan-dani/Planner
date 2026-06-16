@@ -26,11 +26,14 @@ import {
   Download,
   Timer,
   GraduationCap,
+  User,
+  Settings,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAcademicStore, Branch, Semester } from "../store/academicStore";
-import { auth } from "@/lib/firebase";
+import { auth, db } from "@/lib/firebase";
 import { signOut, onIdTokenChanged } from "firebase/auth";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 
 export interface NavLinkItem {
   href: string;
@@ -207,7 +210,11 @@ function NavigationInner() {
 
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
-  const [user, setUser] = useState<{ email: string | undefined } | null>(null);
+  const [user, setUser] = useState<{
+    email: string | undefined;
+    displayName: string | undefined;
+    photoURL: string | undefined;
+  } | null>(null);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [isMac, setIsMac] = useState(true);
   const userMenuRef = useRef<HTMLDivElement>(null);
@@ -240,7 +247,47 @@ function NavigationInner() {
   useEffect(() => {
     const unsubscribe = onIdTokenChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        setUser({ email: firebaseUser.email || undefined });
+        setUser({
+          email: firebaseUser.email || undefined,
+          displayName: firebaseUser.displayName || undefined,
+          photoURL: firebaseUser.photoURL || undefined,
+        });
+
+        // Load and sync user profile/preferences in Firestore
+        const userPrefsRef = doc(db, "users", firebaseUser.uid);
+        getDoc(userPrefsRef)
+          .then(async (snap) => {
+            const isGoogle = firebaseUser.providerData.some((p) => p.providerId === "google.com");
+            const isGithub = firebaseUser.providerData.some((p) => p.providerId === "github.com");
+            const provider = isGoogle ? "Google Account" : isGithub ? "GitHub Account" : "Email Account";
+
+            const updateData: any = {
+              uid: firebaseUser.uid,
+              email: firebaseUser.email || "",
+              photoURL: firebaseUser.photoURL || "",
+              displayName: firebaseUser.displayName || firebaseUser.email?.split("@")[0] || "Student",
+              provider: provider,
+              lastActive: new Date().toISOString(),
+            };
+
+            if (snap.exists()) {
+              const data = snap.data();
+              if (data.branch) setBranch(data.branch as Branch);
+              if (data.semester) setSemester(data.semester as Semester);
+              
+              // Sync / update basic user metadata on login
+              await setDoc(userPrefsRef, updateData, { merge: true });
+            } else {
+              // New user entry: set default branch/semester
+              updateData.branch = branch;
+              updateData.semester = semester;
+              await setDoc(userPrefsRef, updateData, { merge: true });
+            }
+          })
+          .catch((err) => {
+            console.error("Error syncing user preferences:", err);
+          });
+
         try {
           const token = await firebaseUser.getIdToken();
           document.cookie = `__session=${token}; path=/; max-age=3600; SameSite=Lax; Secure`;
@@ -565,16 +612,25 @@ function NavigationInner() {
                 title={isCollapsed ? user.email : undefined}
               >
                 <div className="flex items-center gap-2 min-w-0">
-                  <div className="w-7 h-7 rounded-lg bg-foreground text-background flex items-center justify-center text-xs font-extrabold uppercase shadow-xs shrink-0">
-                    {user.email?.[0] ?? "?"}
+                  <div className="w-7 h-7 rounded-lg bg-foreground text-background flex items-center justify-center text-xs font-extrabold uppercase shadow-xs shrink-0 overflow-hidden">
+                    {user.photoURL ? (
+                      <img
+                        src={user.photoURL}
+                        alt="Avatar"
+                        className="w-full h-full object-cover"
+                        referrerPolicy="no-referrer"
+                      />
+                    ) : (
+                      user.displayName?.[0] ?? user.email?.[0] ?? "?"
+                    )}
                   </div>
                   {!isCollapsed && (
                     <div className="text-left min-w-0">
                       <p className="text-xs font-bold text-foreground truncate">
-                        {user.email?.split("@")[0]}
+                        {user.displayName ?? user.email?.split("@")[0] ?? "User"}
                       </p>
                       <p className="text-[10px] text-muted truncate">
-                        {user.email}
+                        {user.email ?? "No email shared"}
                       </p>
                     </div>
                   )}
@@ -589,8 +645,16 @@ function NavigationInner() {
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: -4, scale: 0.95 }}
                     transition={{ duration: 0.1, ease: "easeOut" }}
-                    className={`absolute bottom-full mb-2 bg-card border border-border rounded-xl shadow-popover overflow-hidden z-50 p-1 ${isCollapsed ? "w-28 left-1/2 -translate-x-1/2" : "left-0 right-0"}`}
+                    className={`absolute bottom-full mb-2 bg-card border border-border rounded-xl shadow-popover overflow-hidden z-50 p-1 flex flex-col gap-0.5 ${isCollapsed ? "w-32 left-1/2 -translate-x-1/2" : "left-0 right-0"}`}
                   >
+                    <Link
+                      href="/profile"
+                      onClick={() => setUserMenuOpen(false)}
+                      className="flex items-center gap-2.5 w-full px-2.5 py-2 text-xs font-semibold text-foreground hover:bg-surface rounded-lg transition-colors text-left"
+                    >
+                      <User className="w-3.5 h-3.5 shrink-0 text-muted" />
+                      <span>Profile Settings</span>
+                    </Link>
                     <button
                       onClick={handleLogout}
                       className="flex items-center gap-2.5 w-full px-2.5 py-2 text-xs font-semibold text-destructive hover:bg-destructive/10 rounded-lg transition-colors text-left"
@@ -647,8 +711,8 @@ function NavigationInner() {
     <>
       {/* 1. Desktop Sticky Sidebar with collapse transition */}
       <aside
-        className={`h-screen sticky top-0 left-0 border-r border-border bg-background z-40 hidden md:flex flex-col shrink-0 transition-all duration-400 ease-[cubic-bezier(0.2,0.8,0.2,1)] ${
-          collapsed ? "w-16" : "w-64"
+        className={`h-screen sticky top-0 left-0 border-r border-border bg-background z-40 hidden md:flex flex-col shrink-0 transition-all duration-400 ease-[cubic-bezier(0.2,0.8,0.2,1)] w-0 overflow-hidden md:overflow-visible ${
+          collapsed ? "md:w-16" : "md:w-64"
         }`}
         style={{ willChange: "width" }}
       >

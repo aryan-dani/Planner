@@ -259,7 +259,7 @@ export default function ResourcesClient({
       ) : (
         <div className="flex flex-col md:flex-row gap-8 items-start">
           {/* ── Sidebar: Subject list ── */}
-          <div className="w-full md:w-60 shrink-0 border border-border rounded-xl bg-card shadow-sm overflow-hidden sticky top-24">
+          <div className="w-full md:w-60 shrink-0 border border-border rounded-xl bg-card shadow-sm overflow-hidden md:sticky md:top-24 z-10">
             <div className="px-4 py-3 border-b border-border bg-surface/50 flex items-center justify-between">
               <h3 className="font-semibold text-xs uppercase tracking-wider text-muted">
                 Subjects

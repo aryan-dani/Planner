@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { auth } from "@/lib/firebase";
+import { auth, db } from "@/lib/firebase";
 import { onAuthStateChanged, signOut } from "firebase/auth";
+import { collection, getDocs } from "firebase/firestore";
 import {
   Trash,
   Edit2,
@@ -19,6 +20,7 @@ import {
   ExternalLink,
   HardDrive,
   ShieldAlert,
+  Users,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -45,7 +47,37 @@ function getErrorMessage(error: unknown): string {
 
 export default function AdminClient() {
   const router = useRouter();
-  const [tab, setTab] = useState<"drive" | "manage">("drive");
+  const [tab, setTab] = useState<"drive" | "manage" | "users">("drive");
+  const [usersList, setUsersList] = useState<any[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+
+  const fetchUsers = useCallback(async () => {
+    setLoadingUsers(true);
+    try {
+      const snap = await getDocs(collection(db, "users"));
+      const list: any[] = [];
+      snap.forEach((doc) => {
+        list.push({ id: doc.id, ...doc.data() });
+      });
+      // Sort users by last active
+      list.sort((a, b) => {
+        const dateA = a.updatedAt || a.lastActive || "";
+        const dateB = b.updatedAt || b.lastActive || "";
+        return new Date(dateB).getTime() - new Date(dateA).getTime();
+      });
+      setUsersList(list);
+    } catch (err) {
+      console.error("Error fetching users:", err);
+    } finally {
+      setLoadingUsers(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (tab === "users") {
+      fetchUsers();
+    }
+  }, [tab, fetchUsers]);
   const [branch, setBranch] = useState("AIDS");
   const [semester, setSemester] = useState("4");
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -267,6 +299,18 @@ export default function AdminClient() {
               <HardDrive className="w-4 h-4" />
               File Manager
             </button>
+
+            <button
+              onClick={() => setTab("users")}
+              className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors bg-card ${
+                tab === "users"
+                  ? "bg-surface text-foreground font-semibold"
+                  : "text-muted hover:text-foreground hover:bg-surface/50"
+              }`}
+            >
+              <Users className="w-4 h-4" />
+              User Manager
+            </button>
           </nav>
         </div>
 
@@ -314,14 +358,23 @@ export default function AdminClient() {
             <button
               onClick={() => setTab("drive")}
               className={`p-2 bg-card ${tab === "drive" ? "bg-surface text-foreground" : "text-muted hover:bg-surface/50"} `}
+              title="Drive Manager"
             >
               <CloudFog className="w-4.5 h-4.5" />
             </button>
             <button
               onClick={() => setTab("manage")}
               className={`p-2 bg-card ${tab === "manage" ? "bg-surface text-foreground" : "text-muted hover:bg-surface/50"} `}
+              title="File Manager"
             >
               <HardDrive className="w-4.5 h-4.5" />
+            </button>
+            <button
+              onClick={() => setTab("users")}
+              className={`p-2 bg-card ${tab === "users" ? "bg-surface text-foreground" : "text-muted hover:bg-surface/50"} `}
+              title="User Manager"
+            >
+              <Users className="w-4.5 h-4.5" />
             </button>
           </div>
         </div>
@@ -557,6 +610,90 @@ export default function AdminClient() {
                       </div>
                     );
                   })}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {tab === "users" && (
+          <div className="flex flex-col gap-6 animate-fade-in flex-1 min-h-0">
+            <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden flex flex-col flex-1 min-h-0">
+              <div className="p-6 border-b border-border bg-surface/30 flex items-center justify-between shrink-0">
+                <div className="flex items-center gap-2">
+                  <Users className="w-5 h-5 text-foreground" />
+                  <h3 className="text-base font-bold text-foreground">Registered Users</h3>
+                </div>
+                <button
+                  onClick={fetchUsers}
+                  disabled={loadingUsers}
+                  className="px-4 py-2 border border-border bg-surface hover:bg-surface-hover text-foreground text-xs font-semibold rounded-xl transition-all"
+                >
+                  {loadingUsers ? "Refreshing..." : "Refresh"}
+                </button>
+              </div>
+
+              {loadingUsers ? (
+                <div className="p-12 flex items-center justify-center flex-1">
+                  <Loader2 className="w-5 h-5 animate-spin text-muted" />
+                </div>
+              ) : usersList.length === 0 ? (
+                <div className="p-12 text-center text-muted text-sm flex-1">
+                  No registered users found in the database.
+                </div>
+              ) : (
+                <div className="overflow-x-auto flex-1">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr className="bg-surface/40 border-b border-border text-muted font-bold uppercase tracking-wider select-none">
+                        <th className="p-4 font-semibold">User</th>
+                        <th className="p-4 font-semibold">Email</th>
+                        <th className="p-4 font-semibold">Provider</th>
+                        <th className="p-4 font-semibold">Preferences</th>
+                        <th className="p-4 font-semibold">Last Active</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border bg-card">
+                      {usersList.map((usr) => (
+                        <tr key={usr.id} className="hover:bg-surface/10 transition-colors">
+                          <td className="p-4 flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-lg bg-foreground text-background flex items-center justify-center text-xs font-black overflow-hidden border border-border/60 shrink-0">
+                              {usr.photoURL ? (
+                                <img
+                                  src={usr.photoURL}
+                                  alt="Avatar"
+                                  className="w-full h-full object-cover"
+                                  referrerPolicy="no-referrer"
+                                />
+                              ) : (
+                                usr.displayName?.[0] ?? usr.email?.[0] ?? "?"
+                              )}
+                            </div>
+                            <span className="font-bold text-foreground">
+                              {usr.displayName || usr.email?.split("@")[0] || "Student"}
+                            </span>
+                          </td>
+                          <td className="p-4 text-muted font-mono">{usr.email || "No email shared"}</td>
+                          <td className="p-4">
+                            <span className="inline-flex items-center text-[9px] font-extrabold uppercase tracking-wide px-2 py-0.5 rounded-full bg-surface/50 border border-border text-muted">
+                              {usr.provider || "Unknown"}
+                            </span>
+                          </td>
+                          <td className="p-4">
+                            <span className="font-bold text-foreground">
+                              {usr.branch || "AIDS"}
+                            </span>
+                            <span className="text-muted ml-1.5 font-medium">
+                              (Sem {usr.semester || 4})
+                            </span>
+                          </td>
+                          <td className="p-4 text-muted font-mono">
+                            {usr.lastActive ? new Date(usr.lastActive).toLocaleString() : "Never"}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               )}
             </div>

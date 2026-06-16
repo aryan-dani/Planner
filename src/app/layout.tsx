@@ -5,7 +5,6 @@ import './globals.css';
 import Navigation from '@/components/Navigation';
 import ConditionalFooter from '@/components/ConditionalFooter';
 import { Providers } from '@/components/Providers';
-import { Toaster } from 'sonner';
 import InstallPrompt from '@/components/pwa/InstallPrompt';
 
 const inter = Inter({
@@ -66,12 +65,6 @@ export default function RootLayout({
               <ConditionalFooter />
             </div>
           </div>
-          <Toaster 
-            position="bottom-right" 
-            toastOptions={{ 
-              className: 'bg-surface border-border text-foreground shadow-popover',
-            }} 
-          />
           <InstallPrompt />
         </Providers>
       </body>

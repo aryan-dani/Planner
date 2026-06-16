@@ -1,10 +1,25 @@
 'use client';
 
-import { ThemeProvider } from 'next-themes';
+import { ThemeProvider, useTheme } from 'next-themes';
 import dynamic from 'next/dynamic';
 import { PWAProvider } from '@/contexts/PWAContext';
+import { Toaster } from 'sonner';
 
 const CommandPalette = dynamic(() => import('./CommandPalette'), { ssr: false });
+
+function ToasterProvider() {
+  const { theme } = useTheme();
+  
+  return (
+    <Toaster
+      theme={theme as 'light' | 'dark' | 'system'}
+      position="bottom-right"
+      toastOptions={{
+        className: 'font-sans',
+      }}
+    />
+  );
+}
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
@@ -18,6 +33,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
       <PWAProvider>
         {children}
         <CommandPalette />
+        <ToasterProvider />
       </PWAProvider>
     </ThemeProvider>
   );
