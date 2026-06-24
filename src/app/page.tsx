@@ -166,7 +166,7 @@ export default function Home() {
             <Link
               key={href}
               href={href}
-              className="group block bg-card hover:bg-surface/50 transition-colors duration-200"
+              className="group block bg-card hover:bg-surface/50 card-premium-hover transition-all duration-300"
             >
               <FadeIn delay={i * 0.07} y={8}>
                 <div className="p-6 h-full flex flex-col gap-6 relative">
@@ -174,7 +174,7 @@ export default function Home() {
                   <div className="absolute left-0 top-3 bottom-3 w-[3px] rounded-r bg-primary scale-y-0 group-hover:scale-y-100 transition-transform duration-300 origin-center" />
  
                   <div className="flex items-start justify-between">
-                    <div className="w-10 h-10 rounded-xl bg-surface/50 border border-border/70 flex items-center justify-center group-hover:bg-primary/10 group-hover:border-primary/20 transition-all duration-300">
+                    <div className="w-10 h-10 rounded-xl bg-surface/50 border border-border/70 flex items-center justify-center group-hover:scale-105 group-hover:bg-primary/10 group-hover:border-primary/20 transition-all duration-300">
                       <Icon className="w-5 h-5 text-foreground transition-colors" />
                     </div>
                     <span className="text-xs font-mono text-muted group-hover:text-foreground/70 transition-colors">
@@ -192,8 +192,8 @@ export default function Home() {
                   </div>
 
                   <div className="flex items-center gap-1.5 text-xs font-bold text-muted group-hover:text-foreground transition-colors">
-                    <span>Open {label}</span>
-                    <ArrowRight className="w-3 h-3 translate-x-0 group-hover:translate-x-1 transition-transform" />
+                    <span className="animated-underline">Open {label}</span>
+                    <ArrowRight className="w-3 h-3 translate-x-0 group-hover:translate-x-1.5 transition-transform duration-300" />
                   </div>
                 </div>
               </FadeIn>
@@ -216,7 +216,7 @@ export default function Home() {
             { label: "Semesters", value: "8" },
             { label: "Branches", value: "2" },
           ].map(({ label, value }) => (
-            <div key={label} className="bg-card/50 backdrop-blur-md border border-border/50 p-6 rounded-2xl shadow-xs hover:border-foreground/15 hover:shadow-md hover:-translate-y-1 transition-all duration-300 text-center relative overflow-hidden group">
+            <div key={label} className="bg-card border border-border/50 card-premium-hover p-6 rounded-2xl shadow-xs text-center relative overflow-hidden group">
               <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgb(var(--foreground)/0.03),transparent_70%)] opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
               <p className="text-4xl font-black text-foreground tracking-tight">
                 <StatsCounter value={value} />

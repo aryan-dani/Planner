@@ -28,6 +28,7 @@ import {
   GraduationCap,
   User,
   Settings,
+  Heart,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAcademicStore, Branch, Semester } from "../store/academicStore";
@@ -62,6 +63,7 @@ const SOCIAL_LINKS: NavLinkItem[] = [
 
 const SYSTEM_LINKS: NavLinkItem[] = [
   { href: "/install", label: "Install App", Icon: Download, desc: "PWA desktop application" },
+  { href: "/support", label: "Support Me", Icon: Heart, desc: "Buy me a coffee or chai!" },
 ];
 
 const BRANCH_OPTIONS = [

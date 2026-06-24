@@ -8,11 +8,10 @@ import * as pdfParse from "pdf-parse";
 const { PDFParse } = pdfParse;
 import * as pdfjs from "pdfjs-dist/legacy/build/pdf.mjs";
 import { pathToFileURL } from "url";
-import { createRequire } from "module";
+import path from "path";
 
 try {
-  const require = createRequire(import.meta.url);
-  const workerPath = require.resolve("pdfjs-dist/legacy/build/pdf.worker.mjs");
+  const workerPath = path.join(process.cwd(), "node_modules", "pdfjs-dist", "legacy", "build", "pdf.worker.mjs");
   pdfjs.GlobalWorkerOptions.workerSrc = pathToFileURL(workerPath).toString();
 } catch (e) {
   console.warn("⚠️ Failed to resolve pdf.worker.mjs path:", e);

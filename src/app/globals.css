@@ -569,4 +569,62 @@ input[type="range"].accent-slider::-moz-range-thumb:hover {
   border-left: 3px solid rgb(var(--destructive)) !important;
 }
 
+/* ── Premium UI Helpers ────────────────────────────────────────────────────────── */
+
+/* High-end input styling with smooth outer border glows */
+.input-premium-focus {
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.input-premium-focus:focus {
+  border-color: rgb(var(--foreground)) !important;
+  box-shadow: 0 0 0 3px rgb(var(--foreground) / 0.08) !important;
+  outline: none !important;
+}
+
+/* Premium gradient action buttons */
+.btn-premium-gradient {
+  background: linear-gradient(135deg, rgb(var(--foreground)) 0%, rgb(var(--primary-hover)) 100%);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 4px 14px 0 rgba(0, 0, 0, 0.08);
+}
+.btn-premium-gradient:hover {
+  opacity: 0.95;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px 0 rgba(0, 0, 0, 0.12);
+}
+.btn-premium-gradient:active {
+  transform: translateY(0);
+}
+
+/* Card lift and clean shadowing on hover */
+.card-premium-hover {
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.card-premium-hover:hover {
+  transform: translateY(-2px);
+  border-color: rgb(var(--border-strong)) !important;
+  box-shadow: 0 10px 25px -10px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Elegant animated underline effect for inline links */
+.animated-underline {
+  position: relative;
+}
+.animated-underline::after {
+  content: '';
+  position: absolute;
+  width: 100%;
+  transform: scaleX(0);
+  height: 1px;
+  bottom: -1px;
+  left: 0;
+  background-color: currentColor;
+  transform-origin: bottom right;
+  transition: transform 0.25s ease-out;
+}
+.group:hover .animated-underline::after {
+  transform: scaleX(1);
+  transform-origin: bottom left;
+}
+
 
