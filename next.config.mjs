@@ -5,7 +5,7 @@ const nextConfig = {
   // Bundle optimization
   bundlePagesRouterDependencies: true,
   reactCompiler: true,
-  // Keep heavy Node-only libs out of the serverless bundle (Drive sync / indexing).
+  // Keep heavy Node-only libs out of the serverless bundle where possible.
   serverExternalPackages: [
     "googleapis",
     "firebase-admin",
@@ -13,22 +13,6 @@ const nextConfig = {
     "pdfjs-dist",
     "officeparser",
   ],
-  // Ensure runtime CLI + deps are present when the webhook spawns node scripts.
-  outputFileTracingIncludes: {
-    "/api/webhooks/storage-sync": [
-      "./runtime/**/*",
-      "./node_modules/googleapis/**/*",
-      "./node_modules/google-auth-library/**/*",
-      "./node_modules/gaxios/**/*",
-      "./node_modules/gcp-metadata/**/*",
-      "./node_modules/gtoken/**/*",
-      "./node_modules/firebase-admin/**/*",
-      "./node_modules/@google-cloud/**/*",
-      "./node_modules/pdf-parse/**/*",
-      "./node_modules/pdfjs-dist/**/*",
-      "./node_modules/officeparser/**/*",
-    ],
-  },
 };
 
 const isDev = process.env.NODE_ENV === 'development';

@@ -1,7 +1,6 @@
 import { NextResponse, after } from "next/server";
 import { revalidateTag } from "next/cache";
-import { spawn } from "child_process";
-import path from "path";
+import syncDrive from "../../../../../runtime/tools/sync-drive.mjs";
 import { adminAuth } from "@/lib/firebaseAdmin";
 
 export const dynamic = "force-dynamic";
@@ -45,36 +44,28 @@ async function isAuthorized(request: Request): Promise<boolean> {
   return false;
 }
 
-/** Run a runtime CLI script outside the Next bundle (avoids pdfjs DOMMatrix crash). */
-function runNodeScript(scriptRelativePath: string, args: string[] = []) {
-  return new Promise<void>((resolve, reject) => {
-    const scriptPath = path.join(process.cwd(), scriptRelativePath);
-    const child = spawn(process.execPath, [scriptPath, ...args], {
-      cwd: process.cwd(),
-      env: process.env,
-      stdio: ["ignore", "pipe", "pipe"],
-    });
+/** Kick GitHub Actions for full sync+index (pdf parsing is too heavy for Vercel). */
+async function triggerGithubSyncWorkflow() {
+  const token = process.env.GH_PAT || process.env.GITHUB_TOKEN;
+  if (!token) return;
 
-    let stderr = "";
-    child.stdout?.on("data", (chunk: Buffer) => {
-      process.stdout.write(chunk);
-    });
-    child.stderr?.on("data", (chunk: Buffer) => {
-      stderr += chunk.toString();
-      process.stderr.write(chunk);
-    });
-    child.on("error", reject);
-    child.on("close", (code) => {
-      if (code === 0) resolve();
-      else {
-        reject(
-          new Error(
-            `${scriptRelativePath} exited with code ${code}${stderr ? `: ${stderr.slice(0, 500)}` : ""}`,
-          ),
-        );
-      }
-    });
-  });
+  const res = await fetch(
+    "https://api.github.com/repos/aryan-dani/Utility/actions/workflows/storage-sync.yml/dispatches",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+      },
+      body: JSON.stringify({ ref: "main" }),
+    },
+  );
+
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`GitHub workflow dispatch failed (${res.status}): ${body}`);
+  }
 }
 
 async function handleSync(request: Request) {
@@ -88,27 +79,36 @@ async function handleSync(request: Request) {
     }
 
     console.log(
-      "🔔 Storage sync webhook triggered. Queuing sync and index pipeline in background...",
+      "🔔 Storage sync webhook triggered. Queuing Drive→Firestore sync...",
     );
 
     after(async () => {
       try {
-        console.log("🚀 Starting background sync...");
-        await runNodeScript("runtime/tools/sync-drive.mjs");
-        console.log("🔍 Starting background index...");
-        await runNodeScript("runtime/index.mjs", ["index"]);
-        console.log("✅ Background sync and index completed successfully.");
+        console.log("🚀 Starting background Drive sync...");
+        await syncDrive();
+        console.log("✅ Drive sync completed.");
         revalidateTag("subjects", "max");
         revalidateTag("resources", "max");
         revalidateTag("syllabus", "max");
+
+        try {
+          await triggerGithubSyncWorkflow();
+          console.log("✅ Triggered GitHub Actions for content indexing.");
+        } catch (err) {
+          console.warn(
+            "⚠️  GitHub indexing dispatch skipped/failed (Drive sync already done):",
+            err,
+          );
+        }
       } catch (err) {
-        console.error("❌ Background pipeline failed:", err);
+        console.error("❌ Background sync failed:", err);
       }
     });
 
     return NextResponse.json({
       success: true,
-      message: "Sync and index queued in background.",
+      message:
+        "Google Drive sync queued. Content indexing runs via GitHub Actions when configured.",
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
