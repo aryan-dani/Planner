@@ -111,14 +111,22 @@ export default function AdminClient() {
     setSyncingDrive(true);
     setMessage("");
     try {
+      const user = auth.currentUser;
+      if (!user) {
+        throw new Error("You must be signed in to sync Drive.");
+      }
+      const idToken = await user.getIdToken();
       const response = await fetch("/api/webhooks/storage-sync", {
         method: "POST",
+        headers: {
+          Authorization: `Bearer ${idToken}`,
+        },
       });
       const text = await response.text();
       let data;
       try {
         data = JSON.parse(text);
-      } catch (e) {
+      } catch {
         throw new Error(
           `Server returned status ${response.status} (Not JSON). Response snippet: ${text.substring(0, 300)}`
         );

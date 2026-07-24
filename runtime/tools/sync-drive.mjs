@@ -6,6 +6,8 @@
 
 import { db } from "../lib/firebase.mjs";
 import crypto from "crypto";
+import path from "path";
+import { pathToFileURL } from "url";
 import { env } from "../lib/env.mjs";
 import { getDrive } from "../lib/drive.mjs";
 
@@ -191,13 +193,17 @@ async function syncDrive() {
       console.log(
         `  🗑️ Deleting ${staleResourceIds.length} stale resources...`,
       );
-      const batch = db.batch();
-      for (const id of staleResourceIds) {
-        batch.delete(db.collection("resources").doc(id));
-        // Also cleanup resource_content
-        batch.delete(db.collection("resource_content").doc(id));
+      // Firestore batch limit is 500 ops; each resource deletes 2 docs
+      const chunkSize = 200;
+      for (let i = 0; i < staleResourceIds.length; i += chunkSize) {
+        const chunk = staleResourceIds.slice(i, i + chunkSize);
+        const batch = db.batch();
+        for (const id of chunk) {
+          batch.delete(db.collection("resources").doc(id));
+          batch.delete(db.collection("resource_content").doc(id));
+        }
+        await batch.commit();
       }
-      await batch.commit();
       stats.deletedResources = staleResourceIds.length;
     }
 
@@ -212,11 +218,15 @@ async function syncDrive() {
 
     if (staleSubjectIds.length > 0) {
       console.log(`  🗑️ Deleting ${staleSubjectIds.length} stale subjects...`);
-      const batch = db.batch();
-      for (const id of staleSubjectIds) {
-        batch.delete(db.collection("subjects").doc(id));
+      const chunkSize = 400;
+      for (let i = 0; i < staleSubjectIds.length; i += chunkSize) {
+        const chunk = staleSubjectIds.slice(i, i + chunkSize);
+        const batch = db.batch();
+        for (const id of chunk) {
+          batch.delete(db.collection("subjects").doc(id));
+        }
+        await batch.commit();
       }
-      await batch.commit();
       stats.deletedSubjects = staleSubjectIds.length;
     }
 
@@ -229,12 +239,19 @@ async function syncDrive() {
   } catch (error) {
     console.error(`\n❌ Sync failed: ${error.message}`);
     if (error.stack) console.error(error.stack);
+    throw error;
   }
 }
 
-// Allow running directly
-if (import.meta.url.endsWith(process.argv[1].replace(/\\/g, "/"))) {
-  syncDrive();
+// Allow running directly (safe when imported by Next.js / other tools)
+const isDirectRun =
+  !!process.argv[1] &&
+  import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href;
+
+if (isDirectRun) {
+  syncDrive()
+    .then(() => process.exit(0))
+    .catch(() => process.exit(1));
 }
 
 export default syncDrive;

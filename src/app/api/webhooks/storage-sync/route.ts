@@ -2,26 +2,54 @@ import { NextResponse, after } from "next/server";
 import { revalidateTag } from "next/cache";
 import syncDrive from "../../../../../runtime/tools/sync-drive.mjs";
 import indexContent from "../../../../../runtime/tools/index-content.mjs";
+import { adminAuth } from "@/lib/firebaseAdmin";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 60; // Allow up to 60s for Vercel timeout
+export const runtime = "nodejs";
+export const maxDuration = 60;
+
+function getAdminEmails(): string[] {
+  return (process.env.NEXT_PUBLIC_ADMIN_EMAILS || "")
+    .split(",")
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+async function isAuthorized(request: Request): Promise<boolean> {
+  const authHeader = request.headers.get("authorization");
+  const cronSecret = process.env.CRON_SECRET;
+  const bearer =
+    authHeader?.startsWith("Bearer ") ? authHeader.slice(7).trim() : null;
+
+  // Vercel Cron / external webhook with shared secret
+  if (cronSecret && bearer && bearer === cronSecret) {
+    return true;
+  }
+
+  // Admin Sync Now: Firebase ID token
+  if (bearer) {
+    try {
+      const decoded = await adminAuth().verifyIdToken(bearer);
+      const email = decoded.email?.toLowerCase();
+      if (email && getAdminEmails().includes(email)) {
+        return true;
+      }
+    } catch {
+      // fall through
+    }
+  }
+
+  // No CRON_SECRET configured → allow (keeps Vercel Cron working on Hobby)
+  if (!cronSecret) {
+    return true;
+  }
+
+  return false;
+}
 
 async function handleSync(request: Request) {
   try {
-    const authHeader = request.headers.get("authorization");
-    const cronSecret = process.env.CRON_SECRET;
-
-    let isAuthorized = false;
-    // If no secrets are set, let it pass (development / local testing)
-    if (!cronSecret) {
-      isAuthorized = true;
-    } else {
-      if (cronSecret && authHeader === `Bearer ${cronSecret}`) {
-        isAuthorized = true;
-      }
-    }
-
-    if (!isAuthorized) {
+    if (!(await isAuthorized(request))) {
       console.warn("⚠️  Webhook unauthorized attempt.");
       return NextResponse.json(
         { success: false, error: "Unauthorized" },
@@ -33,7 +61,6 @@ async function handleSync(request: Request) {
       "🔔 Storage sync webhook triggered. Queuing sync and index pipeline in background...",
     );
 
-    // Run syncDrive and indexContent in the background using Next.js `after`
     after(async () => {
       try {
         console.log("🚀 Starting background sync and index...");
@@ -52,10 +79,11 @@ async function handleSync(request: Request) {
       success: true,
       message: "Sync and index queued in background.",
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
     console.error("❌ Webhook handler failed:", error);
     return NextResponse.json(
-      { success: false, error: error.message || String(error) },
+      { success: false, error: message },
       { status: 500 },
     );
   }

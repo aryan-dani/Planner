@@ -33,10 +33,13 @@ export default async function indexContent() {
   try {
     // 1. Fetch all resources
     const { data: resources } = await select("resources", { limit: 5000 });
-    const supportedExts = [".pdf", ".docx", ".pptx", ".doc", ".ppt"];
+    const supportedExts = [".pdf", ".docx", ".pptx", ".xlsx"];
     const indexable = resources.filter((r) => {
       const url = r.file_url.toLowerCase().split("?")[0];
-      return supportedExts.some((ext) => url.endsWith(ext) || r.title.toLowerCase().endsWith(ext));
+      const title = (r.title || "").toLowerCase();
+      return supportedExts.some(
+        (ext) => url.endsWith(ext) || title.endsWith(ext),
+      );
     });
 
     console.log(`📦 Found ${indexable.length} indexable resources to check.\n`);

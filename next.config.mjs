@@ -5,6 +5,14 @@ const nextConfig = {
   // Bundle optimization
   bundlePagesRouterDependencies: true,
   reactCompiler: true,
+  // Keep heavy Node-only libs out of the serverless bundle (Drive sync / indexing).
+  serverExternalPackages: [
+    "googleapis",
+    "firebase-admin",
+    "pdf-parse",
+    "pdfjs-dist",
+    "officeparser",
+  ],
 };
 
 const isDev = process.env.NODE_ENV === 'development';
