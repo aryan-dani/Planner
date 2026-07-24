@@ -4,6 +4,7 @@
  * Supports PDF, DOCX, PPTX.
  */
 
+import "./dom-polyfill.mjs";
 import * as pdfParse from "pdf-parse";
 const { PDFParse } = pdfParse;
 import * as pdfjs from "pdfjs-dist/legacy/build/pdf.mjs";

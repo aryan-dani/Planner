@@ -1,7 +1,7 @@
 import { NextResponse, after } from "next/server";
 import { revalidateTag } from "next/cache";
-import syncDrive from "../../../../../runtime/tools/sync-drive.mjs";
-import indexContent from "../../../../../runtime/tools/index-content.mjs";
+import { spawn } from "child_process";
+import path from "path";
 import { adminAuth } from "@/lib/firebaseAdmin";
 
 export const dynamic = "force-dynamic";
@@ -21,12 +21,10 @@ async function isAuthorized(request: Request): Promise<boolean> {
   const bearer =
     authHeader?.startsWith("Bearer ") ? authHeader.slice(7).trim() : null;
 
-  // Vercel Cron / external webhook with shared secret
   if (cronSecret && bearer && bearer === cronSecret) {
     return true;
   }
 
-  // Admin Sync Now: Firebase ID token
   if (bearer) {
     try {
       const decoded = await adminAuth().verifyIdToken(bearer);
@@ -39,12 +37,44 @@ async function isAuthorized(request: Request): Promise<boolean> {
     }
   }
 
-  // No CRON_SECRET configured → allow (keeps Vercel Cron working on Hobby)
+  // No CRON_SECRET → allow (keeps Vercel Cron working on Hobby)
   if (!cronSecret) {
     return true;
   }
 
   return false;
+}
+
+/** Run a runtime CLI script outside the Next bundle (avoids pdfjs DOMMatrix crash). */
+function runNodeScript(scriptRelativePath: string, args: string[] = []) {
+  return new Promise<void>((resolve, reject) => {
+    const scriptPath = path.join(process.cwd(), scriptRelativePath);
+    const child = spawn(process.execPath, [scriptPath, ...args], {
+      cwd: process.cwd(),
+      env: process.env,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+
+    let stderr = "";
+    child.stdout?.on("data", (chunk: Buffer) => {
+      process.stdout.write(chunk);
+    });
+    child.stderr?.on("data", (chunk: Buffer) => {
+      stderr += chunk.toString();
+      process.stderr.write(chunk);
+    });
+    child.on("error", reject);
+    child.on("close", (code) => {
+      if (code === 0) resolve();
+      else {
+        reject(
+          new Error(
+            `${scriptRelativePath} exited with code ${code}${stderr ? `: ${stderr.slice(0, 500)}` : ""}`,
+          ),
+        );
+      }
+    });
+  });
 }
 
 async function handleSync(request: Request) {
@@ -63,9 +93,10 @@ async function handleSync(request: Request) {
 
     after(async () => {
       try {
-        console.log("🚀 Starting background sync and index...");
-        await syncDrive();
-        await indexContent();
+        console.log("🚀 Starting background sync...");
+        await runNodeScript("runtime/tools/sync-drive.mjs");
+        console.log("🔍 Starting background index...");
+        await runNodeScript("runtime/index.mjs", ["index"]);
         console.log("✅ Background sync and index completed successfully.");
         revalidateTag("subjects", "max");
         revalidateTag("resources", "max");
