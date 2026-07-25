@@ -12,6 +12,7 @@ import { auth } from '@/lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { logActivity } from '@/components/ActivityHeatmap';
 import { parsePrompt, mergeEntries } from '@/lib/promptParser';
+import { plannerStorageKey } from '@/lib/plannerStorage';
 import { toast } from 'sonner';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -124,10 +125,8 @@ function todayISO() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-const STORAGE_KEY_PREFIX = 'utility_planner_v2_';
-
 function storageKey(month: number, year: number) {
-  return `${STORAGE_KEY_PREFIX}${year}_${month}`;
+  return plannerStorageKey(year, month);
 }
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
@@ -368,9 +367,17 @@ function PromptModal({
     setLoading(true);
     setError(null);
     try {
+      const user = auth.currentUser;
+      if (!user) {
+        throw new Error('Please sign in to use AI plan parsing.');
+      }
+      const idToken = await user.getIdToken();
       const res = await fetch('/api/planner/parse', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${idToken}`,
+        },
         body: JSON.stringify({ prompt: text, month, year }),
       });
       const json = await res.json();

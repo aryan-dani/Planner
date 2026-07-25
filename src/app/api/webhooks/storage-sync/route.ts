@@ -2,16 +2,17 @@ import { NextResponse, after } from "next/server";
 import { revalidateTag } from "next/cache";
 import syncDrive from "../../../../../runtime/tools/sync-drive.mjs";
 import { adminAuth } from "@/lib/firebaseAdmin";
+import { getAdminEmails } from "@/lib/apiAuth";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-function getAdminEmails(): string[] {
-  return (process.env.NEXT_PUBLIC_ADMIN_EMAILS || "")
-    .split(",")
-    .map((e) => e.trim().toLowerCase())
-    .filter(Boolean);
+function isProduction(): boolean {
+  return (
+    process.env.NODE_ENV === "production" ||
+    process.env.VERCEL_ENV === "production"
+  );
 }
 
 async function isAuthorized(request: Request): Promise<boolean> {
@@ -36,7 +37,12 @@ async function isAuthorized(request: Request): Promise<boolean> {
     }
   }
 
-  // No CRON_SECRET → allow (keeps Vercel Cron working on Hobby)
+  // Production: never allow unauthenticated sync (require CRON_SECRET or admin token)
+  if (isProduction()) {
+    return false;
+  }
+
+  // Local/dev only: allow when CRON_SECRET is unset
   if (!cronSecret) {
     return true;
   }

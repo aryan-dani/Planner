@@ -1,9 +1,13 @@
 import { NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebaseAdmin";
+import { isAuthFailure, requireAdmin } from "@/lib/apiAuth";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
+  const auth = await requireAdmin(request);
+  if (isAuthFailure(auth)) return auth;
+
   try {
     const { searchParams } = new URL(request.url);
     const branch = searchParams.get("branch");
@@ -105,6 +109,9 @@ export async function GET(request: Request) {
 }
 
 export async function PATCH(request: Request) {
+  const auth = await requireAdmin(request);
+  if (isAuthFailure(auth)) return auth;
+
   try {
     const body = await request.json();
     const { id, title, subject_id } = body;
@@ -133,6 +140,9 @@ export async function PATCH(request: Request) {
 }
 
 export async function DELETE(request: Request) {
+  const auth = await requireAdmin(request);
+  if (isAuthFailure(auth)) return auth;
+
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");

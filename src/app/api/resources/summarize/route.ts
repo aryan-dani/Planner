@@ -1,9 +1,13 @@
 import { groq } from '@ai-sdk/groq';
 import { generateText } from 'ai';
 import { adminDb } from '@/lib/firebaseAdmin';
+import { isAuthFailure, requireUser } from '@/lib/apiAuth';
 import { NextResponse } from 'next/server';
 
 export async function GET(request: Request) {
+  const auth = await requireUser(request);
+  if (isAuthFailure(auth)) return auth;
+
   const { searchParams } = new URL(request.url);
   const resourceId = searchParams.get('id');
 
@@ -76,12 +80,11 @@ export async function GET(request: Request) {
         },
       }
     );
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Summarization error:', err);
-    return NextResponse.json({ 
-      error: 'Failed to generate AI summary',
-      details: err?.message || String(err),
-      stack: err?.stack
-    }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Failed to generate AI summary' },
+      { status: 500 },
+    );
   }
 }

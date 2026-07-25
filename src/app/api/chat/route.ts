@@ -2,6 +2,7 @@ import { groq } from '@ai-sdk/groq';
 import { streamText } from 'ai';
 import { adminDb } from '@/lib/firebaseAdmin';
 import { performRAGSearch } from '@/lib/ragSearch';
+import { isAuthFailure, requireUser } from '@/lib/apiAuth';
 import { z } from 'zod';
 
 const chatSchema = z.object({
@@ -15,6 +16,9 @@ const chatSchema = z.object({
 });
 
 export async function POST(req: Request) {
+  const auth = await requireUser(req);
+  if (isAuthFailure(auth)) return auth;
+
   let body;
   try {
     body = await req.json();

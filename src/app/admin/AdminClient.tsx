@@ -145,11 +145,27 @@ export default function AdminClient() {
     }
   };
 
+  const adminEmails =
+    process.env.NEXT_PUBLIC_ADMIN_EMAILS?.split(",").map((e) => e.trim()) ?? [];
+  const isAdmin = !!(userEmail && adminEmails.includes(userEmail));
+
+  const getAdminBearerHeaders = useCallback(async (): Promise<HeadersInit> => {
+    const user = auth.currentUser;
+    if (!user) {
+      throw new Error("You must be signed in as an admin.");
+    }
+    const idToken = await user.getIdToken();
+    return { Authorization: `Bearer ${idToken}` };
+  }, []);
+
   const fetchAdminData = useCallback(async () => {
+    if (!isAdmin) return;
     setLoadingResources(true);
     try {
+      const headers = await getAdminBearerHeaders();
       const res = await fetch(
-        `/api/admin/resources?branch=${branch}&semester=${semester}`
+        `/api/admin/resources?branch=${branch}&semester=${semester}`,
+        { headers },
       );
       if (!res.ok) {
         throw new Error(await res.text());
@@ -162,7 +178,7 @@ export default function AdminClient() {
     } finally {
       setLoadingResources(false);
     }
-  }, [branch, semester]);
+  }, [branch, semester, getAdminBearerHeaders, isAdmin]);
 
   useEffect(() => {
     fetchAdminData();
@@ -176,8 +192,10 @@ export default function AdminClient() {
     )
       return;
     try {
+      const headers = await getAdminBearerHeaders();
       const res = await fetch(`/api/admin/resources?id=${id}`, {
         method: "DELETE",
+        headers,
       });
       if (!res.ok) {
         throw new Error(await res.text());
@@ -198,10 +216,12 @@ export default function AdminClient() {
 
   const saveEdit = async (id: string) => {
     try {
+      const headers = await getAdminBearerHeaders();
       const res = await fetch("/api/admin/resources", {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
+          ...headers,
         },
         body: JSON.stringify({
           id,
@@ -226,10 +246,6 @@ export default function AdminClient() {
       alert(`Error updating: ${getErrorMessage(error)}`);
     }
   };
-
-  const adminEmails =
-    process.env.NEXT_PUBLIC_ADMIN_EMAILS?.split(",").map((e) => e.trim()) ?? [];
-  const isAdmin = userEmail && adminEmails.includes(userEmail);
 
   if (loadingAuth) {
     return (

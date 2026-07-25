@@ -142,7 +142,7 @@ export default function CommandPalette() {
           setCommandPaletteOpen(false);
         },
         s: () => {
-          router.push('/srs');
+          router.push('/syllabus');
           setCommandPaletteOpen(false);
         },
         c: () => {
@@ -242,7 +242,6 @@ export default function CommandPalette() {
         title: 'Open SRS Flashcards Deck Reviewer',
         category: 'Navigation',
         icon: Layers,
-        shortcut: 'S',
         badge: 'Recall',
         action: () => {
           router.push('/srs');
@@ -266,6 +265,8 @@ export default function CommandPalette() {
         title: 'View Syllabus & Curriculum',
         category: 'Navigation',
         icon: BookOpen,
+        shortcut: 'S',
+        badge: 'Curriculum',
         action: () => {
           router.push('/syllabus');
           setCommandPaletteOpen(false);

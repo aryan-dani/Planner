@@ -208,7 +208,7 @@ export default function Home() {
             { label: "Subjects", value: "10+" },
             { label: "Resources", value: "50+" },
             { label: "Semesters", value: "8" },
-            { label: "Branches", value: "2" },
+            { label: "Branches", value: "3" },
           ].map(({ label, value }) => (
             <div key={label} className="bg-card border border-border card-premium-hover p-6 rounded-2xl shadow-xs text-center relative overflow-hidden group">
               <p className="text-4xl font-black text-foreground tracking-tight">

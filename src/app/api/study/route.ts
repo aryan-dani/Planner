@@ -2,6 +2,7 @@ import { groq } from '@ai-sdk/groq';
 import { generateText } from 'ai';
 import { adminDb } from '@/lib/firebaseAdmin';
 import { performRAGSearch } from '@/lib/ragSearch';
+import { isAuthFailure, requireUser } from '@/lib/apiAuth';
 import { z } from 'zod';
 
 const studySchema = z.object({
@@ -14,6 +15,9 @@ const studySchema = z.object({
 });
 
 export async function POST(req: Request) {
+  const auth = await requireUser(req);
+  if (isAuthFailure(auth)) return auth;
+
   try {
     let body;
     try {

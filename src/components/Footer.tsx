@@ -56,7 +56,7 @@ function FooterInner() {
             <div className="space-y-4">
               <h4 className="text-[10px] font-bold uppercase tracking-widest text-foreground/50">Company</h4>
               <nav className="flex flex-col gap-2.5">
-                <Link href={getLinkWithParams('/admin')} className="text-sm text-muted hover:text-foreground transition-colors">Admin</Link>
+                <Link href={getLinkWithParams('/support')} className="text-sm text-muted hover:text-foreground transition-colors">Support</Link>
                 <a href="https://www.aryandani.com" target="_blank" rel="noopener noreferrer" className="text-sm text-muted hover:text-foreground transition-colors">Portfolio</a>
               </nav>
             </div>

@@ -21,9 +21,8 @@ import {
   CloudRain
 } from 'lucide-react';
 import { FadeIn, ScaleButton } from '@/components/Animations';
-import { auth, db } from '@/lib/firebase';
-import { doc, setDoc } from 'firebase/firestore';
 import { logActivity } from '@/components/ActivityHeatmap';
+import { incrementTaskFocus } from '@/lib/plannerStorage';
 
 type TimerMode = 'work' | 'break' | 'longBreak';
 
@@ -295,36 +294,10 @@ export default function TimerClient() {
     }
 
     if (taskId && day) {
-      const plannerSaved = localStorage.getItem('utility_planner_week');
-      if (plannerSaved) {
-        try {
-          const weekData = JSON.parse(plannerSaved);
-          if (weekData[day]) {
-            weekData[day] = weekData[day].map((todo: any) => {
-              if (todo.id === taskId) {
-                return {
-                  ...todo,
-                  focusSessions: (todo.focusSessions || 0) + 1,
-                  focusMinutes: (todo.focusMinutes || 0) + minutes,
-                };
-              }
-              return todo;
-            });
-            localStorage.setItem('utility_planner_week', JSON.stringify(weekData));
-            
-            const user = auth.currentUser;
-            if (user) {
-              const docRef = doc(db, 'planner_data', user.uid);
-              await setDoc(docRef, {
-                user_id: user.uid,
-                data: weekData,
-                updated_at: new Date().toISOString()
-              }, { merge: true });
-            }
-          }
-        } catch (e) {
-          console.error('Failed to update planner data:', e);
-        }
+      try {
+        incrementTaskFocus(day, taskId, minutes);
+      } catch (e) {
+        console.error('Failed to update planner data:', e);
       }
     }
   }, [taskId, day]);

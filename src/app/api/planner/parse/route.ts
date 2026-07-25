@@ -1,9 +1,13 @@
 import { groq } from '@ai-sdk/groq';
 import { generateText } from 'ai';
+import { isAuthFailure, requireUser } from '@/lib/apiAuth';
 
-export const runtime = 'edge';
+export const runtime = 'nodejs';
 
 export async function POST(req: Request) {
+  const auth = await requireUser(req);
+  if (isAuthFailure(auth)) return auth;
+
   try {
     const { prompt, month, year } = await req.json();
 

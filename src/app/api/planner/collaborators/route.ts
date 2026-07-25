@@ -1,28 +1,13 @@
 import { NextResponse } from "next/server";
-import { adminDb, adminAuth } from "@/lib/firebaseAdmin";
+import { adminDb } from "@/lib/firebaseAdmin";
+import { isAuthFailure, requireUser } from "@/lib/apiAuth";
 
 export const dynamic = "force-dynamic";
 
-async function getUserIdFromRequest(request: Request) {
-  const authHeader = request.headers.get("authorization");
-  if (!authHeader?.startsWith("Bearer ")) {
-    return null;
-  }
-  const token = authHeader.split("Bearer ")[1];
-  try {
-    const decodedToken = await adminAuth().verifyIdToken(token);
-    return decodedToken;
-  } catch (e) {
-    return null;
-  }
-}
-
 export async function POST(request: Request) {
   try {
-    const decodedToken = await getUserIdFromRequest(request);
-    if (!decodedToken) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const auth = await requireUser(request);
+    if (isAuthFailure(auth)) return auth;
 
     const body = await request.json();
     const { planId, email, role } = body;
@@ -41,7 +26,7 @@ export async function POST(request: Request) {
     if (!planSnap.exists) {
       return NextResponse.json({ error: "Plan not found" }, { status: 404 });
     }
-    if (planSnap.data()?.owner_id !== decodedToken.uid) {
+    if (planSnap.data()?.owner_id !== auth.uid) {
       return NextResponse.json(
         { error: "Forbidden: You are not the owner of this plan" },
         { status: 403 }
@@ -81,10 +66,8 @@ export async function POST(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
-    const decodedToken = await getUserIdFromRequest(request);
-    if (!decodedToken) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const auth = await requireUser(request);
+    if (isAuthFailure(auth)) return auth;
 
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
@@ -116,7 +99,7 @@ export async function DELETE(request: Request) {
     if (!planSnap.exists) {
       return NextResponse.json({ error: "Plan not found" }, { status: 404 });
     }
-    if (planSnap.data()?.owner_id !== decodedToken.uid) {
+    if (planSnap.data()?.owner_id !== auth.uid) {
       return NextResponse.json(
         { error: "Forbidden: You are not the owner of this plan" },
         { status: 403 }

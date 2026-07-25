@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { adminDb, adminAuth } from "@/lib/firebaseAdmin";
+import { adminDb } from "@/lib/firebaseAdmin";
+import { isAuthFailure, requireUser } from "@/lib/apiAuth";
 
 export async function DELETE(
   request: Request,
@@ -15,20 +16,10 @@ export async function DELETE(
       );
     }
 
-    const authHeader = request.headers.get("authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const auth = await requireUser(request);
+    if (isAuthFailure(auth)) return auth;
 
-    const token = authHeader.split("Bearer ")[1];
-    let decodedToken;
-    try {
-      decodedToken = await adminAuth().verifyIdToken(token);
-    } catch (e) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const userEmailPrefix = decodedToken.email?.split("@")[0];
+    const userEmailPrefix = auth.email?.split("@")[0];
 
     if (!userEmailPrefix) {
       return NextResponse.json(

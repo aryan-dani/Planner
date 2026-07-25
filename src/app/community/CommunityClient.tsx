@@ -1,10 +1,12 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { auth, db } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { doc, updateDoc, increment } from "firebase/firestore";
 import { useAcademicStore } from "@/store/academicStore";
+import { useSRSStore } from "@/store/srsStore";
 import {
   Search,
   ThumbsUp,
@@ -40,7 +42,9 @@ interface CommunityClientProps {
 export default function CommunityClient({
   initialDecks,
 }: CommunityClientProps) {
+  const router = useRouter();
   const { searchQuery } = useAcademicStore();
+  const { createDeck, addMultipleCards, initStore } = useSRSStore();
   const [decks, setDecks] = useState<CommunityDeck[]>(initialDecks);
   const [selectedBranch, setSelectedBranch] = useState<string>("ALL");
   const [upvotedDecks, setUpvotedDecks] = useState<Record<string, boolean>>({});
@@ -51,6 +55,10 @@ export default function CommunityClient({
   const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<"top" | "newest">("top");
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
+
+  useEffect(() => {
+    initStore();
+  }, [initStore]);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -116,11 +124,25 @@ export default function CommunityClient({
 
   const handleCopyDeck = (deck: CommunityDeck) => {
     try {
-      // Store into local custom decks or trigger study hub
-      localStorage.setItem(`custom_deck_${deck.id}`, JSON.stringify(deck));
+      initStore();
+      const newDeck = createDeck(deck.title || "Community Deck");
+      const cards = (Array.isArray(deck.flashcards) ? deck.flashcards : [])
+        .map((card: { question?: string; answer?: string }) => ({
+          question: String(card?.question || "").trim(),
+          answer: String(card?.answer || "").trim(),
+        }))
+        .filter((card) => card.question.length > 0);
+
+      if (cards.length === 0) {
+        toast.error("This deck has no cards to save.");
+        return;
+      }
+
+      addMultipleCards(newDeck.id, cards);
       setCopiedDeckId(deck.id);
       logActivity("community_deck_copied", 1);
-      toast.success("Deck saved to your local storage!");
+      toast.success(`Saved “${newDeck.name}” to SRS (${cards.length} cards)`);
+      router.push("/srs");
       setTimeout(() => setCopiedDeckId(null), 2000);
     } catch (err) {
       toast.error("Failed to save deck.");

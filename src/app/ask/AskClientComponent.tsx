@@ -1,6 +1,7 @@
 'use client';
 
 import { useChat } from '@ai-sdk/react';
+import { DefaultChatTransport } from 'ai';
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { 
   Send, 
@@ -378,6 +379,25 @@ export default function AskClient() {
     },
   }), [branch, semester, subjects, selectedResourceId]);
 
+  const chatTransport = useMemo(
+    () =>
+      new DefaultChatTransport({
+        api: '/api/chat',
+        headers: async (): Promise<Record<string, string>> => {
+          const user = auth.currentUser;
+          if (!user) return {};
+          try {
+            const idToken = await user.getIdToken();
+            return { Authorization: `Bearer ${idToken}` };
+          } catch {
+            return {};
+          }
+        },
+        body: chatBody,
+      }),
+    [chatBody],
+  );
+
   const activeSession = useMemo(() => {
     return sessions.find(s => s.id === activeSessionId);
   }, [sessions, activeSessionId]);
@@ -393,10 +413,9 @@ export default function AskClient() {
   }, [chatSessionKey, sessionsLoaded]);
 
   const chatHelpers = (useChat as any)({
-    api: '/api/chat',
     id: chatSessionKey,
     initialMessages,
-    body: chatBody,
+    transport: chatTransport,
   });
 
   const { 
@@ -587,6 +606,11 @@ export default function AskClient() {
     e?.preventDefault();
     if (!(input || '').trim() || isLoading) return;
 
+    if (!auth.currentUser) {
+      toast.error('Please sign in to use Ask AI.');
+      return;
+    }
+
     sendMessage({ 
       role: 'user',
       content: input,
@@ -657,15 +681,28 @@ export default function AskClient() {
     setKnownCards({});
 
     try {
+      const user = auth.currentUser;
+      if (!user) {
+        toast.error('Please sign in to generate flashcards.');
+        return;
+      }
+      const idToken = await user.getIdToken();
       const res = await fetch('/api/study', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${idToken}`,
+        },
         body: JSON.stringify({
           type: 'flashcards',
           topic: flashcardTopic,
           context: { branch, semester, subjects }
         }),
       });
+      if (res.status === 401) {
+        toast.error('Please sign in to generate flashcards.');
+        return;
+      }
       const data = await res.json();
       if (data.flashcards) {
         setFlashcards(data.flashcards);
@@ -719,15 +756,28 @@ export default function AskClient() {
     setQuizSubmitted(false);
 
     try {
+      const user = auth.currentUser;
+      if (!user) {
+        toast.error('Please sign in to generate a quiz.');
+        return;
+      }
+      const idToken = await user.getIdToken();
       const res = await fetch('/api/study', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${idToken}`,
+        },
         body: JSON.stringify({
           type: 'quiz',
           topic: quizTopic,
           context: { branch, semester, subjects }
         }),
       });
+      if (res.status === 401) {
+        toast.error('Please sign in to generate a quiz.');
+        return;
+      }
       const data = await res.json();
       if (data.quiz) {
         setQuizQuestions(data.quiz);

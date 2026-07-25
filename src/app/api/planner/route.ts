@@ -1,30 +1,14 @@
 import { NextResponse } from "next/server";
-import { adminDb, adminAuth } from "@/lib/firebaseAdmin";
+import { adminDb } from "@/lib/firebaseAdmin";
+import { isAuthFailure, requireUser } from "@/lib/apiAuth";
 
 export const dynamic = "force-dynamic";
-
-// ── Helpers ──
-async function getUserIdFromRequest(request: Request) {
-  const authHeader = request.headers.get("authorization");
-  if (!authHeader?.startsWith("Bearer ")) {
-    return null;
-  }
-  const token = authHeader.split("Bearer ")[1];
-  try {
-    const decodedToken = await adminAuth().verifyIdToken(token);
-    return decodedToken;
-  } catch (e) {
-    return null;
-  }
-}
 
 // ── GET: Pull Plan and Collaborators ──
 export async function GET(request: Request) {
   try {
-    const decodedToken = await getUserIdFromRequest(request);
-    if (!decodedToken) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const auth = await requireUser(request);
+    if (isAuthFailure(auth)) return auth;
 
     const { searchParams } = new URL(request.url);
     const monthStr = searchParams.get("month");
@@ -39,7 +23,7 @@ export async function GET(request: Request) {
 
     const month = parseInt(monthStr);
     const year = parseInt(yearStr);
-    const userId = decodedToken.uid;
+    const userId = auth.uid;
     const db = adminDb();
 
     // Find if user is owner of the plan
@@ -54,10 +38,10 @@ export async function GET(request: Request) {
     let isCollaborator = false;
 
     // If not found, check if they are a collaborator
-    if (planSnapshot.empty && decodedToken.email) {
+    if (planSnapshot.empty && auth.email) {
       const collabSnap = await db
         .collection("planner_collaborators")
-        .where("user_email", "==", decodedToken.email)
+        .where("user_email", "==", auth.email)
         .get();
 
       if (!collabSnap.empty) {
@@ -117,12 +101,10 @@ export async function GET(request: Request) {
 // ── POST: Push (Upsert) Plan ──
 export async function POST(request: Request) {
   try {
-    const decodedToken = await getUserIdFromRequest(request);
-    if (!decodedToken) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const auth = await requireUser(request);
+    if (isAuthFailure(auth)) return auth;
 
-    const userId = decodedToken.uid;
+    const userId = auth.uid;
     const body = await request.json();
     const { month, year, data, title, is_public } = body;
 
@@ -159,7 +141,7 @@ export async function POST(request: Request) {
       docId = newDocRef.id;
       await newDocRef.set({
         owner_id: userId,
-        owner_email: decodedToken.email || "",
+        owner_email: auth.email || "",
         title,
         month: parseInt(month),
         year: parseInt(year),

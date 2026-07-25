@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
 import { X, Brain, Loader2, Copy, Check, Info, Layers } from 'lucide-react';
+import { auth } from '@/lib/firebase';
 
 interface SummaryModalProps {
   resourceId: string;
@@ -23,7 +24,14 @@ export default function SummaryModal({ resourceId, resourceTitle, onClose }: Sum
     async function fetchSummary() {
       try {
         setLoading(true);
-        const res = await fetch(`/api/resources/summarize?id=${resourceId}`);
+        const user = auth.currentUser;
+        if (!user) {
+          throw new Error('Please sign in to generate AI summaries.');
+        }
+        const idToken = await user.getIdToken();
+        const res = await fetch(`/api/resources/summarize?id=${resourceId}`, {
+          headers: { Authorization: `Bearer ${idToken}` },
+        });
         const data = await res.json();
         
         if (!res.ok) throw new Error(data.error || 'Failed to generate summary');
