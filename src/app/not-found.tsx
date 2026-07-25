@@ -8,7 +8,7 @@ export default function NotFound() {
   return (
     <div className="relative flex-1 w-full flex flex-col items-center justify-center min-h-[80vh] px-4 py-16 overflow-hidden">
       {/* Background aesthetics */}
-      <div className="absolute inset-0 bg-radial-gradient from-accent/5 via-transparent to-transparent pointer-events-none opacity-40" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgb(var(--foreground)/0.04),transparent_65%)] pointer-events-none opacity-40" />
       <div className="noise-overlay" />
       
       {/* Subtle Grid Pattern */}
@@ -21,7 +21,7 @@ export default function NotFound() {
         className="bg-card border border-border max-w-md w-full rounded-2xl p-8 sm:p-10 shadow-md relative z-10 text-center"
       >
         <div className="relative mb-6">
-          <span className="text-[100px] sm:text-[120px] font-black tracking-tighter leading-none select-none text-gradient-purple opacity-90 block">
+          <span className="text-[100px] sm:text-[120px] font-black tracking-tighter leading-none select-none text-gradient-mono opacity-90 block">
             404
           </span>
           <div className="w-12 h-12 rounded-xl bg-card border border-border/85 flex items-center justify-center shadow-md absolute -bottom-2 right-[calc(50%-1.5rem)]">

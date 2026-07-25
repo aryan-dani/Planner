@@ -246,34 +246,6 @@ h1, h2, h3, h4, h5, h6 {
   }
 }
 
-/* premium-card — used on home page feature cards */
-.premium-card {
-  background: rgba(var(--card) / 0.8);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgb(var(--border));
-  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.04);
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.premium-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.08);
-  border-color: rgb(var(--border-strong));
-  background: rgba(var(--card-hover) / 0.9);
-}
-
-/* Micro-interaction utilities */
-.hover-scale {
-  transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-.hover-scale:hover {
-  transform: scale(1.02);
-}
-.hover-scale:active {
-  transform: scale(0.97);
-}
-
 /* custom-scrollbar — used in Navigation and ResourcesClient */
 .custom-scrollbar::-webkit-scrollbar {
   width: 4px;
@@ -299,49 +271,6 @@ h1, h2, h3, h4, h5, h6 {
   display: none;
 }
 
-/* Subtle glow utility for active elements */
-.active-glow {
-  box-shadow: 0 0 12px 1px rgba(var(--foreground), 0.03);
-  border-color: rgb(var(--border-strong)) !important;
-}
-.dark .active-glow {
-  box-shadow: 0 0 16px 2px rgba(255, 255, 255, 0.05);
-  border-color: rgb(var(--border-strong)) !important;
-}
-
-/* ── Premium Overhaul Additions ────────────────────────────────────────────── */
-
-/* Solid cards instead of glass */
-.glass-card {
-  background: rgb(var(--card));
-  border: 1px solid rgb(var(--border));
-  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.02);
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.dark .glass-card {
-  background: rgb(var(--card));
-  border: 1px solid rgb(var(--border));
-  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.15);
-}
-
-.glass-card-hover:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.06);
-  background: rgb(var(--card-hover));
-  border-color: rgb(var(--border-strong));
-}
-
-.dark .glass-card-hover:hover {
-  background: rgb(var(--card-hover));
-  border-color: rgb(var(--border-strong));
-}
-
-.glass-card-hover:active {
-  transform: translateY(0px);
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.04);
-}
-
 /* Subtle SVG Noise Overlay */
 .noise-overlay {
   position: absolute;
@@ -358,20 +287,7 @@ h1, h2, h3, h4, h5, h6 {
   opacity: 0.032;
 }
 
-/* Pulsing border glow for focus or running states */
-.glow-ring {
-  box-shadow: 0 0 20px -2px rgb(var(--foreground) / 0.15);
-  border-color: rgb(var(--foreground) / 0.3) !important;
-}
-
 /* Text Gradients */
-.text-gradient {
-  background: linear-gradient(135deg, rgb(var(--foreground)) 0%, rgb(var(--muted)) 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
 .text-gradient-mono {
   background: linear-gradient(135deg, rgb(var(--foreground)) 0%, rgb(var(--muted)) 100%);
   -webkit-background-clip: text;
@@ -472,10 +388,8 @@ input[type="range"].accent-slider::-moz-range-thumb:hover {
 
 /* ── Custom Premium Sonner Toast Styling ───────────────────────────────────────── */
 [data-sonner-toast] {
-  background: rgba(var(--card), 0.7) !important;
-  backdrop-filter: blur(16px) saturate(180%) !important;
-  -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
-  border: 1px solid rgba(var(--border), 0.8) !important;
+  background: rgb(var(--card)) !important;
+  border: 1px solid rgb(var(--border)) !important;
   color: rgb(var(--foreground)) !important;
   border-radius: var(--radius-lg) !important;
   box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2), 0 1px 2px 0 rgba(0, 0, 0, 0.05) !important;

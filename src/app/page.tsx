@@ -11,7 +11,7 @@ import {
   ShieldCheck,
   Layers,
 } from "lucide-react";
-import { FadeIn, ScaleButton } from "@/components/Animations";
+import { FadeIn } from "@/components/Animations";
 import AuthButtons from "./AuthButtons";
 import { motion, useInView } from "framer-motion";
 import dynamic from "next/dynamic";
@@ -113,13 +113,7 @@ export default function Home() {
   return (
     <div className="flex-1 w-full flex flex-col relative overflow-hidden page-fade-in">
       {/* Subtle Dot Grid Pattern */}
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,rgb(var(--foreground)/0.08)_1px,transparent_1px),linear-gradient(to_bottom,rgb(var(--foreground)/0.08)_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_50%,#000_70%,transparent_100%)] pointer-events-none -z-20" />
-      
-      {/* Ambient Premium background glows */}
-      <div className="absolute top-[-10%] left-[-20%] w-[500px] h-[500px] rounded-full bg-indigo-500/10 blur-[130px] pointer-events-none -z-10 dark:bg-indigo-500/5 animate-pulse" style={{ animationDuration: '8s' }} />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] rounded-full bg-violet-500/10 blur-[130px] pointer-events-none -z-10 dark:bg-violet-500/5 animate-pulse" style={{ animationDuration: '12s' }} />
-      
-      <div className="noise-overlay" />
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,rgb(var(--foreground)/0.06)_1px,transparent_1px),linear-gradient(to_bottom,rgb(var(--foreground)/0.06)_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_50%,#000_70%,transparent_100%)] pointer-events-none -z-20" />
 
       {/* Hero */}
       <section className="w-full max-w-7xl mx-auto px-6 pt-28 pb-36 flex flex-col items-center justify-center text-center relative min-h-[82vh]">
@@ -141,11 +135,11 @@ export default function Home() {
         {/* Scroll Indicator */}
         <motion.div
           initial={{ opacity: 0 }}
-          animate={{ opacity: 0.5 }}
+          animate={{ opacity: 1 }}
           transition={{ delay: 1.5 }}
           className="absolute bottom-8 left-1/2 transform -translate-x-1/2 flex flex-col items-center gap-2 pointer-events-none select-none"
         >
-          <span className="text-[9px] font-mono tracking-widest text-muted uppercase">Scroll to Explore</span>
+          <span className="text-[10px] font-mono tracking-widest text-foreground-subtle uppercase">Scroll to Explore</span>
           <div className="w-5 h-8 rounded-full border border-border-strong flex justify-center p-1 bg-background shadow-sm">
             <motion.div 
               animate={{ y: [0, 8, 0] }}
@@ -160,24 +154,24 @@ export default function Home() {
       <div className="w-full border-t border-border" />
 
       {/* Features */}
-      <section className="w-full max-w-[90rem] mx-auto px-6 py-20">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-px bg-border/60 rounded-xl overflow-hidden border border-border/70 shadow-sm">
+      <section className="w-full max-w-7xl mx-auto px-6 py-20">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-px bg-border rounded-xl overflow-hidden border border-border shadow-sm">
           {FEATURES.map(({ href, label, number, Icon, description }, i) => (
             <Link
               key={href}
               href={href}
-              className="group block bg-card hover:bg-surface/50 card-premium-hover transition-all duration-300"
+              className="group block bg-card hover:bg-surface card-premium-hover transition-all duration-300"
             >
               <FadeIn delay={i * 0.07} y={8}>
-                <div className="p-6 h-full flex flex-col gap-6 relative">
+                <div className="p-6 sm:p-7 h-full flex flex-col gap-6 relative">
                   {/* Hover Left Accent Line */}
                   <div className="absolute left-0 top-3 bottom-3 w-[3px] rounded-r bg-primary scale-y-0 group-hover:scale-y-100 transition-transform duration-300 origin-center" />
  
                   <div className="flex items-start justify-between">
-                    <div className="w-10 h-10 rounded-xl bg-surface/50 border border-border/70 flex items-center justify-center group-hover:scale-105 group-hover:bg-primary/10 group-hover:border-primary/20 transition-all duration-300">
+                    <div className="w-11 h-11 rounded-xl bg-surface border border-border flex items-center justify-center group-hover:scale-105 group-hover:border-border-strong transition-all duration-300">
                       <Icon className="w-5 h-5 text-foreground transition-colors" />
                     </div>
-                    <span className="text-xs font-mono text-muted group-hover:text-foreground/70 transition-colors">
+                    <span className="text-xs font-mono text-foreground-subtle group-hover:text-foreground/70 transition-colors">
                       {number}
                     </span>
                   </div>
@@ -191,7 +185,7 @@ export default function Home() {
                     </p>
                   </div>
 
-                  <div className="flex items-center gap-1.5 text-xs font-bold text-muted group-hover:text-foreground transition-colors">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-foreground-subtle group-hover:text-foreground transition-colors">
                     <span className="animated-underline">Open {label}</span>
                     <ArrowRight className="w-3 h-3 translate-x-0 group-hover:translate-x-1.5 transition-transform duration-300" />
                   </div>
@@ -208,7 +202,7 @@ export default function Home() {
       </section>
 
       {/* Stats Strip */}
-      <section className="w-full border-t border-border bg-surface/5 py-14">
+      <section className="w-full border-t border-border bg-background-subtle py-14">
         <div className="max-w-7xl mx-auto px-6 grid grid-cols-2 md:grid-cols-4 gap-6">
           {[
             { label: "Subjects", value: "10+" },
@@ -216,12 +210,11 @@ export default function Home() {
             { label: "Semesters", value: "8" },
             { label: "Branches", value: "2" },
           ].map(({ label, value }) => (
-            <div key={label} className="bg-card border border-border/50 card-premium-hover p-6 rounded-2xl shadow-xs text-center relative overflow-hidden group">
-              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgb(var(--foreground)/0.03),transparent_70%)] opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+            <div key={label} className="bg-card border border-border card-premium-hover p-6 rounded-2xl shadow-xs text-center relative overflow-hidden group">
               <p className="text-4xl font-black text-foreground tracking-tight">
                 <StatsCounter value={value} />
               </p>
-              <p className="text-[10px] font-extrabold uppercase tracking-widest text-muted mt-2">{label}</p>
+              <p className="text-[11px] font-extrabold uppercase tracking-widest text-foreground-subtle mt-2">{label}</p>
             </div>
           ))}
         </div>

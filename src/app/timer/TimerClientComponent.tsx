@@ -542,7 +542,7 @@ export default function TimerClient() {
           <div className="flex items-center justify-center gap-5">
             <button
               onClick={resetTimer}
-              className="w-12 h-12 rounded-xl border border-border bg-card flex items-center justify-center text-foreground hover:border-foreground/35 hover:scale-110 active:scale-90 shadow-2xs transition-all duration-200"
+              className="w-12 h-12 rounded-xl border border-border bg-card flex items-center justify-center text-foreground hover:border-foreground/35 hover:scale-110 active:scale-90 shadow-xs transition-all duration-200"
               title="Reset"
               aria-label="Reset timer"
             >
@@ -563,7 +563,7 @@ export default function TimerClient() {
 
             <button
               onClick={() => setShowSettings(true)}
-              className="w-12 h-12 rounded-xl border border-border bg-card flex items-center justify-center text-foreground hover:border-foreground/35 hover:scale-110 active:scale-90 shadow-2xs transition-all duration-200"
+              className="w-12 h-12 rounded-xl border border-border bg-card flex items-center justify-center text-foreground hover:border-foreground/35 hover:scale-110 active:scale-90 shadow-xs transition-all duration-200"
               title="Settings"
               aria-label="Timer settings"
             >

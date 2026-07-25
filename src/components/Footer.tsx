@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { BookOpen } from 'lucide-react';
+import { Layers } from 'lucide-react';
 import { Suspense } from 'react';
 
 function FooterInner() {
@@ -27,9 +27,9 @@ function FooterInner() {
           <div className="max-w-xs">
             <Link href={getLinkWithParams('/')} className="text-lg font-bold tracking-tight text-foreground flex items-center gap-2 mb-3">
               <div className="w-6 h-6 rounded bg-foreground flex items-center justify-center">
-                <BookOpen className="w-3 h-3 text-background" />
+                <Layers className="w-3.5 h-3.5 text-background" />
               </div>
-              Utility
+              Utility OS
             </Link>
             <p className="text-sm text-muted leading-relaxed">
               A premium academic workspace designed to streamline your university experience.
@@ -65,7 +65,7 @@ function FooterInner() {
 
         <div className="pt-8 border-t border-border/30 flex flex-col sm:flex-row justify-between items-center gap-4">
           <p className="text-xs text-muted/60">
-            © {new Date().getFullYear()} Utility. Built for efficiency.
+            © {new Date().getFullYear()} Utility OS. Built for efficiency.
           </p>
           <div className="flex items-center gap-6">
             <a

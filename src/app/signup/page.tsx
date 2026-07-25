@@ -99,7 +99,7 @@ function SignupContent() {
             y: [0, 30, -40, 0],
           }}
           transition={{ duration: 18, repeat: Infinity, ease: "linear", delay: 1 }}
-          className="absolute bottom-[20%] right-[10%] w-[30vw] h-[30vw] rounded-full bg-indigo-500/5 blur-[80px]"
+          className="absolute bottom-[20%] right-[10%] w-[30vw] h-[30vw] rounded-full bg-foreground/[0.03] blur-[80px]"
         />
       </div>
       <div className="noise-overlay opacity-30" />

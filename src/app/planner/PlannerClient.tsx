@@ -694,7 +694,7 @@ function ShareModal({
                           </div>
                           <span className="text-xs text-foreground">{c.user_email}</span>
                           <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${
-                            c.role === 'editor' ? 'bg-violet-500/10 text-violet-600 dark:text-violet-400' : 'bg-surface-hover text-muted'
+                            c.role === 'editor' ? 'bg-surface border border-border text-foreground' : 'bg-surface-hover text-muted'
                           }`}>
                             {c.role}
                           </span>

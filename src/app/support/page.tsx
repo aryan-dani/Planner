@@ -162,9 +162,9 @@ export default function SupportPage() {
 
   return (
     <div className="flex-1 w-full max-w-7xl mx-auto px-4 md:px-6 py-12 relative overflow-hidden page-fade-in">
-      {/* Background glow styling */}
-      <div className="absolute top-[-10%] right-[-10%] w-[400px] h-[400px] rounded-full bg-primary/10 blur-[120px] pointer-events-none -z-10 dark:bg-primary/5" />
-      <div className="absolute bottom-[-10%] left-[-10%] w-[400px] h-[400px] rounded-full bg-violet-500/10 blur-[120px] pointer-events-none -z-10 dark:bg-violet-500/5" />
+      {/* Subtle monochrome ambience */}
+      <div className="absolute top-[-10%] right-[-10%] w-[400px] h-[400px] rounded-full bg-foreground/[0.03] blur-[120px] pointer-events-none -z-10" />
+      <div className="absolute bottom-[-10%] left-[-10%] w-[400px] h-[400px] rounded-full bg-foreground/[0.03] blur-[120px] pointer-events-none -z-10" />
 
       <div className="max-w-4xl mx-auto">
         {/* Header */}
@@ -376,7 +376,7 @@ export default function SupportPage() {
           <div className="md:col-span-5">
             <FadeIn delay={0.25}>
               <div className="bg-card border border-border p-6 rounded-2xl shadow-sm text-center space-y-6 relative overflow-hidden">
-                <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-amber-500 via-primary to-indigo-500 animate-gradient" />
+                <div className="absolute top-0 left-0 w-full h-1.5 bg-foreground" />
                 
                 <div>
                   <h2 className="text-base font-bold text-foreground mb-1">Scan & Pay</h2>

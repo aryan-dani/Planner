@@ -21,7 +21,7 @@ export default function GlobalError({
   return (
     <div className="relative flex-1 w-full flex flex-col items-center justify-center min-h-[80vh] px-4 py-16 overflow-hidden">
       {/* Background aesthetics */}
-      <div className="absolute inset-0 bg-radial-gradient from-destructive/5 via-transparent to-transparent pointer-events-none opacity-40" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgb(var(--destructive)/0.08),transparent_65%)] pointer-events-none opacity-40" />
       <div className="noise-overlay" />
 
       <motion.div

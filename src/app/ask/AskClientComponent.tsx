@@ -800,7 +800,7 @@ export default function AskClient() {
           
           {/* Chat Sessions Collapsible Sidebar */}
           {sidebarOpen && (
-            <div className="w-64 border-r border-border bg-background-subtle/80 backdrop-blur-md flex flex-col shrink-0">
+            <div className="w-64 border-r border-border bg-background-subtle flex flex-col shrink-0">
               <div className="p-3.5 border-b border-border flex items-center justify-between">
                 <span className="text-[10px] uppercase font-bold text-muted tracking-wider">Chat History</span>
                 <button
@@ -821,7 +821,7 @@ export default function AskClient() {
                       className={`group/session w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold cursor-pointer transition-all duration-250 border ${
                         isActive 
                           ? 'bg-card border-border-strong text-foreground shadow-sm translate-x-0.5' 
-                          : 'border-transparent text-muted hover:text-foreground hover:bg-card hover:border-border hover:shadow-2xs'
+                          : 'border-transparent text-muted hover:text-foreground hover:bg-card hover:border-border hover:shadow-xs'
                       }`}
                     >
                       <span className="truncate max-w-[130px]">{s.title}</span>
@@ -1442,7 +1442,7 @@ export default function AskClient() {
                             return (
                               <span 
                                 key={idx} 
-                                className="inline-flex items-center gap-1 bg-card px-2.5 py-0.5 border border-border text-[9px] font-bold text-foreground rounded-md shadow-2xs"
+                                className="inline-flex items-center gap-1 bg-card px-2.5 py-0.5 border border-border text-[9px] font-bold text-foreground rounded-md shadow-xs"
                               >
                                 <BookOpen className="w-3 h-3 text-muted shrink-0" />
                                 {cleanedCite}

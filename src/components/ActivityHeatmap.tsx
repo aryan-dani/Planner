@@ -172,10 +172,10 @@ export default function ActivityHeatmap() {
 
   // Helper for cell color based on count
   const getCellColor = (count: number) => {
-    if (count === 0) return 'bg-surface border-border hover:border-border-strong';
-    if (count <= 2) return 'bg-foreground/10 border-border/80 text-foreground';
-    if (count <= 5) return 'bg-foreground/25 border-border text-foreground';
-    if (count <= 8) return 'bg-foreground/50 border-border text-foreground';
+    if (count === 0) return 'bg-surface border-border-strong/40 hover:border-border-strong';
+    if (count <= 2) return 'bg-foreground/20 border-border text-foreground';
+    if (count <= 5) return 'bg-foreground/40 border-border text-foreground';
+    if (count <= 8) return 'bg-foreground/65 border-border text-foreground';
     return 'bg-foreground border-foreground text-background';
   };
 
@@ -308,10 +308,10 @@ export default function ActivityHeatmap() {
         <div className="flex items-center gap-2 text-xs text-muted select-none">
           <span>Less</span>
           <div className="flex gap-1.5">
-            <div className="w-3.5 h-3.5 rounded-sm bg-surface border border-foreground/15" />
-            <div className="w-3.5 h-3.5 rounded-sm bg-foreground/10 border border-foreground/30" />
-            <div className="w-3.5 h-3.5 rounded-sm bg-foreground/25 border border-foreground/50" />
-            <div className="w-3.5 h-3.5 rounded-sm bg-foreground/50 border border-foreground/80" />
+            <div className="w-3.5 h-3.5 rounded-sm bg-surface border border-border-strong/40" />
+            <div className="w-3.5 h-3.5 rounded-sm bg-foreground/20 border border-border" />
+            <div className="w-3.5 h-3.5 rounded-sm bg-foreground/40 border border-border" />
+            <div className="w-3.5 h-3.5 rounded-sm bg-foreground/65 border border-border" />
             <div className="w-3.5 h-3.5 rounded-sm bg-foreground border border-foreground" />
           </div>
           <span>More</span>

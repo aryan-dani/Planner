@@ -731,7 +731,7 @@ function NavigationInner() {
           <div className="w-6 h-6 rounded bg-foreground flex items-center justify-center text-background">
             <Layers className="w-3.5 h-3.5" />
           </div>
-          <span className="font-extrabold">Utility</span>
+          <span className="font-extrabold">Utility OS</span>
         </Link>
  
         <button
