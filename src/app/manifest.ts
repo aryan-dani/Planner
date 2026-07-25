@@ -8,27 +8,21 @@ export default function manifest(): MetadataRoute.Manifest {
     start_url: '/',
     display: 'standalone',
     orientation: 'portrait',
-    background_color: '#09090b', // slate-950 or zinc-950 style
+    background_color: '#09090b',
     theme_color: '#09090b',
     icons: [
       {
-        src: '/api/icon?size=192',
-        sizes: '192x192',
-        type: 'image/png',
+        src: '/icons/icon.svg',
+        sizes: 'any',
+        type: 'image/svg+xml',
+        purpose: 'any',
+      },
+      {
+        src: '/icons/icon.svg',
+        sizes: '512x512',
+        type: 'image/svg+xml',
         purpose: 'maskable',
       },
-      {
-        src: '/api/icon?size=512',
-        sizes: '512x512',
-        type: 'image/png',
-        purpose: 'any',
-      },
-      {
-        src: '/api/icon?size=180',
-        sizes: '180x180',
-        type: 'image/png',
-        purpose: 'any',
-      }
     ],
   };
 }
