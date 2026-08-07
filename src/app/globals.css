@@ -117,19 +117,12 @@ html {
 
 body {
   background-color: rgb(var(--background));
-  background-image: 
-    linear-gradient(rgb(var(--foreground) / 0.025) 1px, transparent 1px),
-    linear-gradient(90deg, rgb(var(--foreground) / 0.025) 1px, transparent 1px),
-    repeating-linear-gradient(
-      -45deg,
-      rgb(var(--foreground) / 0.04),
-      rgb(var(--foreground) / 0.04) 1px,
-      transparent 1px,
-      transparent 6px
-    );
-  background-size: 40px 40px, 40px 40px, auto;
+  background-image:
+    linear-gradient(rgb(var(--foreground) / 0.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(var(--foreground) / 0.018) 1px, transparent 1px);
+  background-size: 48px 48px;
   color: rgb(var(--foreground));
-  font-family: 'Inter', 'Geist', system-ui, -apple-system, sans-serif;
+  font-family: var(--font-sans), system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   line-height: 1.6;
@@ -179,6 +172,14 @@ a, button {
 h1, h2, h3, h4, h5, h6 {
   letter-spacing: -0.02em;
   line-height: 1.2;
+}
+
+.font-display,
+h1.font-display,
+.brand-display {
+  font-family: var(--font-display), Georgia, serif;
+  letter-spacing: -0.03em;
+  font-weight: 500;
 }
 
 /* ── Utilities ────────────────────────────────────────────────────────────── */
@@ -404,7 +405,7 @@ input[type="range"].accent-slider::-moz-range-thumb:hover {
 }
 
 [data-sonner-toast] [data-title] {
-  font-family: var(--font-inter), sans-serif !important;
+  font-family: var(--font-sans), sans-serif !important;
   font-weight: 600 !important;
   font-size: 0.875rem !important;
   color: rgb(var(--foreground)) !important;
@@ -412,7 +413,7 @@ input[type="range"].accent-slider::-moz-range-thumb:hover {
 }
 
 [data-sonner-toast] [data-description] {
-  font-family: var(--font-inter), sans-serif !important;
+  font-family: var(--font-sans), sans-serif !important;
   font-size: 0.75rem !important;
   color: rgb(var(--foreground-subtle)) !important;
   margin-top: 3px !important;
@@ -420,7 +421,7 @@ input[type="range"].accent-slider::-moz-range-thumb:hover {
 
 /* Ensure toast action/cancel buttons match monochrome design */
 [data-sonner-toast] [data-button] {
-  font-family: var(--font-inter), sans-serif !important;
+  font-family: var(--font-sans), sans-serif !important;
   font-size: 0.75rem !important;
   font-weight: 500 !important;
   border-radius: var(--radius) !important;

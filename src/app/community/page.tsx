@@ -27,6 +27,7 @@ export default async function CommunityPage() {
             createdAtStr = new Date(d.created_at).toISOString();
           }
         }
+        const cards = Array.isArray(d.flashcards) ? d.flashcards : [];
         return {
           id: doc.id,
           title: d.title || "",
@@ -34,7 +35,8 @@ export default async function CommunityPage() {
           semester: Number(d.semester || 0),
           author_name: d.author_name || "",
           upvotes: Number(d.upvotes || 0),
-          flashcards: d.flashcards || [],
+          cardCount: cards.length,
+          flashcards: [] as unknown[],
           created_at: createdAtStr
         };
       });

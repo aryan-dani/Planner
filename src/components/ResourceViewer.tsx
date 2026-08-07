@@ -14,6 +14,7 @@ import { ResourceItem } from "@/lib/dataFetcher";
 import { getFileExtension, getDriveFileId } from "@/lib/fileUtils";
 import { motion } from "framer-motion";
 import { cleanResourceTitle } from "@/lib/titleUtils";
+import { NotesDisclaimer } from "./NotesDisclaimer";
 
 interface ResourceViewerProps {
   resource: ResourceItem;
@@ -198,6 +199,12 @@ export default function ResourceViewer({
               viewer
             </p>
           </div>
+          {(resource.category === "notes" ||
+            /notes?/i.test(resource.title)) && (
+            <p className="text-[10px] text-muted mt-1 max-w-[280px] leading-snug">
+              Reference only — not a guarantee of exam content.
+            </p>
+          )}
         </div>
       </motion.div>
 

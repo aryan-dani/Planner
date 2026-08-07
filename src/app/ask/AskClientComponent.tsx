@@ -32,7 +32,8 @@ import { auth, db } from '@/lib/firebase';
 import { collection, query, where, getDocs, doc, setDoc } from 'firebase/firestore';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { logActivity } from '@/components/ActivityHeatmap';
+import { logActivity } from '@/lib/activity';
+import { NotesDisclaimer } from '@/components/NotesDisclaimer';
 import { toast } from 'sonner';
 import { useSRSStore } from '@/store/srsStore';
 import { useSearchParams } from 'next/navigation';
@@ -982,7 +983,8 @@ export default function AskClient() {
                   <div className="w-16 h-16 bg-surface border border-border flex items-center justify-center mb-6 rounded-2xl shadow-sm">
                     <Brain className="w-8 h-8 text-foreground" />
                   </div>
-                  <h1 className="text-2xl font-bold text-foreground mb-10 tracking-tight">Academic AI Assistant</h1>
+                  <h1 className="text-2xl font-bold text-foreground mb-4 tracking-tight">Academic AI Assistant</h1>
+                  <NotesDisclaimer compact className="mb-8 max-w-md mx-auto" />
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-px bg-border/60 rounded-xl overflow-hidden border border-border/70 shadow-sm w-full max-w-lg">
                     {randomPrompts.map((prompt) => (

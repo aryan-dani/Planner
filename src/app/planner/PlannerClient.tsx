@@ -10,7 +10,7 @@ import {
 import Link from 'next/link';
 import { auth } from '@/lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
-import { logActivity } from '@/components/ActivityHeatmap';
+import { logActivity } from '@/lib/activity';
 import { parsePrompt, mergeEntries } from '@/lib/promptParser';
 import { plannerStorageKey } from '@/lib/plannerStorage';
 import { toast } from 'sonner';

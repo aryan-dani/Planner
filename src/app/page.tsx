@@ -1,223 +1,93 @@
-"use client";
-
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import {
-  CalendarCheck,
-  BookOpen,
-  FileText,
-  ArrowRight,
-  Brain,
-  ShieldCheck,
-  Layers,
-} from "lucide-react";
-import { FadeIn } from "@/components/Animations";
-import AuthButtons from "./AuthButtons";
-import { motion, useInView } from "framer-motion";
+import { ArrowRight } from "lucide-react";
 import dynamic from "next/dynamic";
-import { useRef } from "react";
+import AuthButtons from "./AuthButtons";
 
-const ActivityHeatmap = dynamic(() => import("@/components/ActivityHeatmap"), { 
+const ActivityHeatmap = dynamic(() => import("@/components/ActivityHeatmap"), {
   ssr: false,
-  loading: () => <div className="w-full h-48 skeleton rounded-2xl" />
+  loading: () => <div className="w-full h-40 skeleton rounded-lg" />,
 });
 
 const FEATURES = [
   {
     href: "/planner",
     label: "Study Planner",
-    number: "01",
-    Icon: CalendarCheck,
-    description:
-      "Organize your month with natural-language prompts. Share & collaborate with peers.",
+    description: "Month view with natural-language planning and shared calendars.",
   },
   {
     href: "/ask",
     label: "Ask AI",
-    number: "02",
-    Icon: Brain,
-    description:
-      "Get instant explanations, flashcards, and study help powered by Llama 3.3.",
+    description: "Explanations, flashcards, and study help in one thread.",
   },
   {
     href: "/syllabus",
     label: "Syllabus",
-    number: "03",
-    Icon: BookOpen,
-    description:
-      "Clear breakdown of every subject, unit by unit. Download full PDFs instantly.",
+    description: "Unit-by-unit breakdowns with downloadable PDFs.",
   },
   {
     href: "/resources",
     label: "Resources",
-    number: "04",
-    Icon: FileText,
-    description:
-      "All your notes, PPTs, question banks, and PYQs organized by subject.",
+    description: "Notes, PPTs, question banks, and PYQs by subject. Notes are reference-only — not exam guarantees.",
   },
   {
     href: "/gpa",
     label: "GPA Calc",
-    number: "05",
-    Icon: ShieldCheck,
-    description:
-      "Calculate your SGPA and CGPA with auto-populated subjects from the database.",
+    description: "SGPA and CGPA with subjects from the catalog.",
   },
   {
     href: "/srs",
     label: "SRS Cards",
-    number: "06",
-    Icon: Layers,
-    description:
-      "Active Leitner spacing system. Review cards to lock them in long-term memory.",
+    description: "Leitner spacing to lock material into long-term memory.",
   },
 ];
 
-function StatsCounter({ value }: { value: string }) {
-  const [count, setCount] = useState(0);
-  const ref = useRef<HTMLSpanElement>(null);
-  const isInView = useInView(ref, { once: true, margin: "-50px" });
-  const numericVal = parseInt(value.replace(/\D/g, ""), 10);
-  const hasPlus = value.includes("+");
-
-  useEffect(() => {
-    if (!isInView) return;
-    
-    let start = 0;
-    const end = numericVal;
-    if (isNaN(end) || end === 0) {
-      setCount(end);
-      return;
-    }
-
-    const totalDuration = 1000;
-    const increment = Math.ceil(end / (totalDuration / 30));
-    
-    const timer = setInterval(() => {
-      start += increment;
-      if (start >= end) {
-        setCount(end);
-        clearInterval(timer);
-      } else {
-        setCount(start);
-      }
-    }, 30);
-
-    return () => clearInterval(timer);
-  }, [numericVal, isInView]);
-
-  return <span ref={ref}>{count}{hasPlus && "+"}</span>;
-}
-
 export default function Home() {
   return (
-    <div className="flex-1 w-full flex flex-col relative overflow-hidden page-fade-in">
-      {/* Subtle Dot Grid Pattern */}
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,rgb(var(--foreground)/0.06)_1px,transparent_1px),linear-gradient(to_bottom,rgb(var(--foreground)/0.06)_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_50%,#000_70%,transparent_100%)] pointer-events-none -z-20" />
-
-      {/* Hero */}
-      <section className="w-full max-w-7xl mx-auto px-6 pt-28 pb-36 flex flex-col items-center justify-center text-center relative min-h-[82vh]">
-        <FadeIn>
-          <h1 className="text-5xl sm:text-6xl md:text-7xl font-extrabold tracking-tight leading-[1.08] mb-6 text-foreground max-w-4xl mx-auto">
-            Everything for your
-            <br />
-            <span className="text-gradient-mono font-black">semester. One place.</span>
-          </h1>
-
-          <p className="text-base md:text-lg text-foreground-subtle mb-10 max-w-xl mx-auto leading-relaxed">
-            A structured, premium workspace for accessing syllabi, course
-            materials, and managing your weekly schedule.
-          </p>
-
-          <AuthButtons />
-        </FadeIn>
-
-        {/* Scroll Indicator */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 1.5 }}
-          className="absolute bottom-8 left-1/2 transform -translate-x-1/2 flex flex-col items-center gap-2 pointer-events-none select-none"
-        >
-          <span className="text-[10px] font-mono tracking-widest text-foreground-subtle uppercase">Scroll to Explore</span>
-          <div className="w-5 h-8 rounded-full border border-border-strong flex justify-center p-1 bg-background shadow-sm">
-            <motion.div 
-              animate={{ y: [0, 8, 0] }}
-              transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
-              className="w-1 h-2 rounded-full bg-foreground"
-            />
-          </div>
-        </motion.div>
+    <div className="flex-1 w-full flex flex-col page-fade-in">
+      <section className="w-full max-w-3xl mx-auto px-6 pt-24 pb-20 md:pt-32 md:pb-28 min-h-[70vh] flex flex-col justify-center">
+        <p className="font-display text-6xl sm:text-7xl md:text-8xl text-foreground tracking-tight mb-6">
+          Utility
+        </p>
+        <h1 className="text-xl sm:text-2xl font-medium text-foreground mb-4 max-w-lg leading-snug">
+          Your semester, in one workspace.
+        </h1>
+        <p className="text-base text-foreground-subtle mb-10 max-w-md leading-relaxed">
+          Syllabi, course materials, planning, and AI study help — structured
+          for MIT-WPU branches.
+        </p>
+        <AuthButtons />
       </section>
 
-      {/* Divider */}
-      <div className="w-full border-t border-border" />
-
-      {/* Features */}
-      <section className="w-full max-w-7xl mx-auto px-6 py-20">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-px bg-border rounded-xl overflow-hidden border border-border shadow-sm">
-          {FEATURES.map(({ href, label, number, Icon, description }, i) => (
-            <Link
-              key={href}
-              href={href}
-              className="group block bg-card hover:bg-surface card-premium-hover transition-all duration-300"
-            >
-              <FadeIn delay={i * 0.07} y={8}>
-                <div className="p-6 sm:p-7 h-full flex flex-col gap-6 relative">
-                  {/* Hover Left Accent Line */}
-                  <div className="absolute left-0 top-3 bottom-3 w-[3px] rounded-r bg-primary scale-y-0 group-hover:scale-y-100 transition-transform duration-300 origin-center" />
- 
-                  <div className="flex items-start justify-between">
-                    <div className="w-11 h-11 rounded-xl bg-surface border border-border flex items-center justify-center group-hover:scale-105 group-hover:border-border-strong transition-all duration-300">
-                      <Icon className="w-5 h-5 text-foreground transition-colors" />
-                    </div>
-                    <span className="text-xs font-mono text-foreground-subtle group-hover:text-foreground/70 transition-colors">
-                      {number}
-                    </span>
-                  </div>
-
-                  <div className="flex-1">
-                    <h2 className="text-base font-semibold text-foreground mb-2 transition-colors duration-200">
+      <section className="w-full border-t border-border">
+        <div className="max-w-3xl mx-auto px-6 py-16">
+          <h2 className="text-sm font-semibold text-muted mb-8 tracking-wide uppercase">
+            Tools
+          </h2>
+          <ul className="divide-y divide-border border-y border-border">
+            {FEATURES.map(({ href, label, description }) => (
+              <li key={href}>
+                <Link
+                  href={href}
+                  className="group flex items-baseline justify-between gap-6 py-5 hover:bg-surface/40 -mx-2 px-2 transition-colors"
+                >
+                  <div className="min-w-0">
+                    <span className="text-base font-medium text-foreground group-hover:underline underline-offset-4">
                       {label}
-                    </h2>
-                    <p className="text-sm text-foreground-subtle leading-relaxed">
+                    </span>
+                    <p className="text-sm text-foreground-subtle mt-1 leading-relaxed">
                       {description}
                     </p>
                   </div>
-
-                  <div className="flex items-center gap-1.5 text-xs font-bold text-foreground-subtle group-hover:text-foreground transition-colors">
-                    <span className="animated-underline">Open {label}</span>
-                    <ArrowRight className="w-3 h-3 translate-x-0 group-hover:translate-x-1.5 transition-transform duration-300" />
-                  </div>
-                </div>
-              </FadeIn>
-            </Link>
-          ))}
+                  <ArrowRight className="w-4 h-4 text-muted shrink-0 opacity-0 group-hover:opacity-100 transition-opacity translate-x-0 group-hover:translate-x-0.5" />
+                </Link>
+              </li>
+            ))}
+          </ul>
         </div>
       </section>
 
-      {/* Activity Heatmap */}
-      <section className="w-full max-w-7xl mx-auto px-6 py-10">
+      <section className="w-full max-w-3xl mx-auto px-6 py-12 border-t border-border">
         <ActivityHeatmap />
-      </section>
-
-      {/* Stats Strip */}
-      <section className="w-full border-t border-border bg-background-subtle py-14">
-        <div className="max-w-7xl mx-auto px-6 grid grid-cols-2 md:grid-cols-4 gap-6">
-          {[
-            { label: "Subjects", value: "10+" },
-            { label: "Resources", value: "50+" },
-            { label: "Semesters", value: "8" },
-            { label: "Branches", value: "3" },
-          ].map(({ label, value }) => (
-            <div key={label} className="bg-card border border-border card-premium-hover p-6 rounded-2xl shadow-xs text-center relative overflow-hidden group">
-              <p className="text-4xl font-black text-foreground tracking-tight">
-                <StatsCounter value={value} />
-              </p>
-              <p className="text-[11px] font-extrabold uppercase tracking-widest text-foreground-subtle mt-2">{label}</p>
-            </div>
-          ))}
-        </div>
       </section>
     </div>
   );

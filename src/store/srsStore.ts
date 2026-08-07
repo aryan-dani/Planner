@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { auth, db } from '@/lib/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { logActivity } from '@/components/ActivityHeatmap';
+import { logActivity } from '@/lib/activity';
 
 export interface Flashcard {
   id: string;

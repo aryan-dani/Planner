@@ -5,6 +5,7 @@ const nextConfig = {
   // Bundle optimization
   bundlePagesRouterDependencies: true,
   reactCompiler: true,
+  optimizePackageImports: ["lucide-react", "framer-motion"],
   // Keep heavy Node-only libs out of the serverless bundle where possible.
   serverExternalPackages: [
     "googleapis",

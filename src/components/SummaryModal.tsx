@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
 import { X, Brain, Loader2, Copy, Check, Info, Layers } from 'lucide-react';
 import { auth } from '@/lib/firebase';
+import { NotesDisclaimer } from './NotesDisclaimer';
 
 interface SummaryModalProps {
   resourceId: string;
@@ -106,6 +107,10 @@ export default function SummaryModal({ resourceId, resourceTitle, onClose }: Sum
             >
               <X className="w-5 h-5" />
             </button>
+          </div>
+
+          <div className="px-6 pt-3">
+            <NotesDisclaimer compact />
           </div>
 
           {/* Content */}

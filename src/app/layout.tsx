@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next';
-import { Inter } from 'next/font/google';
+import { Newsreader, Source_Sans_3 } from 'next/font/google';
 import { Suspense } from 'react';
 import './globals.css';
 import Navigation from '@/components/Navigation';
@@ -7,9 +7,16 @@ import ConditionalFooter from '@/components/ConditionalFooter';
 import { Providers } from '@/components/Providers';
 import InstallPrompt from '@/components/pwa/InstallPrompt';
 
-const inter = Inter({
+const newsreader = Newsreader({
   subsets: ['latin'],
-  variable: '--font-inter',
+  variable: '--font-display',
+  display: 'swap',
+  style: ['normal', 'italic'],
+});
+
+const sourceSans = Source_Sans_3({
+  subsets: ['latin'],
+  variable: '--font-sans',
   display: 'swap',
 });
 
@@ -45,8 +52,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={inter.variable} suppressHydrationWarning>
-      <body className="antialiased min-h-screen bg-background text-foreground overflow-x-hidden">
+    <html
+      lang="en"
+      className={`${newsreader.variable} ${sourceSans.variable}`}
+      suppressHydrationWarning
+    >
+      <body className={`${sourceSans.className} antialiased min-h-screen bg-background text-foreground overflow-x-hidden`}>
         <Providers>
           <div className="flex min-h-screen w-full">
             <Navigation />

@@ -17,7 +17,6 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
-  LogOut,
   ShieldCheck,
   Brain,
   Calendar,
@@ -26,15 +25,18 @@ import {
   Download,
   Timer,
   GraduationCap,
-  User,
-  Settings,
   Heart,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import dynamic from "next/dynamic";
 import { useAcademicStore, Branch, Semester } from "../store/academicStore";
-import { auth, db } from "@/lib/firebase";
-import { signOut, onIdTokenChanged } from "firebase/auth";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+
+const NavUserMenu = dynamic(() => import("./NavUserMenu"), {
+  ssr: false,
+  loading: () => (
+    <div className="h-10 w-full skeleton rounded-xl" aria-hidden />
+  ),
+});
 
 export interface NavLinkItem {
   href: string;
@@ -45,7 +47,7 @@ export interface NavLinkItem {
 }
 
 const ACADEMIC_LINKS: NavLinkItem[] = [
-  { href: "/resources", label: "Resources", Icon: FileText, featured: true, desc: "Subject files, notes, & answers" },
+  { href: "/resources", label: "Resources", Icon: FileText, featured: true, desc: "Subject files — notes are reference-only" },
   { href: "/ask", label: "Ask AI", Icon: Brain, desc: "RAG-powered academic assistant" },
   { href: "/syllabus", label: "Syllabus", Icon: BookOpen, desc: "Course syllabus tracker" },
 ];
@@ -58,12 +60,12 @@ const PRODUCTIVITY_LINKS: NavLinkItem[] = [
 ];
 
 const SOCIAL_LINKS: NavLinkItem[] = [
-  { href: "/community", label: "Community", Icon: Users, desc: "Connect with peers" },
+  { href: "/community", label: "Community", Icon: Users, desc: "Decks & WhatsApp" },
 ];
 
 const SYSTEM_LINKS: NavLinkItem[] = [
   { href: "/install", label: "Install App", Icon: Download, desc: "PWA desktop application" },
-  { href: "/support", label: "Support Me", Icon: Heart, desc: "Buy me a coffee or chai!" },
+  { href: "/support", label: "Support", Icon: Heart, desc: "Optional contribution" },
 ];
 
 const BRANCH_OPTIONS = [
@@ -212,14 +214,8 @@ function NavigationInner() {
 
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
-  const [user, setUser] = useState<{
-    email: string | undefined;
-    displayName: string | undefined;
-    photoURL: string | undefined;
-  } | null>(null);
-  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [userEmail, setUserEmail] = useState<string | undefined>();
   const [isMac, setIsMac] = useState(true);
-  const userMenuRef = useRef<HTMLDivElement>(null);
   const { theme, setTheme } = useTheme();
 
   useEffect(() => {
@@ -246,78 +242,6 @@ function NavigationInner() {
     setSemester(Number(searchParams.get("semester") || "4") as Semester);
   }, [searchParams, setBranch, setSemester]);
 
-  useEffect(() => {
-    const unsubscribe = onIdTokenChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) {
-        setUser({
-          email: firebaseUser.email || undefined,
-          displayName: firebaseUser.displayName || undefined,
-          photoURL: firebaseUser.photoURL || undefined,
-        });
-
-        // Load and sync user profile/preferences in Firestore
-        const userPrefsRef = doc(db, "users", firebaseUser.uid);
-        getDoc(userPrefsRef)
-          .then(async (snap) => {
-            const isGoogle = firebaseUser.providerData.some((p) => p.providerId === "google.com");
-            const isGithub = firebaseUser.providerData.some((p) => p.providerId === "github.com");
-            const provider = isGoogle ? "Google Account" : isGithub ? "GitHub Account" : "Email Account";
-
-            const updateData: any = {
-              uid: firebaseUser.uid,
-              email: firebaseUser.email || "",
-              photoURL: firebaseUser.photoURL || "",
-              displayName: firebaseUser.displayName || firebaseUser.email?.split("@")[0] || "Student",
-              provider: provider,
-              lastActive: new Date().toISOString(),
-            };
-
-            if (snap.exists()) {
-              const data = snap.data();
-              if (data.branch) setBranch(data.branch as Branch);
-              if (data.semester) setSemester(data.semester as Semester);
-              
-              // Sync / update basic user metadata on login
-              await setDoc(userPrefsRef, updateData, { merge: true });
-            } else {
-              // New user entry: set default branch/semester
-              updateData.branch = branch;
-              updateData.semester = semester;
-              await setDoc(userPrefsRef, updateData, { merge: true });
-            }
-          })
-          .catch((err) => {
-            console.error("Error syncing user preferences:", err);
-          });
-
-        try {
-          const token = await firebaseUser.getIdToken();
-          document.cookie = `__session=${token}; path=/; max-age=3600; SameSite=Lax; Secure`;
-        } catch (e) {
-          console.error("Error getting Firebase ID token:", e);
-        }
-      } else {
-        setUser(null);
-        document.cookie =
-          "__session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax";
-      }
-    });
-    return () => unsubscribe();
-  }, []);
-
-  useEffect(() => {
-    function handler(e: MouseEvent) {
-      if (
-        userMenuRef.current &&
-        !userMenuRef.current.contains(e.target as Node)
-      ) {
-        setUserMenuOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
-
   const searchParamsRef = useRef(searchParams);
   useEffect(() => {
     searchParamsRef.current = searchParams;
@@ -337,12 +261,6 @@ function NavigationInner() {
     setMobileOpen(false);
   }, [pathname]);
 
-  const handleLogout = async () => {
-    await signOut(auth);
-    setUserMenuOpen(false);
-    window.location.href = "/";
-  };
-
   const cycleTheme = () => {
     setTheme(theme === "light" ? "dark" : theme === "dark" ? "system" : "light");
   };
@@ -357,9 +275,8 @@ function NavigationInner() {
       .map((e) => e.trim().toLowerCase())
       .filter(Boolean) ?? [];
   const isAdmin = !!(
-    user &&
-    user.email &&
-    adminEmails.includes(user.email.toLowerCase())
+    userEmail &&
+    adminEmails.includes(userEmail.toLowerCase())
   );
 
   const showSelectors =
@@ -424,8 +341,8 @@ function NavigationInner() {
               <Layers className="w-4 h-4" />
             </div>
             {!isCollapsed && (
-              <span className="font-extrabold tracking-tight text-foreground bg-clip-text">
-                Utility OS
+              <span className="font-display text-lg tracking-tight text-foreground">
+                Utility
               </span>
             )}
           </Link>
@@ -610,80 +527,14 @@ function NavigationInner() {
             <SegmentedThemeToggle theme={theme} setTheme={setTheme} />
           )}
 
-          {/* User profile / Logout actions */}
-          {user ? (
-            <div ref={userMenuRef} className="relative w-full flex justify-center">
-              <button
-                onClick={() => setUserMenuOpen((o) => !o)}
-                aria-label="User Menu"
-                className={`flex items-center ${isCollapsed ? "justify-center w-8 h-8" : "justify-between w-full p-1.5"} rounded-xl border border-transparent hover:border-border/80 hover:bg-surface/50 transition-all group`}
-                title={isCollapsed ? user.email : undefined}
-              >
-                <div className="flex items-center gap-2 min-w-0">
-                  <div className="w-7 h-7 rounded-lg bg-foreground text-background flex items-center justify-center text-xs font-extrabold uppercase shadow-xs shrink-0 overflow-hidden">
-                    {user.photoURL ? (
-                      <img
-                        src={user.photoURL}
-                        alt="Avatar"
-                        className="w-full h-full object-cover"
-                        referrerPolicy="no-referrer"
-                      />
-                    ) : (
-                      user.displayName?.[0] ?? user.email?.[0] ?? "?"
-                    )}
-                  </div>
-                  {!isCollapsed && (
-                    <div className="text-left min-w-0">
-                      <p className="text-xs font-bold text-foreground truncate">
-                        {user.displayName ?? user.email?.split("@")[0] ?? "User"}
-                      </p>
-                      <p className="text-[10px] text-muted truncate">
-                        {user.email ?? "No email shared"}
-                      </p>
-                    </div>
-                  )}
-                </div>
-                {!isCollapsed && <ChevronDown className="w-3.5 h-3.5 text-muted group-hover:text-foreground transition-colors shrink-0 mr-1" />}
-              </button>
-
-              <AnimatePresence>
-                {userMenuOpen && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -4, scale: 0.95 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: -4, scale: 0.95 }}
-                    transition={{ duration: 0.1, ease: "easeOut" }}
-                    className={`absolute bottom-full mb-2 bg-card border border-border rounded-xl shadow-popover overflow-hidden z-50 p-1 flex flex-col gap-0.5 ${isCollapsed ? "w-32 left-1/2 -translate-x-1/2" : "left-0 right-0"}`}
-                  >
-                    <Link
-                      href="/profile"
-                      onClick={() => setUserMenuOpen(false)}
-                      className="flex items-center gap-2.5 w-full px-2.5 py-2 text-xs font-semibold text-foreground hover:bg-surface rounded-lg transition-colors text-left"
-                    >
-                      <User className="w-3.5 h-3.5 shrink-0 text-muted" />
-                      <span>Profile Settings</span>
-                    </Link>
-                    <button
-                      onClick={handleLogout}
-                      className="flex items-center gap-2.5 w-full px-2.5 py-2 text-xs font-semibold text-destructive hover:bg-destructive/10 rounded-lg transition-colors text-left"
-                    >
-                      <LogOut className="w-3.5 h-3.5 shrink-0" />
-                      <span>Sign out</span>
-                    </button>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-          ) : (
-            <Link
-              href="/login"
-              aria-label="Sign In"
-              className={`flex items-center justify-center ${isCollapsed ? "w-8 h-8 rounded-lg" : "w-full py-2 rounded-xl"} bg-foreground text-background font-semibold text-xs hover:opacity-90 transition-all shadow-xs`}
-              title={isCollapsed ? "Sign In" : undefined}
-            >
-              {isCollapsed ? <LogOut className="w-3.5 h-3.5 rotate-180" /> : "Sign in"}
-            </Link>
-          )}
+          <NavUserMenu
+            collapsed={isCollapsed}
+            branch={branch}
+            semester={semester}
+            setBranch={setBranch}
+            setSemester={setSemester}
+            onUserChange={(u) => setUserEmail(u?.email)}
+          />
 
           {isCollapsed ? (
             <div className="flex justify-center pt-2 border-t border-border/20">

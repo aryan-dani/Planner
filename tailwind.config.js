@@ -32,8 +32,9 @@ module.exports = {
         'accent-hover': 'rgb(var(--accent-hover) / <alpha-value>)',
       },
       fontFamily: {
-        sans: ['Inter', 'Geist', 'system-ui', 'sans-serif'],
-        mono: ['Geist Mono', 'JetBrains Mono', 'monospace'],
+        sans: ['var(--font-sans)', 'system-ui', 'sans-serif'],
+        display: ['var(--font-display)', 'Georgia', 'serif'],
+        mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
       },
       borderRadius: {
         DEFAULT: 'var(--radius)',

@@ -21,7 +21,7 @@ import {
   CloudRain
 } from 'lucide-react';
 import { FadeIn, ScaleButton } from '@/components/Animations';
-import { logActivity } from '@/components/ActivityHeatmap';
+import { logActivity } from '@/lib/activity';
 import { incrementTaskFocus } from '@/lib/plannerStorage';
 
 type TimerMode = 'work' | 'break' | 'longBreak';

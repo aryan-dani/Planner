@@ -23,11 +23,11 @@ import {
   Activity, 
   CheckCircle2, 
   ChevronRight,
-  GraduationCap,
   Compass,
   Calendar
 } from 'lucide-react';
-import { logActivity } from '@/components/ActivityHeatmap';
+import { logActivity } from '@/lib/activity';
+import { NotesDisclaimer } from '@/components/NotesDisclaimer';
 import { isSubjectMatch } from '@/lib/subjectMatcher';
 import { motion, AnimatePresence } from 'framer-motion';
 import { auth, db } from '@/lib/firebase';
@@ -488,23 +488,16 @@ export default function SyllabusClient({ subjects, branch, semester, syllabusUrl
 
   return (
     <div className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 py-8 min-h-[90vh] relative">
-      {/* Decorative ambient blurred spots for premium futuristic feel */}
-      <div className="absolute top-[-10%] left-[-20%] w-[600px] h-[600px] rounded-full bg-primary/10 blur-[150px] pointer-events-none" />
-      <div className="absolute bottom-[20%] right-[-10%] w-[500px] h-[500px] rounded-full bg-foreground/5 blur-[130px] pointer-events-none" />
-
       {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 border-b border-border/60 pb-6 relative z-10">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 border-b border-border pb-6 relative z-10">
         <div>
-          <div className="flex items-center gap-2 text-xs font-bold text-primary uppercase tracking-widest bg-primary/5 border border-primary/20 px-3 py-1 rounded-full w-max mb-3">
-            <GraduationCap className="w-3.5 h-3.5" />
-            Curriculum Navigator
-          </div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-foreground bg-clip-text">
-            Syllabus Tracker
+          <h1 className="font-display text-3xl md:text-4xl tracking-tight text-foreground">
+            Syllabus
           </h1>
-          <p className="text-muted-foreground text-sm mt-1.5 font-medium">
-            {branch} Workspace <span className="mx-1.5 text-border">•</span> Semester {semester} <span className="mx-1.5 text-border">•</span> {filtered.length} Course{filtered.length !== 1 ? 's' : ''}
+          <p className="text-foreground-subtle text-sm mt-1.5">
+            {branch} · Semester {semester} · {filtered.length} course{filtered.length !== 1 ? 's' : ''}
           </p>
+          <NotesDisclaimer compact className="mt-3 max-w-xl" />
         </div>
 
         <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
@@ -513,29 +506,25 @@ export default function SyllabusClient({ subjects, branch, semester, syllabusUrl
               href={syllabusUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 px-4 py-2.5 bg-surface border border-border text-foreground text-sm font-bold hover:bg-surface-hover hover:-translate-y-0.5 rounded-xl transition-all shadow-xs shrink-0"
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-foreground text-background text-sm font-medium hover:opacity-90 rounded-lg transition-opacity shrink-0"
             >
-              <FileText className="w-4 h-4 text-primary" />
-              Download Official PDF
+              <FileText className="w-4 h-4" />
+              Download PDF
             </a>
           )}
         </div>
       </div>
 
-      {/* Premium Dashboard Metrics Panel */}
+      {/* Progress */}
       {filtered.length > 0 && (
-        <div className="bg-card border border-border p-6 mb-10 rounded-2xl shadow-sm flex flex-col md:flex-row items-center justify-between gap-6 relative z-10">
-          <div className="flex flex-wrap items-center gap-6 w-full md:w-auto">
-            <div className="w-14 h-14 bg-surface border border-border rounded-xl flex items-center justify-center shrink-0 shadow-xs">
-              <Trophy className="w-7 h-7 text-primary animate-pulse" />
-            </div>
-            
+        <div className="border border-border p-5 mb-10 rounded-lg flex flex-col md:flex-row items-center justify-between gap-6 relative z-10 bg-card">
+          <div className="flex flex-wrap items-center gap-4 w-full md:w-auto">
             <div className="space-y-1">
-              <h3 className="text-lg font-bold text-foreground tracking-tight">Semester Completion</h3>
-              <div className="flex flex-wrap gap-4 text-xs text-muted-foreground font-semibold">
+              <h3 className="text-sm font-semibold text-foreground">Semester progress</h3>
+              <div className="flex flex-wrap gap-4 text-xs text-muted font-medium">
                 <span className="flex items-center gap-1.5">
                   <CheckCircle2 className="w-4 h-4 text-foreground" />
-                  {completedModules} / {totalModules} Units Done
+                  {completedModules} / {totalModules} units done
                 </span>
                 <span className="flex items-center gap-1.5">
                   <Clock className="w-4 h-4 text-muted-hover" />

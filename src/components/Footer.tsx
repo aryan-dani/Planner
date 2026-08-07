@@ -2,8 +2,8 @@
 
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { Layers } from 'lucide-react';
 import { Suspense } from 'react';
+import { NOTES_DISCLAIMER } from '@/components/NotesDisclaimer';
 
 function FooterInner() {
   const searchParams = useSearchParams();
@@ -25,14 +25,11 @@ function FooterInner() {
       <div className="max-w-7xl mx-auto px-6 py-12">
         <div className="flex flex-col md:flex-row justify-between items-start gap-12 mb-12">
           <div className="max-w-xs">
-            <Link href={getLinkWithParams('/')} className="text-lg font-bold tracking-tight text-foreground flex items-center gap-2 mb-3">
-              <div className="w-6 h-6 rounded bg-foreground flex items-center justify-center">
-                <Layers className="w-3.5 h-3.5 text-background" />
-              </div>
-              Utility OS
+            <Link href={getLinkWithParams('/')} className="font-display text-xl tracking-tight text-foreground flex items-center gap-2 mb-3">
+              Utility
             </Link>
             <p className="text-sm text-muted leading-relaxed">
-              A premium academic workspace designed to streamline your university experience.
+              Academic workspace for syllabus, resources, and planning.
             </p>
           </div>
 
@@ -57,15 +54,28 @@ function FooterInner() {
               <h4 className="text-[10px] font-bold uppercase tracking-widest text-foreground/50">Company</h4>
               <nav className="flex flex-col gap-2.5">
                 <Link href={getLinkWithParams('/support')} className="text-sm text-muted hover:text-foreground transition-colors">Support</Link>
+                <Link href={getLinkWithParams('/community')} className="text-sm text-muted hover:text-foreground transition-colors">Community</Link>
+                <a
+                  href="https://chat.whatsapp.com/IptJTcvj4F848iY2riZ3YZ"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-muted hover:text-foreground transition-colors"
+                >
+                  WhatsApp
+                </a>
                 <a href="https://www.aryandani.com" target="_blank" rel="noopener noreferrer" className="text-sm text-muted hover:text-foreground transition-colors">Portfolio</a>
               </nav>
             </div>
           </div>
         </div>
 
-        <div className="pt-8 border-t border-border/30 flex flex-col sm:flex-row justify-between items-center gap-4">
+        <div className="pt-8 border-t border-border/30 flex flex-col gap-4">
+          <p className="text-xs text-muted/70 leading-relaxed max-w-2xl">
+            {NOTES_DISCLAIMER}
+          </p>
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
           <p className="text-xs text-muted/60">
-            © {new Date().getFullYear()} Utility OS. Built for efficiency.
+            © {new Date().getFullYear()} Utility. Built for efficiency.
           </p>
           <div className="flex items-center gap-6">
             <a
@@ -77,6 +87,7 @@ function FooterInner() {
               <span>Crafted by</span>
               <span className="font-semibold text-foreground">Aryan Dani</span>
             </a>
+          </div>
           </div>
         </div>
       </div>

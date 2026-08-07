@@ -5,6 +5,7 @@ import { ChevronDown } from 'lucide-react';
 import { ResourceItem } from '@/lib/dataFetcher';
 import { motion, AnimatePresence } from 'framer-motion';
 import ResourceCard from './ResourceCard';
+import { NotesDisclaimer } from '../NotesDisclaimer';
 
 interface ResourceSectionProps {
   title: string;
@@ -74,6 +75,9 @@ export default function ResourceSection({
             transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
             className="overflow-hidden"
           >
+            {/notes/i.test(title) && (
+              <NotesDisclaimer compact className="mb-3" />
+            )}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-px bg-border/60 rounded-xl overflow-hidden border border-border/70 shadow-sm">
               {items.map((item, index) => (
                 <motion.div

@@ -18,11 +18,14 @@ import {
   CheckCircle2,
   RefreshCw,
 } from "lucide-react";
-import ResourceViewer from "./ResourceViewer";
-import SummaryModal from "./SummaryModal";
+import dynamic from "next/dynamic";
 import ResourceCard from "./resources/ResourceCard";
 import ResourceSection from "./resources/ResourceSection";
 import { cleanResourceTitle } from "@/lib/titleUtils";
+import { NotesDisclaimer } from "./NotesDisclaimer";
+
+const ResourceViewer = dynamic(() => import("./ResourceViewer"), { ssr: false });
+const SummaryModal = dynamic(() => import("./SummaryModal"), { ssr: false });
 
 interface ResourcesClientProps {
   initialResources: ResourceItem[];
@@ -235,7 +238,7 @@ export default function ResourcesClient({
   return (
     <div className="flex-1 w-full max-w-7xl mx-auto px-6 py-8 min-h-[80vh]">
       {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 border-b border-border pb-6">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground">
             Resource Vault
@@ -245,6 +248,10 @@ export default function ResourcesClient({
           </p>
         </div>
       </div>
+
+      <NotesDisclaimer className="mb-8" />
+
+      <div className="border-b border-border mb-8" />
 
       {resources.length === 0 ? (
         <div className="flex flex-col items-center justify-center p-16 text-center border border-dashed border-border rounded-xl bg-surface">

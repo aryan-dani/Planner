@@ -20,9 +20,22 @@ import {
   Trash2,
   Flame,
   Clock,
+  ExternalLink,
+  MessageCircle,
 } from "lucide-react";
-import { logActivity } from "@/components/ActivityHeatmap";
+import { logActivity } from "@/lib/activity";
 import { toast } from "sonner";
+
+const WHATSAPP_COMMUNITY_URL =
+  "https://chat.whatsapp.com/IptJTcvj4F848iY2riZ3YZ";
+
+const WHATSAPP_GROUPS = [
+  "Announcements",
+  "Student Hub",
+  "Academic Help",
+  "Feedback & Bugs",
+  "General",
+] as const;
 
 interface CommunityDeck {
   id: string;
@@ -31,6 +44,7 @@ interface CommunityDeck {
   semester: number;
   author_name: string;
   upvotes: number;
+  cardCount?: number;
   flashcards: any[];
   created_at: string;
 }
@@ -122,11 +136,33 @@ export default function CommunityClient({
     }
   };
 
-  const handleCopyDeck = (deck: CommunityDeck) => {
+  const ensureDeckCards = async (deck: CommunityDeck): Promise<CommunityDeck> => {
+    if (Array.isArray(deck.flashcards) && deck.flashcards.length > 0) {
+      return deck;
+    }
+    const res = await fetch(`/api/community-decks/${deck.id}`);
+    if (!res.ok) {
+      throw new Error("Failed to load deck cards");
+    }
+    const data = await res.json();
+    const flashcards = Array.isArray(data.flashcards) ? data.flashcards : [];
+    const hydrated = {
+      ...deck,
+      flashcards,
+      cardCount: data.cardCount ?? flashcards.length,
+    };
+    setDecks((prev) =>
+      prev.map((d) => (d.id === deck.id ? hydrated : d)),
+    );
+    return hydrated;
+  };
+
+  const handleCopyDeck = async (deck: CommunityDeck) => {
     try {
+      const full = await ensureDeckCards(deck);
       initStore();
-      const newDeck = createDeck(deck.title || "Community Deck");
-      const cards = (Array.isArray(deck.flashcards) ? deck.flashcards : [])
+      const newDeck = createDeck(full.title || "Community Deck");
+      const cards = (Array.isArray(full.flashcards) ? full.flashcards : [])
         .map((card: { question?: string; answer?: string }) => ({
           question: String(card?.question || "").trim(),
           answer: String(card?.answer || "").trim(),
@@ -146,6 +182,17 @@ export default function CommunityClient({
       setTimeout(() => setCopiedDeckId(null), 2000);
     } catch (err) {
       toast.error("Failed to save deck.");
+    }
+  };
+
+  const handleStudyDeck = async (deck: CommunityDeck) => {
+    try {
+      const full = await ensureDeckCards(deck);
+      setActiveDeck(full);
+      setCurrentCardIdx(0);
+      setShowAnswer(false);
+    } catch {
+      toast.error("Failed to load deck.");
     }
   };
 
@@ -174,6 +221,34 @@ export default function CommunityClient({
 
   return (
     <div className="flex-1 w-full max-w-7xl mx-auto px-6 py-8 min-h-[80vh]">
+      {/* WhatsApp community */}
+      <section className="mb-10 border border-border bg-card rounded-lg p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 mb-2">
+            <MessageCircle className="w-4 h-4 text-foreground shrink-0" />
+            <h2 className="text-sm font-semibold text-foreground">
+              Utility OS · MIT-WPU on WhatsApp
+            </h2>
+          </div>
+          <p className="text-sm text-foreground-subtle leading-relaxed max-w-xl mb-3">
+            Join the WhatsApp community for announcements, academic help,
+            feedback, and the student hub.
+          </p>
+          <p className="text-xs text-muted">
+            Groups: {WHATSAPP_GROUPS.join(" · ")}
+          </p>
+        </div>
+        <a
+          href={WHATSAPP_COMMUNITY_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center justify-center gap-2 shrink-0 px-5 py-2.5 bg-foreground text-background text-sm font-medium rounded-lg hover:opacity-90"
+        >
+          Join WhatsApp
+          <ExternalLink className="w-3.5 h-3.5" />
+        </a>
+      </section>
+
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 border-b border-border pb-6">
         <div>
@@ -238,9 +313,12 @@ export default function CommunityClient({
       {/* Decks Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-px bg-border/60 rounded-xl overflow-hidden border border-border/70 shadow-sm">
         {filteredDecks.map((deck) => {
-          const cardCount = Array.isArray(deck.flashcards)
-            ? deck.flashcards.length
-            : 0;
+          const cardCount =
+            typeof deck.cardCount === "number"
+              ? deck.cardCount
+              : Array.isArray(deck.flashcards)
+                ? deck.flashcards.length
+                : 0;
           const isUpvoted = upvotedDecks[deck.id];
 
           return (
@@ -305,11 +383,7 @@ export default function CommunityClient({
               {/* Action Buttons */}
               <div className="grid grid-cols-2 gap-3 mt-6 pt-4 border-t border-border">
                 <button
-                  onClick={() => {
-                    setActiveDeck(deck);
-                    setCurrentCardIdx(0);
-                    setShowAnswer(false);
-                  }}
+                  onClick={() => handleStudyDeck(deck)}
                   className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-foreground text-background text-xs font-semibold hover:opacity-90 transition-opacity shadow-xs"
                 >
                   <BookOpen className="w-4 h-4" />
