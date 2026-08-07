@@ -38,9 +38,8 @@ const EXCLUDED_TITLES: string[] = [
   ".emptyfolderplaceholder",
 ];
 
-const BRANCH_SUBJECT_EXCLUSIONS: Record<string, string[]> = {
-  AIDS: ["DBMS"],
-};
+/** Per-branch subjects to hide from the site. Empty = show everything Drive syncs. */
+const BRANCH_SUBJECT_EXCLUSIONS: Record<string, string[]> = {};
 
 export function getResourceCategory(
   title: string,

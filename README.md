@@ -85,7 +85,13 @@ npm run index-content
 
 # Both
 npm run sync-all
+
+# Read-only: compare Drive subjects/categories vs Firestore (via subjects join)
+npm run audit-drive-site
+# Optional: --branch=AIDS --semester=3
 ```
+
+Resources are cached ~10 minutes (`unstable_cache` / `revalidate: 600`). After changing what the site shows (or after sync), wait for revalidate, redeploy, or use **Sync Now**.
 
 Drive folder naming convention:
 
