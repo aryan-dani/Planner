@@ -491,7 +491,7 @@ export default function SyllabusClient({ subjects, branch, semester, syllabusUrl
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 border-b border-border pb-6 relative z-10">
         <div>
-          <h1 className="font-display text-3xl md:text-4xl tracking-tight text-foreground">
+          <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-foreground">
             Syllabus
           </h1>
           <p className="text-foreground-subtle text-sm mt-1.5">

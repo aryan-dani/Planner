@@ -17,49 +17,51 @@ export default function InstallPage() {
   };
 
   return (
-    <div className="flex-1 flex flex-col max-w-lg mx-auto px-6 py-20 page-fade-in">
+    <div className="flex-1 flex flex-col items-center max-w-xl mx-auto px-6 py-20 page-fade-in text-center">
       <p className="font-display text-4xl text-foreground tracking-tight mb-3">
         Utility
       </p>
-      <h1 className="text-xl font-medium text-foreground mb-3">
+      <h1 className="text-2xl font-semibold tracking-tight text-foreground mb-3">
         Install the app
       </h1>
       <p className="text-sm text-foreground-subtle mb-10 leading-relaxed max-w-md">
         Add Utility to your home screen or desktop for faster access and an
-        app-like window. Works on supported browsers.
+        app-like window.
       </p>
 
-      <ul className="space-y-4 mb-10 text-sm text-foreground-subtle border-y border-border py-6">
-        <li>
-          <span className="font-medium text-foreground">Mobile — </span>
-          Use your browser&apos;s “Add to Home Screen” when prompted, or tap
-          Install below.
-        </li>
-        <li>
-          <span className="font-medium text-foreground">Desktop — </span>
-          Install as a standalone window on Chromium-based browsers.
-        </li>
-      </ul>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-px w-full mb-10 rounded-xl overflow-hidden border border-border bg-border shadow-sm text-left">
+        <div className="bg-card p-5">
+          <h3 className="text-sm font-semibold text-foreground mb-1">Mobile</h3>
+          <p className="text-sm text-muted leading-relaxed">
+            Add to your home screen for quick access on the go.
+          </p>
+        </div>
+        <div className="bg-card p-5">
+          <h3 className="text-sm font-semibold text-foreground mb-1">Desktop</h3>
+          <p className="text-sm text-muted leading-relaxed">
+            Install as a standalone window on Chromium browsers.
+          </p>
+        </div>
+      </div>
 
       {isInstallable ? (
         <button
           onClick={handleInstall}
-          className="inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-foreground text-background rounded-lg text-sm font-medium hover:opacity-90 w-full sm:w-auto"
+          className="inline-flex items-center justify-center gap-2 px-8 py-3 bg-foreground text-background rounded-xl text-sm font-semibold hover:opacity-90 shadow-sm"
         >
           <Download className="w-4 h-4" />
           Install
         </button>
       ) : (
-        <p className="text-sm text-muted leading-relaxed">
+        <div className="w-full border border-border bg-card rounded-xl px-6 py-5 text-sm text-muted leading-relaxed">
           Already installed, or this browser does not expose an install prompt.
-          You can still bookmark the site or use “Add to Home Screen” from the
-          browser menu.
-        </p>
+          You can still use “Add to Home Screen” from the browser menu.
+        </div>
       )}
 
       <Link
         href="/"
-        className="mt-10 text-sm text-muted hover:text-foreground underline underline-offset-4"
+        className="mt-10 text-sm text-muted hover:text-foreground underline underline-offset-4 font-medium"
       >
         Back home
       </Link>

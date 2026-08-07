@@ -118,9 +118,16 @@ html {
 body {
   background-color: rgb(var(--background));
   background-image:
-    linear-gradient(rgb(var(--foreground) / 0.018) 1px, transparent 1px),
-    linear-gradient(90deg, rgb(var(--foreground) / 0.018) 1px, transparent 1px);
-  background-size: 48px 48px;
+    linear-gradient(rgb(var(--foreground) / 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(var(--foreground) / 0.025) 1px, transparent 1px),
+    repeating-linear-gradient(
+      -45deg,
+      rgb(var(--foreground) / 0.04),
+      rgb(var(--foreground) / 0.04) 1px,
+      transparent 1px,
+      transparent 6px
+    );
+  background-size: 40px 40px, 40px 40px, auto;
   color: rgb(var(--foreground));
   font-family: var(--font-sans), system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -175,7 +182,6 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .font-display,
-h1.font-display,
 .brand-display {
   font-family: var(--font-display), Georgia, serif;
   letter-spacing: -0.03em;

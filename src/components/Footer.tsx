@@ -3,7 +3,6 @@
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
-import { NOTES_DISCLAIMER } from '@/components/NotesDisclaimer';
 
 function FooterInner() {
   const searchParams = useSearchParams();
@@ -69,11 +68,7 @@ function FooterInner() {
           </div>
         </div>
 
-        <div className="pt-8 border-t border-border/30 flex flex-col gap-4">
-          <p className="text-xs text-muted/70 leading-relaxed max-w-2xl">
-            {NOTES_DISCLAIMER}
-          </p>
-          <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+        <div className="pt-8 border-t border-border/30 flex flex-col sm:flex-row justify-between items-center gap-4">
           <p className="text-xs text-muted/60">
             © {new Date().getFullYear()} Utility. Built for efficiency.
           </p>
@@ -87,7 +82,6 @@ function FooterInner() {
               <span>Crafted by</span>
               <span className="font-semibold text-foreground">Aryan Dani</span>
             </a>
-          </div>
           </div>
         </div>
       </div>

@@ -2,11 +2,16 @@ import Link from "next/link";
 
 export default function NotFound() {
   return (
-    <div className="flex-1 w-full flex flex-col items-center justify-center min-h-[70vh] px-6 py-16 page-fade-in">
-      <p className="font-display text-7xl md:text-8xl text-foreground tracking-tight mb-4">
+    <div className="flex-1 w-full flex flex-col items-center justify-center min-h-[70vh] px-6 py-16 page-fade-in relative overflow-hidden">
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,rgb(var(--foreground)/0.05)_1px,transparent_1px),linear-gradient(to_bottom,rgb(var(--foreground)/0.05)_1px,transparent_1px)] bg-[size:3rem_3rem] [mask-image:radial-gradient(ellipse_50%_45%_at_50%_40%,#000_60%,transparent_100%)] pointer-events-none -z-10" />
+
+      <p className="font-display text-2xl text-foreground tracking-tight mb-6">
+        Utility
+      </p>
+      <p className="text-6xl md:text-7xl font-black tracking-tight text-foreground mb-3">
         404
       </p>
-      <h1 className="text-lg font-medium text-foreground mb-2">
+      <h1 className="text-lg font-semibold text-foreground mb-2">
         Page not found
       </h1>
       <p className="text-sm text-foreground-subtle mb-8 max-w-sm text-center leading-relaxed">
@@ -15,13 +20,13 @@ export default function NotFound() {
       <div className="flex flex-wrap items-center justify-center gap-3">
         <Link
           href="/"
-          className="px-5 py-2.5 rounded-lg bg-foreground text-background text-sm font-medium hover:opacity-90"
+          className="px-5 py-2.5 rounded-xl bg-foreground text-background text-sm font-semibold hover:opacity-90 shadow-sm"
         >
           Home
         </Link>
         <Link
           href="/resources"
-          className="px-5 py-2.5 rounded-lg border border-border text-foreground text-sm font-medium hover:bg-surface"
+          className="px-5 py-2.5 rounded-xl border border-border bg-card text-foreground text-sm font-semibold hover:bg-surface shadow-xs"
         >
           Resources
         </Link>

@@ -165,7 +165,7 @@ export default function SupportClient() {
                 className="w-full h-full object-contain"
               />
             </div>
-            <p className="mt-3 text-center sm:text-left text-2xl font-display text-foreground tracking-tight">
+            <p className="mt-3 text-center sm:text-left text-2xl font-semibold text-foreground tracking-tight">
               ₹{amount || "—"}
             </p>
           </div>

@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next';
-import { Newsreader, Source_Sans_3 } from 'next/font/google';
+import { Inter, Newsreader } from 'next/font/google';
 import { Suspense } from 'react';
 import './globals.css';
 import Navigation from '@/components/Navigation';
@@ -7,17 +7,17 @@ import ConditionalFooter from '@/components/ConditionalFooter';
 import { Providers } from '@/components/Providers';
 import InstallPrompt from '@/components/pwa/InstallPrompt';
 
+const inter = Inter({
+  subsets: ['latin'],
+  variable: '--font-sans',
+  display: 'swap',
+});
+
 const newsreader = Newsreader({
   subsets: ['latin'],
   variable: '--font-display',
   display: 'swap',
   style: ['normal', 'italic'],
-});
-
-const sourceSans = Source_Sans_3({
-  subsets: ['latin'],
-  variable: '--font-sans',
-  display: 'swap',
 });
 
 export const viewport: Viewport = {
@@ -54,10 +54,10 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${newsreader.variable} ${sourceSans.variable}`}
+      className={`${inter.variable} ${newsreader.variable}`}
       suppressHydrationWarning
     >
-      <body className={`${sourceSans.className} antialiased min-h-screen bg-background text-foreground overflow-x-hidden`}>
+      <body className={`${inter.className} antialiased min-h-screen bg-background text-foreground overflow-x-hidden`}>
         <Providers>
           <div className="flex min-h-screen w-full">
             <Navigation />
