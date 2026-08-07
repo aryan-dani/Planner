@@ -9,7 +9,9 @@
     "lint": "next lint",
     "sync-drive": "node runtime/tools/sync-drive.mjs",
     "index-content": "node runtime/index.mjs index",
-    "sync-all": "node runtime/index.mjs sync && node runtime/index.mjs index"
+    "sync-all": "node runtime/index.mjs sync && node runtime/index.mjs index",
+    "rename-drive-files": "node runtime/tools/rename-drive-files.mjs --dry-run",
+    "rename-drive-files:apply": "node runtime/tools/rename-drive-files.mjs --apply"
   },
   "dependencies": {
     "@ai-sdk/groq": "^3.0.39",
