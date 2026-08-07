@@ -1,12 +1,7 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
-import dynamic from "next/dynamic";
 import AuthButtons from "./AuthButtons";
-
-const ActivityHeatmap = dynamic(() => import("@/components/ActivityHeatmap"), {
-  ssr: false,
-  loading: () => <div className="w-full h-40 skeleton rounded-lg" />,
-});
+import HomeHeatmap from "./HomeHeatmap";
 
 const FEATURES = [
   {
@@ -87,7 +82,7 @@ export default function Home() {
       </section>
 
       <section className="w-full max-w-3xl mx-auto px-6 py-12 border-t border-border">
-        <ActivityHeatmap />
+        <HomeHeatmap />
       </section>
     </div>
   );
