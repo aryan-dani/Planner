@@ -8,7 +8,7 @@ import { db } from "../lib/firebase.mjs";
 import crypto from "crypto";
 import path from "path";
 import { pathToFileURL } from "url";
-import { env } from "../lib/env.mjs";
+import { getEnv } from "../lib/env.mjs";
 import { getDrive } from "../lib/drive.mjs";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -61,7 +61,7 @@ async function syncDrive() {
   console.log(`\n🚀 Starting Google Drive Sync...\n`);
 
   try {
-    const driveFolderId = env["GOOGLE_DRIVE_FOLDER_ID"];
+    const driveFolderId = getEnv("GOOGLE_DRIVE_FOLDER_ID");
     if (!driveFolderId) {
       throw new Error(
         "❌ Missing GOOGLE_DRIVE_FOLDER_ID in environment variables.",

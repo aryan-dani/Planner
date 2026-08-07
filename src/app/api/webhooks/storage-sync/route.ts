@@ -1,7 +1,7 @@
 import { NextResponse, after } from "next/server";
 import { revalidateTag } from "next/cache";
 import syncDrive from "../../../../../runtime/tools/sync-drive.mjs";
-import { adminAuth } from "@/lib/firebaseAdmin";
+import { adminAuth, hasFirebaseCredentials } from "@/lib/firebaseAdmin";
 import { getAdminEmails } from "@/lib/apiAuth";
 
 export const dynamic = "force-dynamic";
@@ -13,6 +13,20 @@ function isProduction(): boolean {
     process.env.NODE_ENV === "production" ||
     process.env.VERCEL_ENV === "production"
   );
+}
+
+function getGithubToken(): string | null {
+  const token = process.env.GH_PAT || process.env.GITHUB_TOKEN;
+  return token?.trim() || null;
+}
+
+function canDispatchActions(): boolean {
+  return !!getGithubToken();
+}
+
+function canRunInProcess(): boolean {
+  const folderId = process.env.GOOGLE_DRIVE_FOLDER_ID?.trim();
+  return !!(folderId && hasFirebaseCredentials());
 }
 
 async function isAuthorized(request: Request): Promise<boolean> {
@@ -52,8 +66,10 @@ async function isAuthorized(request: Request): Promise<boolean> {
 
 /** Kick GitHub Actions for full sync+index (pdf parsing is too heavy for Vercel). */
 async function triggerGithubSyncWorkflow() {
-  const token = process.env.GH_PAT || process.env.GITHUB_TOKEN;
-  if (!token) return;
+  const token = getGithubToken();
+  if (!token) {
+    throw new Error("GH_PAT (or GITHUB_TOKEN) is not configured.");
+  }
 
   const res = await fetch(
     "https://api.github.com/repos/aryan-dani/Utility/actions/workflows/storage-sync.yml/dispatches",
@@ -74,6 +90,21 @@ async function triggerGithubSyncWorkflow() {
   }
 }
 
+function queueInProcessDriveSync() {
+  after(async () => {
+    try {
+      console.log("🚀 Starting background Drive sync...");
+      await syncDrive();
+      console.log("✅ Drive sync completed.");
+      revalidateTag("subjects", "max");
+      revalidateTag("resources", "max");
+      revalidateTag("syllabus", "max");
+    } catch (err) {
+      console.error("❌ Background sync failed:", err);
+    }
+  });
+}
+
 async function handleSync(request: Request) {
   try {
     if (!(await isAuthorized(request))) {
@@ -84,37 +115,82 @@ async function handleSync(request: Request) {
       );
     }
 
-    console.log(
-      "🔔 Storage sync webhook triggered. Queuing Drive→Firestore sync...",
-    );
+    const dispatchActions = canDispatchActions();
+    const runInProcess = canRunInProcess();
 
-    after(async () => {
+    if (!dispatchActions && !runInProcess) {
+      const missing: string[] = [];
+      if (!process.env.GOOGLE_DRIVE_FOLDER_ID?.trim()) {
+        missing.push("GOOGLE_DRIVE_FOLDER_ID");
+      }
+      if (!hasFirebaseCredentials()) {
+        missing.push(
+          "FIREBASE_PROJECT_ID / FIREBASE_CLIENT_EMAIL / FIREBASE_PRIVATE_KEY",
+        );
+      }
+      if (!getGithubToken()) {
+        missing.push("GH_PAT");
+      }
+
+      console.error(
+        "❌ Storage sync unavailable — missing env:",
+        missing.join(", "),
+      );
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            `Sync is not configured on this host. Set ${missing.join(" and ")} ` +
+            "in Vercel Production (GH_PAT preferred for full sync+index via GitHub Actions).",
+        },
+        { status: 503 },
+      );
+    }
+
+    // Prefer GitHub Actions (Drive sync + indexing with CI secrets).
+    if (dispatchActions) {
       try {
-        console.log("🚀 Starting background Drive sync...");
-        await syncDrive();
-        console.log("✅ Drive sync completed.");
-        revalidateTag("subjects", "max");
-        revalidateTag("resources", "max");
-        revalidateTag("syllabus", "max");
-
-        try {
-          await triggerGithubSyncWorkflow();
-          console.log("✅ Triggered GitHub Actions for content indexing.");
-        } catch (err) {
-          console.warn(
-            "⚠️  GitHub indexing dispatch skipped/failed (Drive sync already done):",
-            err,
+        console.log(
+          "🔔 Dispatching GitHub Actions workflow storage-sync.yml...",
+        );
+        await triggerGithubSyncWorkflow();
+        console.log("✅ GitHub Actions sync+index dispatched.");
+        return NextResponse.json({
+          success: true,
+          mode: "github-actions",
+          message:
+            "GitHub Actions sync+index queued. Drive sync and content indexing will run in CI — check the Actions tab in a few minutes.",
+        });
+      } catch (err) {
+        const actionsError =
+          err instanceof Error ? err.message : String(err);
+        console.error("❌ GitHub Actions dispatch failed:", err);
+        if (!runInProcess) {
+          return NextResponse.json(
+            { success: false, error: actionsError },
+            { status: 502 },
           );
         }
-      } catch (err) {
-        console.error("❌ Background sync failed:", err);
+        console.warn(
+          "⚠️  Falling back to in-process Drive sync after Actions failure.",
+        );
+        queueInProcessDriveSync();
+        return NextResponse.json({
+          success: true,
+          mode: "in-process-fallback",
+          message: `GitHub Actions dispatch failed (${actionsError}). In-process Drive sync queued instead (indexing requires a working GH_PAT).`,
+        });
       }
-    });
+    }
 
+    // In-process fallback when Actions token is not configured.
+    console.log("🔔 Queuing in-process Drive→Firestore sync...");
+    queueInProcessDriveSync();
     return NextResponse.json({
       success: true,
+      mode: "in-process",
       message:
-        "Google Drive sync queued. Content indexing runs via GitHub Actions when configured.",
+        "In-process Google Drive sync queued. Set GH_PAT on Vercel for full sync+index via GitHub Actions.",
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);

@@ -4,10 +4,11 @@ import { fileURLToPath } from "url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-export function loadEnv() {
+/** Parse `.env.local` once for local CLI scripts (not present on Vercel). */
+function loadFileEnv() {
   const envPath = join(__dirname, "..", "..", ".env.local");
   if (!existsSync(envPath)) {
-    return process.env;
+    return {};
   }
 
   const content = readFileSync(envPath, "utf-8");
@@ -27,7 +28,59 @@ export function loadEnv() {
     }
     parsed[key] = value;
   }
-  return { ...process.env, ...parsed };
+  return parsed;
+}
+
+let fileEnvCache = null;
+
+function getFileEnv() {
+  if (fileEnvCache === null) {
+    fileEnvCache = loadFileEnv();
+  }
+  return fileEnvCache;
+}
+
+/**
+ * Read an env var at call time.
+ * Prefer live `process.env` (Vercel runtime injection), then `.env.local` for local scripts.
+ */
+export function getEnv(key) {
+  const live = process.env[key];
+  if (live !== undefined && live !== "") return live;
+  const fromFile = getFileEnv()[key];
+  if (fromFile !== undefined && fromFile !== "") return fromFile;
+  return live ?? fromFile;
+}
+
+/** Snapshot for CLI compatibility (`{ ...env }`); getters still resolve live via Proxy. */
+export function loadEnv() {
+  return new Proxy(
+    {},
+    {
+      get(_target, prop) {
+        if (typeof prop !== "string") return undefined;
+        if (prop === "then") return undefined; // avoid thenable traps
+        return getEnv(prop);
+      },
+      ownKeys() {
+        return [
+          ...new Set([
+            ...Object.keys(process.env),
+            ...Object.keys(getFileEnv()),
+          ]),
+        ];
+      },
+      getOwnPropertyDescriptor(_target, prop) {
+        if (typeof prop !== "string") return undefined;
+        const value = getEnv(prop);
+        if (value === undefined) return undefined;
+        return { configurable: true, enumerable: true, writable: false, value };
+      },
+      has(_target, prop) {
+        return typeof prop === "string" && getEnv(prop) !== undefined;
+      },
+    },
+  );
 }
 
 export const env = loadEnv();

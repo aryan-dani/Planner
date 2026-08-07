@@ -133,7 +133,7 @@ export default function AdminClient() {
       }
       if (response.ok && data.success) {
         setMessage(
-          "✓ Google Drive sync and indexing triggered in the background. It will take a few minutes to process.",
+          `✓ ${data.message || "Google Drive sync triggered. It will take a few minutes to process."}`,
         );
       } else {
         setMessage(`Error syncing: ${data.error || "Failed to trigger sync"}`);
@@ -146,8 +146,12 @@ export default function AdminClient() {
   };
 
   const adminEmails =
-    process.env.NEXT_PUBLIC_ADMIN_EMAILS?.split(",").map((e) => e.trim()) ?? [];
-  const isAdmin = !!(userEmail && adminEmails.includes(userEmail));
+    process.env.NEXT_PUBLIC_ADMIN_EMAILS?.split(",")
+      .map((e) => e.trim().toLowerCase())
+      .filter(Boolean) ?? [];
+  const isAdmin = !!(
+    userEmail && adminEmails.includes(userEmail.toLowerCase())
+  );
 
   const getAdminBearerHeaders = useCallback(async (): Promise<HeadersInit> => {
     const user = auth.currentUser;

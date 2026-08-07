@@ -1,13 +1,13 @@
 import { google } from "googleapis";
-import { env, cleanPrivateKey } from "./env.mjs";
+import { getEnv, cleanPrivateKey } from "./env.mjs";
 
 let driveInstance = null;
 
 export function getDrive(scopes = ["https://www.googleapis.com/auth/drive.readonly"]) {
   if (driveInstance) return driveInstance;
 
-  const clientEmail = env["FIREBASE_CLIENT_EMAIL"];
-  const privateKey = cleanPrivateKey(env["FIREBASE_PRIVATE_KEY"]);
+  const clientEmail = getEnv("FIREBASE_CLIENT_EMAIL");
+  const privateKey = cleanPrivateKey(getEnv("FIREBASE_PRIVATE_KEY"));
 
   if (!clientEmail || !privateKey) {
     throw new Error(

@@ -14,7 +14,16 @@ const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
 const privateKey = cleanPrivateKey(process.env.FIREBASE_PRIVATE_KEY);
 
 export function hasFirebaseCredentials() {
-  return !!(projectId && clientEmail && privateKey && !privateKey.includes("YOUR_PRIVATE_KEY_HERE"));
+  const projectId =
+    process.env.FIREBASE_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+  const privateKey = cleanPrivateKey(process.env.FIREBASE_PRIVATE_KEY);
+  return !!(
+    projectId &&
+    clientEmail &&
+    privateKey &&
+    !privateKey.includes("YOUR_PRIVATE_KEY_HERE")
+  );
 }
 
 export function getFirebaseAdmin() {

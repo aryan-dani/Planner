@@ -47,11 +47,30 @@ GOOGLE_DRIVE_FOLDER_ID=
 
 # App config
 NEXT_PUBLIC_ADMIN_EMAILS=you@example.com
+# Optional server-only allowlist (preferred over NEXT_PUBLIC for API checks)
+ADMIN_EMAILS=you@example.com
 GROQ_API_KEY=
 
-# Optional: protect /api/webhooks/storage-sync
+# Protect /api/webhooks/storage-sync (required for Vercel Cron in production)
 CRON_SECRET=
+
+# Preferred for hosted Sync Now: dispatch GitHub Actions (workflow + repo secrets)
+GH_PAT=
 ```
+
+### Vercel Production (required for hosted Sync Drive)
+
+Set these on the Vercel project for **Production**, then redeploy:
+
+| Variable | Why |
+|----------|-----|
+| `GOOGLE_DRIVE_FOLDER_ID` | In-process Drive→Firestore sync / cron fallback |
+| `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY` | Admin token verify + Drive JWT |
+| `NEXT_PUBLIC_ADMIN_EMAILS` | Admin UI + Sync Now button |
+| `GH_PAT` (workflow scope) | **Recommended** — Sync Now dispatches `storage-sync.yml` (sync + index) |
+| `CRON_SECRET` | Authorizes the daily Vercel cron hit |
+
+Without `GOOGLE_DRIVE_FOLDER_ID` **and** without `GH_PAT`, Sync Now returns **503** instead of a fake success.
 
 For GitHub Actions daily sync, add the same `FIREBASE_*` and `GOOGLE_DRIVE_FOLDER_ID` values as repository secrets.
 

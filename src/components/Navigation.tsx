@@ -353,8 +353,14 @@ function NavigationInner() {
   );
 
   const adminEmails =
-    process.env.NEXT_PUBLIC_ADMIN_EMAILS?.split(",").map((e) => e.trim()) ?? [];
-  const isAdmin = user && adminEmails.includes(user.email ?? "");
+    process.env.NEXT_PUBLIC_ADMIN_EMAILS?.split(",")
+      .map((e) => e.trim().toLowerCase())
+      .filter(Boolean) ?? [];
+  const isAdmin = !!(
+    user &&
+    user.email &&
+    adminEmails.includes(user.email.toLowerCase())
+  );
 
   const showSelectors =
     pathname === "/resources" ||
