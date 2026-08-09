@@ -443,27 +443,28 @@ export default function ResourceViewer({
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.15, duration: 0.3 }}
-          className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 max-w-[min(92vw,42rem)] w-full px-2"
+          className="absolute bottom-4 inset-x-0 z-10 flex justify-center px-4 pointer-events-none"
         >
-          <div className="flex flex-col sm:flex-row sm:items-center gap-2 bg-card border border-border rounded-2xl p-2 shadow-popover">
-            <div className="flex items-center gap-2 px-2 shrink-0">
+          <div className="pointer-events-auto flex items-center gap-2 bg-card border border-border rounded-2xl pl-3 pr-1.5 py-1.5 shadow-popover max-w-[min(92vw,42rem)]">
+            <div className="flex items-center gap-1.5 h-8 shrink-0">
               {showRelatedCodes ? (
-                <Code2 className="h-4 w-4 text-muted" />
+                <Code2 className="h-3.5 w-3.5 text-muted" />
               ) : (
-                <FileText className="h-4 w-4 text-muted" />
+                <FileText className="h-3.5 w-3.5 text-muted" />
               )}
-              <span className="text-[10px] font-bold uppercase tracking-wider text-muted whitespace-nowrap">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-muted whitespace-nowrap leading-none">
                 {showRelatedCodes ? "Related code" : "Related writeup"}
               </span>
             </div>
-            <div className="flex flex-wrap gap-1.5 min-w-0">
+            <div className="w-px h-4 bg-border shrink-0" />
+            <div className="flex items-center flex-wrap gap-1.5 min-w-0">
               {(showRelatedCodes ? relatedCodes : relatedWriteups).map(
                 (item) => (
                   <button
                     key={item.id}
                     type="button"
                     onClick={() => onOpenRelated?.(item)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-surface hover:bg-surface-hover border border-border text-xs font-medium text-foreground transition-colors max-w-full"
+                    className="inline-flex items-center gap-1.5 h-8 px-3 rounded-xl bg-surface hover:bg-surface-hover border border-border text-xs font-medium text-foreground transition-colors max-w-full leading-none"
                     title={item.title}
                   >
                     {showRelatedCodes ? (

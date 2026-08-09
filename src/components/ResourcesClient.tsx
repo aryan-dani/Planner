@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
-import { ResourceCategory, ResourceItem } from "@/lib/dataFetcher";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { ResourceItem } from "@/lib/dataFetcher";
 import { useAcademicStore } from "@/store/academicStore";
 import { isSubjectMatch } from "@/lib/subjectMatcher";
 import { motion } from "framer-motion";
@@ -28,6 +29,11 @@ import {
   findRelatedCodes,
   findRelatedWriteups,
 } from "@/lib/resourceLinks";
+import {
+  resolveSubjectName,
+  subjectToSlug,
+  type ResourceFilter,
+} from "@/lib/resourceUrl";
 
 const ResourceViewer = dynamic(() => import("./ResourceViewer"), { ssr: false });
 const SummaryModal = dynamic(() => import("./SummaryModal"), { ssr: false });
@@ -36,9 +42,10 @@ interface ResourcesClientProps {
   initialResources: ResourceItem[];
   branch: string;
   semester: number;
+  initialSubject?: string | null;
+  initialFilter?: ResourceFilter;
+  initialView?: string | null;
 }
-
-type ResourceFilter = "all" | ResourceCategory;
 
 // Simplified filter config — only main categories, no clutter
 const RESOURCE_FILTERS: { value: ResourceFilter; label: string; Icon: any }[] =
@@ -108,10 +115,18 @@ export default function ResourcesClient({
   initialResources,
   branch,
   semester,
+  initialSubject = null,
+  initialFilter = "all",
+  initialView = null,
 }: ResourcesClientProps) {
-  const { searchQuery, setSearchQuery, aiSearchQuery, setAiSearchQuery } = useAcademicStore();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const { searchQuery, setSearchQuery, aiSearchQuery, setAiSearchQuery } =
+    useAcademicStore();
   const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
-  const [selectedFilter, setSelectedFilter] = useState<ResourceFilter>("all");
+  const [selectedFilter, setSelectedFilter] =
+    useState<ResourceFilter>(initialFilter);
   const [viewerResource, setViewerResource] = useState<ResourceItem | null>(
     null,
   );
@@ -119,8 +134,64 @@ export default function ResourcesClient({
     useState<ResourceItem | null>(null);
   const [contentResults, setContentResults] = useState<any[]>([]);
   const [isSearchingContent, setIsSearchingContent] = useState(false);
+  const didOpenInitialView = useRef(false);
 
   const resources = initialResources;
+
+  const syncUrl = useCallback(
+    (next: {
+      subject?: string | null;
+      filter?: ResourceFilter;
+      view?: string | null;
+    }) => {
+      const params = new URLSearchParams(searchParams.toString());
+      params.set("branch", branch);
+      params.set("semester", String(semester));
+
+      const subject =
+        next.subject !== undefined ? next.subject : selectedSubject;
+      const filter = next.filter !== undefined ? next.filter : selectedFilter;
+      const view =
+        next.view !== undefined ? next.view : (viewerResource?.id ?? null);
+
+      if (subject) params.set("subject", subjectToSlug(subject));
+      else params.delete("subject");
+
+      if (filter && filter !== "all") params.set("filter", filter);
+      else params.delete("filter");
+
+      if (view) params.set("view", view);
+      else params.delete("view");
+
+      const nextQs = params.toString();
+      const current = new URLSearchParams(searchParams.toString());
+      current.set("branch", branch);
+      current.set("semester", String(semester));
+      if (
+        current.get("subject") === params.get("subject") &&
+        current.get("filter") === params.get("filter") &&
+        current.get("view") === params.get("view") &&
+        current.get("branch") === params.get("branch") &&
+        current.get("semester") === params.get("semester")
+      ) {
+        return;
+      }
+
+      router.replace(nextQs ? `${pathname}?${nextQs}` : pathname, {
+        scroll: false,
+      });
+    },
+    [
+      searchParams,
+      branch,
+      semester,
+      selectedSubject,
+      selectedFilter,
+      viewerResource?.id,
+      router,
+      pathname,
+    ],
+  );
 
   // ── Derived data ──
   const subjectsMap = useMemo(
@@ -154,14 +225,68 @@ export default function ResourcesClient({
     });
   }, [subjectNames, subjectsMap, searchQuery]);
 
-  // Auto-select first subject
+  // Prefer URL subject, then keep selection, else first subject
   useEffect(() => {
-    if (filteredSubjectNames.length > 0) {
-      if (!selectedSubject || !filteredSubjectNames.includes(selectedSubject)) {
-        setSelectedSubject(filteredSubjectNames[0]);
+    if (filteredSubjectNames.length === 0) {
+      setSelectedSubject(null);
+      return;
+    }
+
+    const fromUrl =
+      resolveSubjectName(initialSubject, filteredSubjectNames) ||
+      resolveSubjectName(searchParams.get("subject"), filteredSubjectNames);
+
+    if (fromUrl) {
+      if (selectedSubject !== fromUrl) setSelectedSubject(fromUrl);
+      return;
+    }
+
+    if (selectedSubject && filteredSubjectNames.includes(selectedSubject)) {
+      return;
+    }
+
+    setSelectedSubject(filteredSubjectNames[0]);
+  }, [
+    filteredSubjectNames,
+    selectedSubject,
+    initialSubject,
+    searchParams,
+  ]);
+
+  // Open resource from ?view= on first load
+  useEffect(() => {
+    if (didOpenInitialView.current) return;
+    const viewId = initialView || searchParams.get("view");
+    if (!viewId) return;
+    const match = resources.find((r) => r.id === viewId);
+    if (match) {
+      didOpenInitialView.current = true;
+      setViewerResource(match);
+      if (match.subject_name) setSelectedSubject(match.subject_name);
+      if (match.category === "codes" || match.category === "writeup") {
+        setSelectedFilter(match.category);
       }
     }
-  }, [filteredSubjectNames, selectedSubject]);
+  }, [initialView, searchParams, resources]);
+
+  // Keep URL in sync with subject / filter / open file
+  useEffect(() => {
+    if (!selectedSubject) return;
+    syncUrl({
+      subject: selectedSubject,
+      filter: selectedFilter,
+      view: viewerResource?.id ?? null,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- syncUrl deps already covered; avoid replace loops
+  }, [selectedSubject, selectedFilter, viewerResource?.id]);
+
+  const openResource = useCallback((item: ResourceItem) => {
+    setViewerResource(item);
+  }, []);
+
+  const closeViewer = useCallback(() => {
+    setViewerResource(null);
+  }, []);
 
   // Content Search Effect
   useEffect(() => {
@@ -477,7 +602,7 @@ export default function ResourcesClient({
                                 const resource = resources.find(
                                   (r) => r.id === result.resource_id,
                                 );
-                                if (resource) setViewerResource(resource);
+                                if (resource) openResource(resource);
                               }}
                               className="group text-left bg-card border border-border hover:border-border-strong rounded-xl p-4 transition-colors flex flex-col justify-between h-full shadow-xs"
                             >
@@ -515,7 +640,7 @@ export default function ResourcesClient({
                         items={filteredResources.filter(
                           (r) => r.category === section.category,
                         )}
-                        onOpenResource={setViewerResource}
+                        onOpenResource={openResource}
                         onSummarize={setSummarizingResource}
                         relatedCodesById={relatedCodesById}
                       />
@@ -541,10 +666,10 @@ export default function ResourcesClient({
       {viewerResource && (
         <ResourceViewer
           resource={viewerResource}
-          onClose={() => setViewerResource(null)}
+          onClose={closeViewer}
           relatedCodes={viewerRelatedCodes}
           relatedWriteups={viewerRelatedWriteups}
-          onOpenRelated={setViewerResource}
+          onOpenRelated={openResource}
         />
       )}
       {summarizingResource && (
