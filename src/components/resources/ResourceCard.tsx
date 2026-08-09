@@ -1,5 +1,6 @@
 "use client";
 
+import type { MouseEvent } from "react";
 import {
   FileText,
   FileSpreadsheet,
@@ -17,6 +18,7 @@ interface ResourceCardProps {
   item: ResourceItem;
   onOpenResource: (item: ResourceItem) => void;
   onSummarize: (item: ResourceItem) => void;
+  relatedCodes?: ResourceItem[];
 }
 
 const CATEGORY_CONFIG: Record<
@@ -42,6 +44,7 @@ export default function ResourceCard({
   item,
   onOpenResource,
   onSummarize,
+  relatedCodes = [],
 }: ResourceCardProps) {
   const extension = getFileExtension(item.title, item.file_url);
   const isDrivePreview = item.file_url.includes("drive.google.com/file/d/");
@@ -54,6 +57,7 @@ export default function ResourceCard({
   const isSolved = item.category === "solved-question-bank";
   const isNew = false;
   const config = CATEGORY_CONFIG[item.category] || CATEGORY_CONFIG["other"];
+  const hasRelatedCode = relatedCodes.length > 0;
 
   const handleOpen = () => {
     if (opensInViewer) {
@@ -61,6 +65,17 @@ export default function ResourceCard({
     } else {
       window.open(item.file_url, "_blank", "noopener,noreferrer");
     }
+  };
+
+  const handleOpenCode = (e: MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (relatedCodes.length === 1) {
+      onOpenResource(relatedCodes[0]);
+      return;
+    }
+    // Multiple codes: open writeup so the related-code bar lists all of them
+    onOpenResource(item);
   };
 
   const FileIcon = isCode
@@ -120,6 +135,20 @@ export default function ResourceCard({
 
         {/* Badges */}
         <div className="flex items-center gap-1.5 flex-shrink-0">
+          {hasRelatedCode && (
+            <span
+              className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md inline-flex items-center gap-1"
+              style={{
+                background: `color-mix(in srgb, var(--accent-codes) 12%, transparent)`,
+                color: "var(--accent-codes)",
+                border: `1px solid color-mix(in srgb, var(--accent-codes) 25%, transparent)`,
+              }}
+              title={relatedCodes.map((c) => c.title).join("\n")}
+            >
+              <Code2 className="w-3 h-3" />
+              {relatedCodes.length > 1 ? `${relatedCodes.length} codes` : "Code"}
+            </span>
+          )}
           {isSolved && (
             <span
               className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md"
@@ -151,7 +180,13 @@ export default function ResourceCard({
 
       {/* Actions */}
       <div
-        className={`grid gap-2 ${isSummarizable ? "grid-cols-2" : "grid-cols-1"}`}
+        className={`grid gap-2 ${
+          isSummarizable && hasRelatedCode
+            ? "grid-cols-3"
+            : isSummarizable || hasRelatedCode
+              ? "grid-cols-2"
+              : "grid-cols-1"
+        }`}
       >
         <button
           type="button"
@@ -165,6 +200,21 @@ export default function ResourceCard({
           <ExternalLink className="w-3.5 h-3.5 text-muted" />
           Open
         </button>
+        {hasRelatedCode && (
+          <button
+            type="button"
+            onClick={handleOpenCode}
+            className="flex items-center justify-center gap-1.5 w-full py-2 bg-surface hover:bg-surface-hover border border-border rounded-xl text-xs font-medium text-foreground transition-colors"
+            title={
+              relatedCodes.length === 1
+                ? relatedCodes[0].title
+                : "Open writeup to pick a related code"
+            }
+          >
+            <Code2 className="w-3.5 h-3.5 text-muted" />
+            Code
+          </button>
+        )}
         {isSummarizable && (
           <button
             type="button"

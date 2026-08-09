@@ -18,11 +18,14 @@ import {
   isCodeExtension,
 } from "@/lib/fileUtils";
 import { motion } from "framer-motion";
-import { cleanResourceTitle } from "@/lib/titleUtils";
+import { cleanResourceTitle, shortCodeLabel } from "@/lib/titleUtils";
 
 interface ResourceViewerProps {
   resource: ResourceItem;
   onClose: () => void;
+  relatedCodes?: ResourceItem[];
+  relatedWriteups?: ResourceItem[];
+  onOpenRelated?: (item: ResourceItem) => void;
 }
 
 function getViewerUrl(resource: ResourceItem) {
@@ -65,6 +68,9 @@ function getDirectUrl(resource: ResourceItem) {
 export default function ResourceViewer({
   resource,
   onClose,
+  relatedCodes = [],
+  relatedWriteups = [],
+  onOpenRelated,
 }: ResourceViewerProps) {
   const extension = getFileExtension(resource.title, resource.file_url);
   const isPdf = extension === "pdf";
@@ -78,6 +84,10 @@ export default function ResourceViewer({
     : isPresentation
       ? FileSpreadsheet
       : FileText;
+  const showRelatedCodes = !isCode && relatedCodes.length > 0 && !!onOpenRelated;
+  const showRelatedWriteups =
+    isCode && relatedWriteups.length > 0 && !!onOpenRelated;
+  const hasRelatedBar = showRelatedCodes || showRelatedWriteups;
 
   const containerRef = useRef<HTMLDivElement>(null);
   const downloadRef = useRef<HTMLAnchorElement>(null);
@@ -334,7 +344,11 @@ export default function ResourceViewer({
         </button>
       </motion.div>
 
-      <div className="flex-1 w-full h-full p-2 sm:p-4 pt-20 sm:pt-24 relative">
+      <div
+        className={`flex-1 w-full h-full p-2 sm:p-4 pt-20 sm:pt-24 relative ${
+          hasRelatedBar ? "pb-20 sm:pb-24" : ""
+        }`}
+      >
         <motion.div
           initial={{ scale: 0.97, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
@@ -423,6 +437,52 @@ export default function ResourceViewer({
           )}
         </motion.div>
       </div>
+
+      {hasRelatedBar && (
+        <motion.div
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.15, duration: 0.3 }}
+          className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 max-w-[min(92vw,42rem)] w-full px-2"
+        >
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 bg-card border border-border rounded-2xl p-2 shadow-popover">
+            <div className="flex items-center gap-2 px-2 shrink-0">
+              {showRelatedCodes ? (
+                <Code2 className="h-4 w-4 text-muted" />
+              ) : (
+                <FileText className="h-4 w-4 text-muted" />
+              )}
+              <span className="text-[10px] font-bold uppercase tracking-wider text-muted whitespace-nowrap">
+                {showRelatedCodes ? "Related code" : "Related writeup"}
+              </span>
+            </div>
+            <div className="flex flex-wrap gap-1.5 min-w-0">
+              {(showRelatedCodes ? relatedCodes : relatedWriteups).map(
+                (item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => onOpenRelated?.(item)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-surface hover:bg-surface-hover border border-border text-xs font-medium text-foreground transition-colors max-w-full"
+                    title={item.title}
+                  >
+                    {showRelatedCodes ? (
+                      <Code2 className="h-3.5 w-3.5 text-muted shrink-0" />
+                    ) : (
+                      <FileText className="h-3.5 w-3.5 text-muted shrink-0" />
+                    )}
+                    <span className="truncate">
+                      {showRelatedCodes
+                        ? shortCodeLabel(item.title)
+                        : cleanResourceTitle(item.title)}
+                    </span>
+                  </button>
+                ),
+              )}
+            </div>
+          </div>
+        </motion.div>
+      )}
     </motion.div>
   );
 

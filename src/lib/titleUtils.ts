@@ -13,11 +13,23 @@ export function cleanResourceTitle(title: string): string {
 
   // 3. Match patterns like "Sem 4 AIESL WriteUp 1 A*Star" -> "Writeup 1: A*Star"
   // or "Sem 4 PBL-II WriteUp 3" -> "Writeup 3"
-  const writeupMatch = clean.match(/(?:Sem\s+\d+\s+)?(?:[A-Z0-9-]+\s+)?Write[\s\-]?up\s+(\d+|[A-Z0-9]+)\s*(.*)/i);
+  const writeupMatch = clean.match(
+    /(?:Sem\s+\d+\s+)?(?:[A-Z0-9-]+\s+)?Write[\s\-]?up\s+(\d+|[A-Z0-9]+)\s*(.*)/i,
+  );
   if (writeupMatch) {
     const num = writeupMatch[1];
     const rest = writeupMatch[2].trim();
     return `Writeup ${num}${rest ? `: ${rest}` : ""}`;
+  }
+
+  // 3b. Assignment codes: "Sem 5 OSL Assignment 2A Orphan" -> "Assignment 2A: Orphan"
+  const assignmentMatch = clean.match(
+    /(?:Sem\s+\d+\s+)?(?:[A-Z0-9-]+\s+)?Assignment\s+(\d+[A-Za-z]?)\s*(.*)/i,
+  );
+  if (assignmentMatch) {
+    const num = assignmentMatch[1];
+    const rest = assignmentMatch[2].trim();
+    return `Assignment ${num}${rest ? `: ${rest}` : ""}`;
   }
 
   // 4. Match patterns like "DE PPT Unit I" -> "Unit I"
@@ -41,4 +53,16 @@ export function cleanResourceTitle(title: string): string {
   clean = clean.replace(/^[\s\-:]+|[\s\-:]+$/g, "");
 
   return clean || title;
+}
+
+/** Compact chip label for related-code buttons. */
+export function shortCodeLabel(title: string): string {
+  const cleaned = cleanResourceTitle(title);
+  const assignment = cleaned.match(/^Assignment\s+(\d+[A-Za-z]?)\s*:?\s*(.*)$/i);
+  if (assignment) {
+    const num = assignment[1];
+    const rest = assignment[2].trim();
+    return rest ? `${num}: ${rest}` : `Code ${num}`;
+  }
+  return cleaned;
 }

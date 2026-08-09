@@ -15,6 +15,7 @@ interface ResourceSectionProps {
   onOpenResource: (item: ResourceItem) => void;
   onSummarize: (item: ResourceItem) => void;
   defaultExpanded?: boolean;
+  relatedCodesById?: Record<string, ResourceItem[]>;
 }
 
 export default function ResourceSection({
@@ -25,6 +26,7 @@ export default function ResourceSection({
   onOpenResource,
   onSummarize,
   defaultExpanded = true,
+  relatedCodesById = {},
 }: ResourceSectionProps) {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
 
@@ -96,6 +98,7 @@ export default function ResourceSection({
                     item={item} 
                     onOpenResource={onOpenResource} 
                     onSummarize={onSummarize}
+                    relatedCodes={relatedCodesById[item.id]}
                   />
                 </motion.div>
               ))}

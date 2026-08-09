@@ -24,6 +24,10 @@ import ResourceCard from "./resources/ResourceCard";
 import ResourceSection from "./resources/ResourceSection";
 import { cleanResourceTitle } from "@/lib/titleUtils";
 import { NotesDisclaimer } from "./NotesDisclaimer";
+import {
+  findRelatedCodes,
+  findRelatedWriteups,
+} from "@/lib/resourceLinks";
 
 const ResourceViewer = dynamic(() => import("./ResourceViewer"), { ssr: false });
 const SummaryModal = dynamic(() => import("./SummaryModal"), { ssr: false });
@@ -241,6 +245,28 @@ export default function ResourcesClient({
         {} as Record<ResourceFilter, number>,
       ),
     [searchedResources],
+  );
+
+  const relatedCodesById = useMemo(() => {
+    const map: Record<string, ResourceItem[]> = {};
+    for (const resource of resources) {
+      if (resource.category !== "writeup") continue;
+      const related = findRelatedCodes(resource, resources);
+      if (related.length > 0) map[resource.id] = related;
+    }
+    return map;
+  }, [resources]);
+
+  const viewerRelatedCodes = useMemo(
+    () =>
+      viewerResource ? findRelatedCodes(viewerResource, resources) : [],
+    [viewerResource, resources],
+  );
+
+  const viewerRelatedWriteups = useMemo(
+    () =>
+      viewerResource ? findRelatedWriteups(viewerResource, resources) : [],
+    [viewerResource, resources],
   );
 
   return (
@@ -491,6 +517,7 @@ export default function ResourcesClient({
                         )}
                         onOpenResource={setViewerResource}
                         onSummarize={setSummarizingResource}
+                        relatedCodesById={relatedCodesById}
                       />
                     ))}
                   </div>
@@ -515,6 +542,9 @@ export default function ResourcesClient({
         <ResourceViewer
           resource={viewerResource}
           onClose={() => setViewerResource(null)}
+          relatedCodes={viewerRelatedCodes}
+          relatedWriteups={viewerRelatedWriteups}
+          onOpenRelated={setViewerResource}
         />
       )}
       {summarizingResource && (
