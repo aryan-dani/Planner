@@ -1,82 +1,92 @@
 /**
  * runtime/tools/upload-drive.mjs
- * Recursively uploads a local folder to the configured Google Drive shared folder.
- * Preserves folder structures and triggers Google Drive to Firestore Sync upon completion.
+ * Recursively uploads a local folder to the configured Google Drive folder.
+ * Prefers user OAuth (quota) when GOOGLE_CLIENT_* + GOOGLE_REFRESH_TOKEN are set;
+ * otherwise falls back to the Firebase service account (Shared Drives only).
+ * Triggers Drive → Firestore sync when upload finishes.
+ *
+ * Usage: node runtime/tools/upload-drive.mjs <local_directory_path>
  */
-
-import { readFileSync, existsSync, readdirSync, statSync, createReadStream } from "fs";
-import { join, dirname, basename } from "path";
-import { fileURLToPath } from "url";
+import { existsSync, readdirSync, statSync, createReadStream } from "fs";
+import { join, basename } from "path";
+import { google } from "googleapis";
 import syncDrive from "./sync-drive.mjs";
-import { env } from "../lib/env.mjs";
+import { getEnv } from "../lib/env.mjs";
 import { getDrive } from "../lib/drive.mjs";
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-
-const clientEmail = env["FIREBASE_CLIENT_EMAIL"];
-const privateKey = env["FIREBASE_PRIVATE_KEY"];
-const driveFolderId = env["GOOGLE_DRIVE_FOLDER_ID"];
-
-if (!clientEmail || !privateKey) {
-  throw new Error("❌ Missing FIREBASE_CLIENT_EMAIL or FIREBASE_PRIVATE_KEY in .env.local");
-}
+const driveFolderId = getEnv("GOOGLE_DRIVE_FOLDER_ID");
 if (!driveFolderId) {
   throw new Error("❌ Missing GOOGLE_DRIVE_FOLDER_ID in .env.local");
 }
 
-// Authenticate Google Drive API
-const drive = getDrive(["https://www.googleapis.com/auth/drive"]);
+const DRIVE_OPTS = {
+  supportsAllDrives: true,
+  includeItemsFromAllDrives: true,
+};
 
-// ── Helper functions for Drive traversal ───────────────────────────────────────
+function getUploadDrive() {
+  const clientId = getEnv("GOOGLE_CLIENT_ID");
+  const clientSecret = getEnv("GOOGLE_CLIENT_SECRET");
+  const refreshToken = getEnv("GOOGLE_REFRESH_TOKEN");
 
-/** Get or create a folder in Google Drive */
+  if (clientId && clientSecret && refreshToken) {
+    const oauth2Client = new google.auth.OAuth2(clientId, clientSecret);
+    oauth2Client.setCredentials({ refresh_token: refreshToken });
+    console.log("🔐 Using OAuth user credentials for upload\n");
+    return google.drive({ version: "v3", auth: oauth2Client });
+  }
+
+  console.log(
+    "🔐 Using service account (requires Shared Drive storage quota)\n",
+  );
+  return getDrive(["https://www.googleapis.com/auth/drive"]);
+}
+
+const drive = getUploadDrive();
+
 async function getOrCreateFolder(name, parentId) {
   const cleanName = name.replace(/'/g, "\\'");
   const q = `name = '${cleanName}' and '${parentId}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;
-  
+
   const res = await drive.files.list({
     q,
     fields: "files(id, name)",
-    pageSize: 1
+    pageSize: 1,
+    ...DRIVE_OPTS,
   });
 
   const files = res.data.files || [];
-  if (files.length > 0) {
-    return files[0].id;
-  }
-
-  // Create folder
-  const folderMetadata = {
-    name,
-    mimeType: "application/vnd.google-apps.folder",
-    parents: [parentId]
-  };
+  if (files.length > 0) return files[0].id;
 
   const folder = await drive.files.create({
-    requestBody: folderMetadata,
-    fields: "id"
+    requestBody: {
+      name,
+      mimeType: "application/vnd.google-apps.folder",
+      parents: [parentId],
+    },
+    fields: "id",
+    supportsAllDrives: true,
   });
 
   console.log(`  📁 Created remote folder: ${name}`);
   return folder.data.id;
 }
 
-/** Check if a file exists inside a folder in Google Drive */
 async function fileExistsInFolder(name, parentId) {
   const cleanName = name.replace(/'/g, "\\'");
   const q = `name = '${cleanName}' and '${parentId}' in parents and mimeType != 'application/vnd.google-apps.folder' and trashed = false`;
-  
+
   const res = await drive.files.list({
     q,
     fields: "files(id, name)",
-    pageSize: 1
+    pageSize: 1,
+    ...DRIVE_OPTS,
   });
 
   const files = res.data.files || [];
   return files.length > 0 ? files[0].id : null;
 }
 
-/** Recursively upload a local directory to Google Drive */
 async function uploadDirectory(localPath, driveParentId) {
   const items = readdirSync(localPath);
 
@@ -85,12 +95,9 @@ async function uploadDirectory(localPath, driveParentId) {
     const stat = statSync(itemPath);
 
     if (stat.isDirectory()) {
-      // 1. Get or create matching directory in Drive
       const subFolderId = await getOrCreateFolder(item, driveParentId);
-      // 2. Recurse into directory
       await uploadDirectory(itemPath, subFolderId);
     } else {
-      // 3. Upload file if it doesn't already exist on Drive
       const existingId = await fileExistsInFolder(item, driveParentId);
       if (existingId) {
         console.log(`  ⏭️  Skipping existing file: ${item}`);
@@ -101,59 +108,57 @@ async function uploadDirectory(localPath, driveParentId) {
       await drive.files.create({
         requestBody: {
           name: item,
-          parents: [driveParentId]
+          parents: [driveParentId],
         },
         media: {
-          body: createReadStream(itemPath)
+          body: createReadStream(itemPath),
         },
-        fields: "id"
+        fields: "id",
+        supportsAllDrives: true,
       });
       console.log(`  ✅ Uploaded: ${item}`);
     }
   }
 }
 
-// ── Main Upload Process ────────────────────────────────────────────────────────
-
 async function startUpload() {
-  const args = process.argv.slice(2);
-  const localTarget = args[0];
+  const localTarget = process.argv[2];
 
   if (!localTarget || !existsSync(localTarget)) {
-    console.error("❌ Error: Please specify a valid local directory path to upload.");
-    console.log("Usage: node runtime/tools/upload-drive.mjs <local_directory_path>");
+    console.error(
+      "❌ Error: Please specify a valid local directory path to upload.",
+    );
+    console.log(
+      "Usage: node runtime/tools/upload-drive.mjs <local_directory_path>",
+    );
     process.exit(1);
   }
 
-  const stat = statSync(localTarget);
-  if (!stat.isDirectory()) {
+  if (!statSync(localTarget).isDirectory()) {
     console.error("❌ Error: Target path is a file, must be a directory.");
     process.exit(1);
   }
 
   console.log(`\n📤 Starting Google Drive Upload from: ${localTarget}\n`);
-  
-  try {
-    // Determine target parent folder on Drive (either root folder or branch folder match)
-    const targetFolderBasename = basename(localTarget);
-    let targetParentId = driveFolderId;
 
-    // If uploading a standard Sem_X folder (like Sem_4_ECE), create/use it inside the branch parent folder
+  try {
+    const targetFolderBasename = basename(localTarget);
     const semMatch = targetFolderBasename.match(/Sem_\d+_(.+)/i);
+
     if (semMatch) {
       const branchName = semMatch[1].toUpperCase();
       const branchFolderId = await getOrCreateFolder(branchName, driveFolderId);
-      targetParentId = await getOrCreateFolder(targetFolderBasename, branchFolderId);
+      const targetParentId = await getOrCreateFolder(
+        targetFolderBasename,
+        branchFolderId,
+      );
       await uploadDirectory(localTarget, targetParentId);
     } else {
       await uploadDirectory(localTarget, driveFolderId);
     }
 
     console.log(`\n🎉 Upload completed successfully!`);
-
-    // Trigger Drive sync to Firestore
     await syncDrive();
-
   } catch (error) {
     console.error(`\n❌ Upload failed: ${error.message}`);
     process.exit(1);
