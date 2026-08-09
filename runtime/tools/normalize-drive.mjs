@@ -1,7 +1,7 @@
 /**
  * Normalizes Drive folder names to the project's convention:
  *   <BRANCH>/Sem_<N>_<BRANCH>/<Category>/<Subject>/file
- * Category folders: Sem_<N>_Notes | Sem_<N>_PPT | Sem_<N>_PYQ | Sem_<N>_QB | Sem_<N>_WriteUps
+ * Category folders: Sem_<N>_Notes | Sem_<N>_PPT | Sem_<N>_PYQ | Sem_<N>_QB | Sem_<N>_WriteUps | Sem_<N>_Codes
  *
  * Usage: node runtime/tools/normalize-drive.mjs [--dry-run]
  */
@@ -18,6 +18,7 @@ const CATEGORY_MAP = [
   { re: /pyq|old.?paper/i, name: (n) => `Sem_${n}_PYQ` },
   { re: /question[_\s-]?bank|\bqb\b/i, name: (n) => `Sem_${n}_QB` },
   { re: /write.?ups?/i, name: (n) => `Sem_${n}_WriteUps` },
+  { re: /\bcodes?\b/i, name: (n) => `Sem_${n}_Codes` },
 ];
 
 async function listChildren(folderId) {

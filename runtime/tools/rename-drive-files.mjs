@@ -25,7 +25,7 @@ const reportPath =
 
 const FOLDER_MIME = "application/vnd.google-apps.folder";
 const SEM_RE = /^Sem_(\d+)_(\w+)$/i;
-const CAT_RE = /^Sem_(\d+)_(Notes|PPT|PYQ|QB|WriteUps)$/i;
+const CAT_RE = /^Sem_(\d+)_(Notes|PPT|PYQ|QB|WriteUps|Codes)$/i;
 
 const MIME_EXT = {
   "application/pdf": ".pdf",

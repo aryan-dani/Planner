@@ -17,6 +17,7 @@ import {
   Brain,
   CheckCircle2,
   RefreshCw,
+  Code2,
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import ResourceCard from "./resources/ResourceCard";
@@ -44,6 +45,7 @@ const RESOURCE_FILTERS: { value: ResourceFilter; label: string; Icon: any }[] =
     { value: "ppt", label: "Presentations", Icon: FileSpreadsheet },
     { value: "pyq", label: "PYQ", Icon: FileText },
     { value: "writeup", label: "Writeups", Icon: PenTool },
+    { value: "codes", label: "Codes", Icon: Code2 },
   ];
 
 // Section rendering config with accent colors
@@ -83,6 +85,12 @@ const SECTION_CONFIG = [
     title: "Writeups",
     icon: <PenTool className="w-3.5 h-3.5" />,
     accentColor: "var(--accent-writeup)",
+  },
+  {
+    category: "codes" as const,
+    title: "Codes",
+    icon: <Code2 className="w-3.5 h-3.5" />,
+    accentColor: "var(--accent-codes)",
   },
   {
     category: "other" as const,

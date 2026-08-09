@@ -156,6 +156,7 @@ async function syncDrive() {
             ? "solved-question-bank"
             : "question-bank";
         } else if (catSegment.includes("writeup")) category = "writeup";
+        else if (catSegment.includes("code")) category = "codes";
       }
 
       await resourceRef.set(

@@ -49,6 +49,7 @@
   --accent-ppt: #52525b;
   --accent-pyq: #71717a;
   --accent-writeup: #18181b;
+  --accent-codes: #3f3f46;
   --accent-other: #a1a1aa;
 
   color-scheme: light;
@@ -99,6 +100,7 @@
   --accent-ppt: #d4d4d8;
   --accent-pyq: #e4e4e7;
   --accent-writeup: #f4f4f5;
+  --accent-codes: #a1a1aa;
   --accent-other: #71717a;
 
   color-scheme: dark;

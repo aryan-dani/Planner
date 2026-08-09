@@ -26,7 +26,8 @@ export type ResourceCategory =
   | "ppt"
   | "pyq"
   | "other"
-  | "writeup";
+  | "writeup"
+  | "codes";
 
 // ─── Filter configuration ────────────────────────────────────────────────────
 
@@ -91,6 +92,13 @@ export function getResourceCategory(
     /[_.-]writeups?\b|\bwriteups?\b/i.test(haystack)
   ) {
     return "writeup";
+  }
+
+  if (
+    /_codes?\//.test(haystack) ||
+    /[_.-]codes?\b|\bcodes?\b|assignment.*\.(c|h|sh|py)\b/i.test(haystack)
+  ) {
+    return "codes";
   }
 
   return "other";

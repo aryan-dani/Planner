@@ -7,9 +7,10 @@ import {
   ExternalLink,
   CheckCircle2,
   PenTool,
+  Code2,
 } from "lucide-react";
 import { ResourceItem, ResourceCategory } from "@/lib/dataFetcher";
-import { getFileExtension } from "@/lib/fileUtils";
+import { getFileExtension, isCodeExtension } from "@/lib/fileUtils";
 import { cleanResourceTitle } from "@/lib/titleUtils";
 
 interface ResourceCardProps {
@@ -31,6 +32,7 @@ const CATEGORY_CONFIG: Record<
   ppt: { color: "var(--accent-ppt)", label: "Presentation" },
   pyq: { color: "var(--accent-pyq)", label: "PYQ" },
   writeup: { color: "var(--accent-writeup)", label: "Writeup" },
+  codes: { color: "var(--accent-codes)", label: "Codes" },
   other: { color: "var(--accent-other)", label: "Other" },
 };
 
@@ -46,8 +48,9 @@ export default function ResourceCard({
   const isPdf = extension === "pdf" || (isDrivePreview && !extension); // Default to PDF styling for generic drive files if no ext
   const isPpt = extension === "ppt" || extension === "pptx";
   const isDoc = extension === "doc" || extension === "docx";
-  const opensInViewer = isPdf || isPpt || isDrivePreview;
-  const isSummarizable = isPdf || isPpt || isDoc || isDrivePreview;
+  const isCode = isCodeExtension(extension) || item.category === "codes";
+  const opensInViewer = isPdf || isPpt || isDrivePreview || isCode;
+  const isSummarizable = isPdf || isPpt || isDoc || (isDrivePreview && !isCode);
   const isSolved = item.category === "solved-question-bank";
   const isNew = false;
   const config = CATEGORY_CONFIG[item.category] || CATEGORY_CONFIG["other"];
@@ -60,13 +63,15 @@ export default function ResourceCard({
     }
   };
 
-  const FileIcon = isPdf
-    ? FileText
-    : isPpt
-      ? FileSpreadsheet
-      : item.category === "writeup"
-        ? PenTool
-        : HardDrive;
+  const FileIcon = isCode
+    ? Code2
+    : isPdf
+      ? FileText
+      : isPpt
+        ? FileSpreadsheet
+        : item.category === "writeup"
+          ? PenTool
+          : HardDrive;
 
   return (
     <div
@@ -132,13 +137,15 @@ export default function ResourceCard({
 
       {/* File info */}
       <p className="text-[10px] font-semibold text-muted uppercase tracking-wider mt-auto">
-        {isPdf
-          ? "PDF"
-          : isPpt
-            ? "PPT"
-            : isDoc
-              ? "DOC"
-              : extension.toUpperCase()}{" "}
+        {isCode
+          ? extension.toUpperCase() || "CODE"
+          : isPdf
+            ? "PDF"
+            : isPpt
+              ? "PPT"
+              : isDoc
+                ? "DOC"
+                : extension.toUpperCase()}{" "}
         · {config.label}
       </p>
 

@@ -96,7 +96,7 @@ Resources are cached ~10 minutes (`unstable_cache` / `revalidate: 600`). After c
 Drive folder naming convention:
 
 ```text
-<root>/<BRANCH>/Sem_<N>_<BRANCH>/Sem_<N>_{Notes|PPT|PYQ|QB|WriteUps}/<Subject>/<File>
+<root>/<BRANCH>/Sem_<N>_<BRANCH>/Sem_<N>_{Notes|PPT|PYQ|QB|WriteUps|Codes}/<Subject>/<File>
 ```
 
 Example: `AIDS/Sem_5_AIDS/Sem_5_PPT/ML/ML_Unit_1.pptx`
@@ -110,6 +110,7 @@ Syllabus at semester root: `Sem_<N>_Syllabus.pdf`
 | Notes | `<SUBJECT>_Unit_<N>_Notes.ext` | `DAA_Unit_1_Notes.pdf` |
 | PPT | `<SUBJECT>_Unit_<N>[_Topic].ext` | `DAA_Unit_5_Hashing.pptx` |
 | WriteUps | `Sem_<N>_<LabCode>_WriteUp_<K>[_Topic].ext` | `Sem_4_AIESL_WriteUp_1_A_Star.docx` |
+| Codes | `Sem_<N>_<LabCode>_Assignment_<K>[_Topic].ext` | `Sem_5_OSL_Assignment_3_FCFS_SRTF.c` |
 | PYQ | `<SUBJECT>_PYQ_<Year>[_Mid\|End][_K].ext` | `DAA_PYQ_2024_End_1.pdf` |
 | QB | `<SUBJECT>_QB[_Year][_Solved][_K].ext` | `PS_QB_1_Solved.pdf` |
 

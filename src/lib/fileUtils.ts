@@ -3,6 +3,32 @@
  * Extracted to avoid code duplication across components.
  */
 
+const CODE_EXTENSIONS = new Set([
+  "c",
+  "h",
+  "cpp",
+  "hpp",
+  "cc",
+  "sh",
+  "bash",
+  "py",
+  "js",
+  "ts",
+  "tsx",
+  "jsx",
+  "java",
+  "txt",
+  "md",
+  "json",
+  "css",
+  "html",
+  "sql",
+]);
+
+export function isCodeExtension(extension: string): boolean {
+  return CODE_EXTENSIONS.has(extension.toLowerCase());
+}
+
 export function getFileExtension(title: string, url: string): string {
   if (title && title.includes(".")) {
     const ext = title.split(".").pop()?.toLowerCase();

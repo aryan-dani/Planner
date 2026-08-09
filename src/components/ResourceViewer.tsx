@@ -7,14 +7,18 @@ import {
   ExternalLink,
   FileSpreadsheet,
   FileText,
+  Code2,
   X,
   Maximize,
 } from "lucide-react";
 import { ResourceItem } from "@/lib/dataFetcher";
-import { getFileExtension, getDriveFileId } from "@/lib/fileUtils";
+import {
+  getFileExtension,
+  getDriveFileId,
+  isCodeExtension,
+} from "@/lib/fileUtils";
 import { motion } from "framer-motion";
 import { cleanResourceTitle } from "@/lib/titleUtils";
-import { NotesDisclaimer } from "./NotesDisclaimer";
 
 interface ResourceViewerProps {
   resource: ResourceItem;
@@ -65,9 +69,15 @@ export default function ResourceViewer({
   const extension = getFileExtension(resource.title, resource.file_url);
   const isPdf = extension === "pdf";
   const isPresentation = extension === "ppt" || extension === "pptx";
+  const isCode =
+    isCodeExtension(extension) || resource.category === "codes";
   const viewerUrl = useMemo(() => getViewerUrl(resource), [resource]);
   const downloadUrl = useMemo(() => getDirectUrl(resource), [resource]);
-  const FileIcon = isPresentation ? FileSpreadsheet : FileText;
+  const FileIcon = isCode
+    ? Code2
+    : isPresentation
+      ? FileSpreadsheet
+      : FileText;
 
   const containerRef = useRef<HTMLDivElement>(null);
   const downloadRef = useRef<HTMLAnchorElement>(null);
@@ -76,6 +86,7 @@ export default function ResourceViewer({
   const [mounted, setMounted] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
+  const [codeContent, setCodeContent] = useState<string | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -85,9 +96,53 @@ export default function ResourceViewer({
   useEffect(() => {
     setIsLoading(true);
     setLoadError(false);
-  }, [viewerUrl]);
+    setCodeContent(null);
+  }, [viewerUrl, resource.file_url]);
 
-  // Loading timeout fallback (15s)
+  // Fetch source for code files
+  useEffect(() => {
+    if (!isCode) return;
+
+    const driveId = getDriveFileId(resource.file_url);
+    let cancelled = false;
+
+    async function loadCode() {
+      setIsLoading(true);
+      setLoadError(false);
+      try {
+        if (driveId) {
+          const res = await fetch(`/api/resources/code?id=${driveId}`);
+          if (!res.ok) throw new Error("Failed to load code");
+          const text = await res.text();
+          if (!cancelled) {
+            setCodeContent(text);
+            setIsLoading(false);
+          }
+          return;
+        }
+
+        const res = await fetch(resource.file_url);
+        if (!res.ok) throw new Error("Failed to load code");
+        const text = await res.text();
+        if (!cancelled) {
+          setCodeContent(text);
+          setIsLoading(false);
+        }
+      } catch {
+        if (!cancelled) {
+          setLoadError(true);
+          setIsLoading(false);
+        }
+      }
+    }
+
+    loadCode();
+    return () => {
+      cancelled = true;
+    };
+  }, [isCode, resource.file_url]);
+
+  // Loading timeout fallback (15s) — iframe / code fetch
   useEffect(() => {
     let timer: NodeJS.Timeout;
     if (isLoading) {
@@ -134,7 +189,9 @@ export default function ResourceViewer({
         );
         if (focusableElements.length === 0) return;
         const firstElement = focusableElements[0] as HTMLElement;
-        const lastElement = focusableElements[focusableElements.length - 1] as HTMLElement;
+        const lastElement = focusableElements[
+          focusableElements.length - 1
+        ] as HTMLElement;
 
         if (event.shiftKey) {
           if (document.activeElement === firstElement) {
@@ -154,7 +211,7 @@ export default function ResourceViewer({
     document.body.style.overscrollBehavior = "none";
     document.documentElement.style.overscrollBehavior = "none";
     window.addEventListener("keydown", handleKeyDown);
-    
+
     // Focus the container to ensure key events are captured immediately
     containerRef.current?.focus();
 
@@ -167,7 +224,7 @@ export default function ResourceViewer({
   }, [onClose]);
 
   const content = (
-    <motion.div 
+    <motion.div
       ref={containerRef}
       tabIndex={-1}
       role="dialog"
@@ -180,7 +237,7 @@ export default function ResourceViewer({
       className="fixed inset-0 z-[100] bg-background outline-none flex flex-col overscroll-none"
     >
       {/* Left Floating Pill */}
-      <motion.div 
+      <motion.div
         initial={{ y: -20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ delay: 0.1, duration: 0.3 }}
@@ -190,12 +247,22 @@ export default function ResourceViewer({
           <FileIcon className="h-5 w-5 text-foreground" />
         </div>
         <div className="min-w-0">
-          <h2 id="viewer-title" className="truncate text-sm font-bold text-foreground" title={resource.title}>
+          <h2
+            id="viewer-title"
+            className="truncate text-sm font-bold text-foreground"
+            title={resource.title}
+          >
             {cleanResourceTitle(resource.title)}
           </h2>
           <div className="flex items-center gap-2 mt-0.5">
             <p className="text-[10px] uppercase font-semibold tracking-wide text-muted">
-              {isPdf ? "PDF" : isPresentation ? "Presentation" : "File"}{" "}
+              {isCode
+                ? `${extension.toUpperCase() || "CODE"} source`
+                : isPdf
+                  ? "PDF"
+                  : isPresentation
+                    ? "Presentation"
+                    : "File"}{" "}
               viewer
             </p>
           </div>
@@ -209,7 +276,7 @@ export default function ResourceViewer({
       </motion.div>
 
       {/* Right Floating Pill */}
-      <motion.div 
+      <motion.div
         initial={{ y: -20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ delay: 0.1, duration: 0.3 }}
@@ -268,7 +335,7 @@ export default function ResourceViewer({
       </motion.div>
 
       <div className="flex-1 w-full h-full p-2 sm:p-4 pt-20 sm:pt-24 relative">
-        <motion.div 
+        <motion.div
           initial={{ scale: 0.97, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ delay: 0.15, duration: 0.3 }}
@@ -289,7 +356,7 @@ export default function ResourceViewer({
                   <div className="h-4 bg-muted/30 rounded-lg w-1/2" />
                 </div>
               </div>
-              
+
               {/* Status & fallback message */}
               <div className="w-full text-center pb-8 flex flex-col items-center gap-3">
                 <div className="relative flex items-center justify-center">
@@ -297,10 +364,12 @@ export default function ResourceViewer({
                   <div className="h-6 w-6 rounded-full bg-foreground/10 animate-ping" />
                 </div>
                 <p className="text-sm font-medium text-foreground/75 mt-4 tracking-wide">
-                  Preparing document preview...
+                  {isCode
+                    ? "Loading source..."
+                    : "Preparing document preview..."}
                 </p>
                 {loadError && (
-                  <motion.div 
+                  <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     className="text-xs text-muted flex flex-col items-center gap-1.5 mt-2"
@@ -319,15 +388,39 @@ export default function ResourceViewer({
               </div>
             </div>
           )}
-          <iframe
-            src={viewerUrl}
-            title={resource.title}
-            className="h-full w-full bg-background"
-            loading="eager"
-            allow="autoplay; encrypted-media"
-            referrerPolicy="no-referrer"
-            onLoad={() => setIsLoading(false)}
-          />
+
+          {isCode ? (
+            <div className="h-full w-full overflow-auto bg-[#0c0c0e] p-4 sm:p-6">
+              {codeContent !== null && (
+                <pre className="text-[12px] sm:text-[13px] leading-relaxed font-mono text-zinc-200 whitespace-pre tab-size-4">
+                  <code>{codeContent}</code>
+                </pre>
+              )}
+              {!isLoading && loadError && codeContent === null && (
+                <div className="h-full flex flex-col items-center justify-center gap-3 text-center text-zinc-400">
+                  <p className="text-sm">Could not load source in-app.</p>
+                  <a
+                    href={resource.file_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-zinc-100 underline underline-offset-4 text-sm"
+                  >
+                    Open on Drive
+                  </a>
+                </div>
+              )}
+            </div>
+          ) : (
+            <iframe
+              src={viewerUrl}
+              title={resource.title}
+              className="h-full w-full bg-background"
+              loading="eager"
+              allow="autoplay; encrypted-media"
+              referrerPolicy="no-referrer"
+              onLoad={() => setIsLoading(false)}
+            />
+          )}
         </motion.div>
       </div>
     </motion.div>
