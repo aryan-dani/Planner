@@ -130,6 +130,172 @@ const AIDS_SEM_4_SUBJECTS = [
   }
 ];
 
+const AIDS_SEM_5_SUBJECTS = [
+  {
+    id: 'aid30050',
+    code: 'AID30050',
+    name: 'Data Visualization using Python',
+    type: 'PM',
+    credits: 2,
+    modules: [
+      { title: 'Python Programming Basics', desc: 'Variables, lists, dictionaries, CRUD student records, arithmetic programs, temperature conversion, Heron’s formula, swapping, and string initials.' },
+      { title: 'Conditionals, Functions & File Handling', desc: 'Grading systems, day conversion, tax slabs, input validation, password strength, AGE/SORT functions, and Python file operations.' },
+      { title: 'Visualization with Excel, Matplotlib & Seaborn', desc: 'Effective visualization principles and case studies using Excel, Matplotlib, and Seaborn.' },
+      { title: 'Tableau & Power BI Dashboards', desc: 'Tableau connectivity, charts, advanced reports, dashboards, calculations, filters; Power BI connections, data modelling, reports, and charts.' }
+    ]
+  },
+  {
+    id: 'aid30060',
+    code: 'AID30060',
+    name: 'User Interface and User Experience Design',
+    type: 'PE',
+    credits: 4,
+    modules: [
+      { title: 'Unit I: User Interface Design Principles', desc: 'UI goals, user-centered design, mental/conceptual models, Shneiderman’s rules, Gestalt principles, UI elements, personas, wireframes, mock-ups, and prototypes.' },
+      { title: 'Unit II: Usability Engineering, Evaluation & Testing', desc: 'Usability engineering, Fitts’/Hick’s laws, heuristic evaluation, cognitive walkthroughs, think-aloud/A-B testing, heat maps, UX metrics, and standards.' },
+      { title: 'Unit III: User Experience and Design Process', desc: 'UI vs UX, 7 Laws of UX, design thinking, empathy/journey/experience maps, service blueprints, UX and content strategy.' },
+      { title: 'Unit IV: Advanced Topics in UI/UX Design', desc: 'Agile UX, data-driven UX, recommendation systems, AI personalization, generative AI, accessibility, and tools like Figma, Adobe XD, and Hotjar.' },
+      { title: 'Unit V: Designing UX for Tomorrow', desc: 'Voice/conversational/immersive UX, web and mobile interfaces, IoT, FinTech/Edu/Health/E-commerce UX, wearables, and AR/VR/MR challenges.' }
+    ]
+  },
+  {
+    id: 'aid30070',
+    code: 'AID30070',
+    name: 'Graph Machine Learning',
+    type: 'PE',
+    credits: 4,
+    modules: [
+      { title: 'Unit I: Introduction to Graph Machine Learning', desc: 'Graphs with NetworkX, plotting, properties, benchmarks, large graphs, graph embedding problem, and taxonomy of embedding algorithms.' },
+      { title: 'Unit II: Unsupervised Graph Learning', desc: 'Unsupervised embedding roadmap, shallow embedding methods, autoencoders, and graph neural networks.' },
+      { title: 'Unit III: Supervised Graph Learning', desc: 'Supervised embedding roadmap, feature-based and shallow methods, graph regularization, and graph convolutional neural networks.' },
+      { title: 'Unit IV: Problems with ML on Graphs', desc: 'Link prediction, community detection, graph similarity, and graph matching.' },
+      { title: 'Unit V: Advanced Applications', desc: 'Social network topology and communities, credit-card transaction graphs, and NLP/text analysis with graphs.' }
+    ]
+  },
+  {
+    id: 'aid30080',
+    code: 'AID30080',
+    name: 'System Software and Compiler Design',
+    type: 'PE',
+    credits: 4,
+    modules: [
+      { title: 'Unit I: System Software & Assembler Design', desc: 'Assembler, compiler, interpreter, macro processor, linker, loader, debugger, text editor, and design of a 2-pass assembler.' },
+      { title: 'Unit II: Macroprocessor, Loaders & Linkers', desc: 'Macro definition/expansion, 2-pass macroprocessor, loader schemes, direct linking loader, relocation, and static/dynamic link libraries.' },
+      { title: 'Unit III: Lexical & Syntax Analysis', desc: 'Compiler phases, LEX token specification/recognition, RDP, predictive/SLR/LR(1)/LALR parsers, error recovery, and LEX/YACC tools.' },
+      { title: 'Unit IV: Semantic Analysis & Intermediate Code', desc: 'Syntax-directed translation/definitions, type checking, postfix, parse/syntax trees, three-address code, quadruples, and triples.' },
+      { title: 'Unit V: Code Generation & Optimization', desc: 'Code generation issues, basic blocks, flow graphs, and machine-independent/dependent code optimization.' }
+    ]
+  },
+  {
+    id: 'aid30090',
+    code: 'AID30090',
+    name: 'AI Systems and Applications',
+    type: 'PE',
+    credits: 4,
+    modules: [
+      { title: 'Unit I: Introduction to AI Systems', desc: 'Definition and scope of AI, history, key components, Narrow/General/Super AI, how AI systems work, problem solving, and ethics.' },
+      { title: 'Unit II: AI Fields', desc: 'Machine learning, deep learning, reinforcement learning, NLP, computer vision, and tools/frameworks (TensorFlow, Pandas, NLTK).' },
+      { title: 'Unit III: Advanced Technologies', desc: 'Generative AI, transfer learning, LLMs, time series, graph theory, explainable AI, edge AI, ethics, and GAN image-generation case study.' },
+      { title: 'Unit IV: AI Applications', desc: 'AI in games, healthcare, robotics, finance, business optimization, marketing, education technology, and smart agriculture.' },
+      { title: 'Unit V: Case Studies', desc: 'Deep Blue, AlphaGo, Parkinson’s prediction, Tesla Autopilot, Robinhood fraud detection, Watson, Alexa, Siri, Eliza, and ChatGPT.' }
+    ]
+  },
+  {
+    id: 'aid30100',
+    code: 'AID30100',
+    name: 'Machine Learning',
+    type: 'PM',
+    credits: 3,
+    modules: [
+      { title: 'Unit I: Introduction to ML & Data Preparation', desc: 'Supervised/unsupervised/reinforcement learning, encoding, preprocessing, EDA, train-test/cross-validation, feature selection/importance, and PCA.' },
+      { title: 'Unit II: Supervised Learning Techniques', desc: 'Decision trees, SVM, nearest neighbour, confusion matrix/F1/ROC, bagging/boosting/AdaBoost/random forests, class imbalance, and SMOTE.' },
+      { title: 'Unit III: Unsupervised Learning', desc: 'Hierarchical clustering, K-Medoids, DBSCAN, BIRCH, CURE, clustering quality metrics, vector quantization, and EM algorithm.' },
+      { title: 'Unit IV: Advanced ML Models', desc: 'Least-squares regression, regularization, LASSO, HMM with forward-backward/Viterbi, and anomaly/outlier detection.' },
+      { title: 'Unit V: Trends in Machine Learning', desc: 'Bayesian belief networks, genetic algorithms, reinforcement learning, active learning, transfer learning, and advanced ML applications.' }
+    ]
+  },
+  {
+    id: 'aid30110',
+    code: 'AID30110',
+    name: 'Machine Learning Lab',
+    type: 'PR',
+    credits: 1,
+    modules: [
+      { title: 'Datasets, EDA & Preprocessing', desc: 'Explore dataset resources, perform exploratory data analysis, and implement preprocessing techniques.' },
+      { title: 'Supervised Classifiers', desc: 'Implement KNN, Naive Bayes, tree-based classifiers with K-fold validation, and SVM with metric comparison.' },
+      { title: 'Clustering & Regression', desc: 'Implement and compare Spectral/DBSCAN clustering; implement regression and evaluate performance.' },
+      { title: 'Mini-Project', desc: 'End-to-end mini-project on a suitable machine learning dataset.' }
+    ]
+  },
+  {
+    id: 'aid20080',
+    code: 'AID20080',
+    name: 'Operating Systems',
+    type: 'PM',
+    credits: 3,
+    modules: [
+      { title: 'Unit I: Introduction to Operating Systems', desc: 'OS types (batch, multiprogramming, time-sharing, real-time, network, distributed), OS services, Linux commands, and shell programming.' },
+      { title: 'Unit II: Process Management', desc: 'Process states, PCB, context switching, threads/multithreading, schedulers, and FCFS/SJF/RR scheduling algorithms.' },
+      { title: 'Unit III: Concurrency Control', desc: 'Critical section, semaphores, monitors, message passing, readers-writers/producer-consumer, deadlock prevention/avoidance (Banker’s), detection and recovery.' },
+      { title: 'Unit IV: Memory Management', desc: 'Fixed/dynamic partitioning, fragmentation, virtual memory, segmentation, paging, thrashing, and FIFO/LRU/Optimal page replacement.' },
+      { title: 'Unit V: I/O and File Management', desc: 'I/O hardware and DMA, file access/types/directories, contiguous/linked/indexed allocation, and disk scheduling (FCFS, SSTF, SCAN, C-SCAN).' }
+    ]
+  },
+  {
+    id: 'aid20090',
+    code: 'AID20090',
+    name: 'Operating Systems Laboratory',
+    type: 'PM',
+    credits: 1,
+    modules: [
+      { title: 'Linux Commands & Shell Scripting', desc: 'Linux command practice and shell scripting including arithmetic operations.' },
+      { title: 'Process Management', desc: 'fork child processes, orphan/zombie processes, FCFS/SRTF scheduling, and IPC via pipes/shared memory.' },
+      { title: 'Process Synchronization', desc: 'Banker’s algorithm for deadlock avoidance; Readers-Writers or Producer-Consumer with semaphores.' },
+      { title: 'Memory Management', desc: 'Simulate FIFO and LRU page replacement algorithms.' }
+    ]
+  },
+  {
+    id: 'aid30180',
+    code: 'AID30180',
+    name: 'Software Engineering and Modelling',
+    type: 'PM',
+    credits: 3,
+    modules: [
+      { title: 'Unit I: Software Engineering & Requirements', desc: 'SE process, waterfall/prototyping/iterative/RUP/spiral/agile models, software myths, SRS, and functional/non-functional requirements.' },
+      { title: 'Unit II: Software Design', desc: 'Abstraction, modularity, cohesion/coupling, SSAD (ER/DFD), OOAD/UML static and dynamic modelling (class, use-case, sequence, state diagrams).' },
+      { title: 'Unit III: Software Project Management', desc: 'Project metrics, function points, LOC, make/buy, COCOMO II, PERT/CPM, and risk management.' },
+      { title: 'Unit IV: Testing', desc: 'V-model, verification/validation, unit/integration/system/acceptance testing, white/black box, basis path, equivalence partitioning, and test plans.' },
+      { title: 'Unit V: Trends in Software Engineering', desc: 'Agile practices and XP, DevOps toolchain and continuous delivery, and SE roles in IoT, data science, cloud, and cybersecurity.' }
+    ]
+  },
+  {
+    id: 'aid20110',
+    code: 'AID20110',
+    name: 'Project Based Learning - III',
+    type: 'PR',
+    credits: 1,
+    modules: [
+      { title: 'IoT Platforms & Sensing', desc: 'IoT architecture, Raspberry Pi Pico/ESP8266/Arduino platforms, OS install, and sensor interfacing for data acquisition.' },
+      { title: 'Actuation & Protocols', desc: 'Actuator interfacing (motors/relays) and MQTT/CoAP publish-subscribe of sensor data.' },
+      { title: 'Cloud, Web & Mobile IoT', desc: 'Cloud storage/analysis (ThingSpeak/Ubidots), IoT web server applications, and mobile monitoring/control of appliances.' },
+      { title: 'IoT Mini Project', desc: 'Design and implement a real-life IoT mini project with demo, presentation, and a 15–20 page report.' }
+    ]
+  },
+  {
+    id: 'pce10030',
+    code: 'PCE10030',
+    name: 'Managing Conflicts Peacefully: Tools and Techniques',
+    type: 'UC',
+    credits: 2,
+    modules: [
+      { title: 'Unit I: Understanding Conflict', desc: 'Nature, sources, and types of interpersonal and group conflict in personal and professional settings.' },
+      { title: 'Unit II: Peaceful Resolution Tools', desc: 'Communication, negotiation, mediation, and dialogue techniques for constructive conflict resolution.' },
+      { title: 'Unit III: Conflict Management Techniques', desc: 'Interest-based problem solving, emotional regulation, and collaborative decision-making frameworks.' },
+      { title: 'Unit IV: Applications & Practice', desc: 'Case studies and applied practice of peaceful conflict management in academic, workplace, and community contexts.' }
+    ]
+  }
+];
+
 function getModulesForSubject(name: string) {
   const upper = name.toUpperCase();
   if (upper.includes('DATA STRUCTURE') || upper.includes('DSA')) {
@@ -190,13 +356,39 @@ function getModulesForSubject(name: string) {
       { title: 'Indexing & Storage', desc: 'B+ trees, hash indexing, query processing, and query optimization techniques.' }
     ];
   }
+  if (upper.includes('MACHINE LEARNING') || upper === 'ML') {
+    return [
+      { title: 'Unit I: Introduction to ML & Data Preparation', desc: 'Supervised/unsupervised/reinforcement learning, encoding, preprocessing, EDA, cross-validation, and PCA.' },
+      { title: 'Unit II: Supervised Learning Techniques', desc: 'Decision trees, SVM, nearest neighbour, evaluation metrics, ensemble methods, and class imbalance handling.' },
+      { title: 'Unit III: Unsupervised Learning', desc: 'Hierarchical clustering, K-Medoids, DBSCAN, BIRCH, CURE, quality metrics, and EM algorithm.' },
+      { title: 'Unit IV: Advanced ML Models', desc: 'Regression, regularization, LASSO, HMM, and anomaly/outlier detection.' },
+      { title: 'Unit V: Trends in Machine Learning', desc: 'Bayesian networks, genetic algorithms, reinforcement, active, and transfer learning applications.' }
+    ];
+  }
+  if (upper.includes('SOFTWARE ENGINEERING') || upper === 'SEM') {
+    return [
+      { title: 'Unit I: Software Engineering & Requirements', desc: 'Process models (waterfall, spiral, agile), SRS, and functional/non-functional requirements.' },
+      { title: 'Unit II: Software Design', desc: 'Cohesion/coupling, ER/DFD, UML static and dynamic modelling.' },
+      { title: 'Unit III: Software Project Management', desc: 'Metrics, function points, COCOMO II, PERT/CPM, and risk management.' },
+      { title: 'Unit IV: Testing', desc: 'V-model, white/black box testing, unit/integration/system testing, and test plans.' },
+      { title: 'Unit V: Trends in Software Engineering', desc: 'Agile/XP practices, DevOps toolchain, and SE in IoT, data science, cloud, and security.' }
+    ];
+  }
+  if (upper.includes('DATA VISUALIZATION')) {
+    return [
+      { title: 'Python Programming Basics', desc: 'Variables, collections, conditionals, functions, and file handling for visualization workflows.' },
+      { title: 'Visualization Libraries', desc: 'Effective visualization principles with Excel, Matplotlib, and Seaborn case studies.' },
+      { title: 'Tableau Dashboards', desc: 'Connectivity, charts, advanced reports, dashboards, calculations, and filters.' },
+      { title: 'Power BI Analytics', desc: 'Connections, data modelling, dashboards, reports, and charts.' }
+    ];
+  }
   if (upper.includes('OPERATING SYSTEM') || upper.includes('OS')) {
     return [
-      { title: 'OS Structures & Process Management', desc: 'System calls, process states, PCB, context switching, and inter-process communication.' },
-      { title: 'CPU Scheduling & Threads', desc: 'System calls, CPU scheduling (FCFS, SJF, RR, Multilevel), and multithreading.' },
-      { title: 'Process Synchronization & Deadlocks', desc: 'Critical section problem, semaphores, mutexes, dining philosophers, and deadlock avoidance.' },
-      { title: 'Memory Management & Virtual Memory', desc: 'Paging, segmentation, TLB, demand paging, and page replacement (FIFO, LRU, Optimal).' },
-      { title: 'File Systems & I/O Management', desc: 'File allocation, directory structures, disk scheduling, and kernel I/O subsystem.' }
+      { title: 'Unit I: Introduction to Operating Systems', desc: 'OS types and services, Linux commands, and shell programming.' },
+      { title: 'Unit II: Process Management', desc: 'Process states, PCB, threads, and FCFS/SJF/RR scheduling.' },
+      { title: 'Unit III: Concurrency Control', desc: 'Critical section, semaphores, classical IPC problems, and deadlock handling.' },
+      { title: 'Unit IV: Memory Management', desc: 'Partitioning, virtual memory, paging/segmentation, and page replacement algorithms.' },
+      { title: 'Unit V: I/O and File Management', desc: 'I/O hardware, file systems, allocation methods, and disk scheduling.' }
     ];
   }
   if (upper.includes('NETWORK') || upper.includes('CN')) {
@@ -409,16 +601,23 @@ export default function SyllabusClient({ subjects, branch, semester, syllabusUrl
     setSchedulingModule(null);
   };
 
-  // Merge DB subjects with official syllabus subjects if AIDS Sem 4
+  // Merge DB subjects with official syllabus subjects for AIDS Sem 4 / Sem 5
   const displaySubjects = useMemo(() => {
-    if (branch === 'AIDS' && semester === 4) {
-      return AIDS_SEM_4_SUBJECTS.map((officialSub) => {
+    const officialList =
+      branch === 'AIDS' && semester === 4
+        ? AIDS_SEM_4_SUBJECTS
+        : branch === 'AIDS' && semester === 5
+          ? AIDS_SEM_5_SUBJECTS
+          : null;
+
+    if (officialList) {
+      return officialList.map((officialSub) => {
         const dbSub = subjects.find(s => isSubjectMatch(s.name, officialSub.name));
         return {
           id: dbSub ? dbSub.id : officialSub.id,
           name: officialSub.name,
           branch: 'AIDS',
-          semester: 4,
+          semester,
           code: officialSub.code,
           type: officialSub.type,
           credits: officialSub.credits,

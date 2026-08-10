@@ -63,7 +63,16 @@ export const isSubjectMatch = (nameA: string, nameB: string): boolean => {
     'cn': ['computer networks', 'computer networks and security'],
     'dbms': ['database management systems', 'database'],
     'coa': ['computer organization and architecture', 'computer organization'],
-    'os': ['operating systems']
+    'os': ['operating systems'],
+    'osl': ['operating systems laboratory', 'operating system laboratory', 'os lab'],
+    'ml': ['machine learning'],
+    'mll': ['machine learning lab', 'machine learning laboratory'],
+    'dvp': ['data visualization using python', 'data visualization'],
+    'sem': ['software engineering and modelling', 'software engineering'],
+    'uiux': ['user interface and user experience design', 'ui ux', 'ux design'],
+    'gml': ['graph machine learning'],
+    'sscd': ['system software and compiler design', 'compiler design'],
+    'aisa': ['ai systems and applications'],
   };
   
   for (const [key, list] of Object.entries(aliases)) {
