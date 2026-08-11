@@ -23,10 +23,19 @@ const CODE_EXTENSIONS = new Set([
   "css",
   "html",
   "sql",
+  "ipynb",
 ]);
 
 export function isCodeExtension(extension: string): boolean {
   return CODE_EXTENSIONS.has(extension.toLowerCase());
+}
+
+export function isNotebookExtension(extension: string): boolean {
+  return extension.toLowerCase() === "ipynb";
+}
+
+export function isCsvExtension(extension: string): boolean {
+  return extension.toLowerCase() === "csv";
 }
 
 export function getFileExtension(title: string, url: string): string {

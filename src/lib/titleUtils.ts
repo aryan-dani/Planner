@@ -23,12 +23,18 @@ export function cleanResourceTitle(title: string): string {
   }
 
   // 3b. Assignment codes: "Sem 5 OSL Assignment 2A Orphan" -> "Assignment 2A: Orphan"
+  // Datasets: "Sem 5 MLL Assignment 1 Dataset diabetes" -> "Dataset 1: diabetes"
   const assignmentMatch = clean.match(
     /(?:Sem\s+\d+\s+)?(?:[A-Z0-9-]+\s+)?Assignment\s+(\d+[A-Za-z]?)\s*(.*)/i,
   );
   if (assignmentMatch) {
     const num = assignmentMatch[1];
     const rest = assignmentMatch[2].trim();
+    const datasetRest = rest.match(/^Dataset\s+(.*)$/i);
+    if (datasetRest) {
+      const name = datasetRest[1].trim();
+      return `Dataset ${num}${name ? `: ${name}` : ""}`;
+    }
     return `Assignment ${num}${rest ? `: ${rest}` : ""}`;
   }
 
@@ -58,6 +64,12 @@ export function cleanResourceTitle(title: string): string {
 /** Compact chip label for related-code buttons. */
 export function shortCodeLabel(title: string): string {
   const cleaned = cleanResourceTitle(title);
+  const dataset = cleaned.match(/^Dataset\s+(\d+[A-Za-z]?)\s*:?\s*(.*)$/i);
+  if (dataset) {
+    const num = dataset[1];
+    const rest = dataset[2].trim();
+    return rest ? `Data ${num}: ${rest}` : `Dataset ${num}`;
+  }
   const assignment = cleaned.match(/^Assignment\s+(\d+[A-Za-z]?)\s*:?\s*(.*)$/i);
   if (assignment) {
     const num = assignment[1];

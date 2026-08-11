@@ -1,5 +1,10 @@
 import { ResourceItem } from "@/lib/dataFetcher";
-import { getFileExtension, isCodeExtension } from "@/lib/fileUtils";
+import {
+  getFileExtension,
+  isCodeExtension,
+  isCsvExtension,
+} from "@/lib/fileUtils";
+import { isSubjectMatch } from "@/lib/subjectMatcher";
 
 /** e.g. Sem_5_OSL_WriteUp_2.docx → "2", Sem_5_OSL_WriteUp_2A.docx → "2A" */
 export function parseWriteUpKey(title: string): string | null {
@@ -24,9 +29,23 @@ function keysMatch(writeupKey: string, assignmentKey: string): boolean {
   return rest === "" || /^[A-Z]+$/.test(rest);
 }
 
+export function isDatasetResource(item: ResourceItem): boolean {
+  const ext = getFileExtension(item.title, item.file_url);
+  if (isCsvExtension(ext)) return true;
+  return /Dataset/i.test(item.title);
+}
+
 function isCodeResource(item: ResourceItem): boolean {
+  if (isDatasetResource(item)) return false;
   if (item.category === "codes") return true;
   return isCodeExtension(getFileExtension(item.title, item.file_url));
+}
+
+function sameSubject(a: ResourceItem, b: ResourceItem): boolean {
+  return (
+    a.subject_name === b.subject_name ||
+    isSubjectMatch(a.subject_name, b.subject_name)
+  );
 }
 
 /** Codes linked to a writeup via WriteUp_K ↔ Assignment_K* under the same subject. */
@@ -40,7 +59,7 @@ export function findRelatedCodes(
   return pool
     .filter((item) => {
       if (item.id === writeup.id) return false;
-      if (item.subject_name !== writeup.subject_name) return false;
+      if (!sameSubject(item, writeup)) return false;
       if (!isCodeResource(item)) return false;
       const assignmentKey = parseAssignmentKey(item.title);
       return assignmentKey ? keysMatch(key, assignmentKey) : false;
@@ -59,10 +78,29 @@ export function findRelatedWriteups(
   return pool
     .filter((item) => {
       if (item.id === code.id) return false;
-      if (item.subject_name !== code.subject_name) return false;
+      if (!sameSubject(item, code)) return false;
       if (item.category !== "writeup") return false;
       const writeupKey = parseWriteUpKey(item.title);
       return writeupKey ? keysMatch(writeupKey, key) : false;
+    })
+    .sort((a, b) => a.title.localeCompare(b.title));
+}
+
+/** Datasets linked to an assignment notebook/code via Assignment_K ↔ Dataset. */
+export function findRelatedDatasets(
+  resource: ResourceItem,
+  pool: ResourceItem[],
+): ResourceItem[] {
+  const key = parseAssignmentKey(resource.title);
+  if (!key) return [];
+
+  return pool
+    .filter((item) => {
+      if (item.id === resource.id) return false;
+      if (!sameSubject(item, resource)) return false;
+      if (!isDatasetResource(item)) return false;
+      const assignmentKey = parseAssignmentKey(item.title);
+      return assignmentKey ? keysMatch(key, assignmentKey) : false;
     })
     .sort((a, b) => a.title.localeCompare(b.title));
 }

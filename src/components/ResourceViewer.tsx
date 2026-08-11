@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import {
   Download,
@@ -10,21 +10,28 @@ import {
   Code2,
   X,
   Maximize,
+  Table2,
+  Play,
 } from "lucide-react";
 import { ResourceItem } from "@/lib/dataFetcher";
 import {
   getFileExtension,
   getDriveFileId,
   isCodeExtension,
+  isNotebookExtension,
+  isCsvExtension,
 } from "@/lib/fileUtils";
 import { motion } from "framer-motion";
 import { cleanResourceTitle, shortCodeLabel } from "@/lib/titleUtils";
+import NotebookViewer from "@/components/NotebookViewer";
+import CsvPreview from "@/components/CsvPreview";
 
 interface ResourceViewerProps {
   resource: ResourceItem;
   onClose: () => void;
   relatedCodes?: ResourceItem[];
   relatedWriteups?: ResourceItem[];
+  relatedDatasets?: ResourceItem[];
   onOpenRelated?: (item: ResourceItem) => void;
 }
 
@@ -35,8 +42,6 @@ function getViewerUrl(resource: ResourceItem) {
   if (isDrive) {
     const driveId = getDriveFileId(resource.file_url);
     if (driveId) {
-      // Use Google Drive's free built-in preview — renders entirely on Google's
-      // infrastructure, zero Vercel compute / bandwidth cost.
       return `https://drive.google.com/file/d/${driveId}/preview`;
     }
     return resource.file_url;
@@ -58,7 +63,6 @@ function getDirectUrl(resource: ResourceItem) {
   if (isDrive) {
     const driveId = getDriveFileId(resource.file_url);
     if (driveId) {
-      // Direct Google Drive download URL — bypasses Vercel entirely
       return `https://drive.google.com/uc?export=download&id=${driveId}`;
     }
   }
@@ -70,24 +74,42 @@ export default function ResourceViewer({
   onClose,
   relatedCodes = [],
   relatedWriteups = [],
+  relatedDatasets = [],
   onOpenRelated,
 }: ResourceViewerProps) {
   const extension = getFileExtension(resource.title, resource.file_url);
   const isPdf = extension === "pdf";
   const isPresentation = extension === "ppt" || extension === "pptx";
+  const isNotebook = isNotebookExtension(extension);
+  const isCsv = isCsvExtension(extension);
   const isCode =
-    isCodeExtension(extension) || resource.category === "codes";
+    !isCsv && (isCodeExtension(extension) || resource.category === "codes");
+  const isTextFetch = isCode || isCsv;
   const viewerUrl = useMemo(() => getViewerUrl(resource), [resource]);
   const downloadUrl = useMemo(() => getDirectUrl(resource), [resource]);
-  const FileIcon = isCode
-    ? Code2
-    : isPresentation
-      ? FileSpreadsheet
-      : FileText;
-  const showRelatedCodes = !isCode && relatedCodes.length > 0 && !!onOpenRelated;
+  const driveId = useMemo(
+    () => getDriveFileId(resource.file_url),
+    [resource.file_url],
+  );
+  const colabUrl = driveId
+    ? `https://colab.research.google.com/drive/${driveId}`
+    : null;
+
+  const FileIcon = isCsv
+    ? Table2
+    : isCode
+      ? Code2
+      : isPresentation
+        ? FileSpreadsheet
+        : FileText;
+
+  const showRelatedCodes = !isCode && !isCsv && relatedCodes.length > 0 && !!onOpenRelated;
   const showRelatedWriteups =
-    isCode && relatedWriteups.length > 0 && !!onOpenRelated;
-  const hasRelatedBar = showRelatedCodes || showRelatedWriteups;
+    (isCode || isCsv) && relatedWriteups.length > 0 && !!onOpenRelated;
+  const showRelatedDatasets =
+    isNotebook && relatedDatasets.length > 0 && !!onOpenRelated;
+  const hasRelatedBar =
+    showRelatedCodes || showRelatedWriteups || showRelatedDatasets;
 
   const containerRef = useRef<HTMLDivElement>(null);
   const downloadRef = useRef<HTMLAnchorElement>(null);
@@ -102,27 +124,24 @@ export default function ResourceViewer({
     setMounted(true);
   }, []);
 
-  // Reset loading state and timeout error when the viewer URL changes
   useEffect(() => {
     setIsLoading(true);
     setLoadError(false);
     setCodeContent(null);
   }, [viewerUrl, resource.file_url]);
 
-  // Fetch source for code files
   useEffect(() => {
-    if (!isCode) return;
+    if (!isTextFetch) return;
 
-    const driveId = getDriveFileId(resource.file_url);
     let cancelled = false;
 
-    async function loadCode() {
+    async function loadText() {
       setIsLoading(true);
       setLoadError(false);
       try {
         if (driveId) {
           const res = await fetch(`/api/resources/code?id=${driveId}`);
-          if (!res.ok) throw new Error("Failed to load code");
+          if (!res.ok) throw new Error("Failed to load file");
           const text = await res.text();
           if (!cancelled) {
             setCodeContent(text);
@@ -132,7 +151,7 @@ export default function ResourceViewer({
         }
 
         const res = await fetch(resource.file_url);
-        if (!res.ok) throw new Error("Failed to load code");
+        if (!res.ok) throw new Error("Failed to load file");
         const text = await res.text();
         if (!cancelled) {
           setCodeContent(text);
@@ -146,13 +165,12 @@ export default function ResourceViewer({
       }
     }
 
-    loadCode();
+    loadText();
     return () => {
       cancelled = true;
     };
-  }, [isCode, resource.file_url]);
+  }, [isTextFetch, resource.file_url, driveId]);
 
-  // Loading timeout fallback (15s) — iframe / code fetch
   useEffect(() => {
     let timer: NodeJS.Timeout;
     if (isLoading) {
@@ -172,7 +190,6 @@ export default function ResourceViewer({
         return;
       }
 
-      // Guard against firing shortcuts while typing in inputs
       if (
         event.target instanceof HTMLInputElement ||
         event.target instanceof HTMLTextAreaElement ||
@@ -191,7 +208,6 @@ export default function ResourceViewer({
       if (event.key.toLowerCase() === "d") downloadRef.current?.click();
       if (event.key.toLowerCase() === "o") externalRef.current?.click();
 
-      // Focus trapping
       if (event.key === "Tab") {
         if (!containerRef.current) return;
         const focusableElements = containerRef.current.querySelectorAll(
@@ -221,8 +237,6 @@ export default function ResourceViewer({
     document.body.style.overscrollBehavior = "none";
     document.documentElement.style.overscrollBehavior = "none";
     window.addEventListener("keydown", handleKeyDown);
-
-    // Focus the container to ensure key events are captured immediately
     containerRef.current?.focus();
 
     return () => {
@@ -232,6 +246,18 @@ export default function ResourceViewer({
       window.removeEventListener("keydown", handleKeyDown);
     };
   }, [onClose]);
+
+  const viewerKindLabel = isNotebook
+    ? "Notebook"
+    : isCsv
+      ? "Dataset"
+      : isCode
+        ? `${extension.toUpperCase() || "CODE"} source`
+        : isPdf
+          ? "PDF"
+          : isPresentation
+            ? "Presentation"
+            : "File";
 
   const content = (
     <motion.div
@@ -246,12 +272,11 @@ export default function ResourceViewer({
       transition={{ duration: 0.2 }}
       className="fixed inset-0 z-[100] bg-background outline-none flex flex-col overscroll-none"
     >
-      {/* Left Floating Pill */}
       <motion.div
         initial={{ y: -20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ delay: 0.1, duration: 0.3 }}
-        className="absolute top-4 left-4 z-10 flex items-center gap-3 bg-card border border-border rounded-2xl p-2 pr-4 shadow-popover"
+        className="absolute top-4 left-4 z-10 flex items-center gap-3 bg-card border border-border rounded-2xl p-2 pr-4 shadow-popover max-w-[min(70vw,28rem)]"
       >
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border bg-surface shadow-xs">
           <FileIcon className="h-5 w-5 text-foreground" />
@@ -266,14 +291,7 @@ export default function ResourceViewer({
           </h2>
           <div className="flex items-center gap-2 mt-0.5">
             <p className="text-[10px] uppercase font-semibold tracking-wide text-muted">
-              {isCode
-                ? `${extension.toUpperCase() || "CODE"} source`
-                : isPdf
-                  ? "PDF"
-                  : isPresentation
-                    ? "Presentation"
-                    : "File"}{" "}
-              viewer
+              {viewerKindLabel} viewer
             </p>
           </div>
           {(resource.category === "notes" ||
@@ -285,7 +303,6 @@ export default function ResourceViewer({
         </div>
       </motion.div>
 
-      {/* Right Floating Pill */}
       <motion.div
         initial={{ y: -20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
@@ -298,6 +315,18 @@ export default function ResourceViewer({
           <span>D: DL</span>
           <span>Esc: Close</span>
         </div>
+        {isNotebook && colabUrl && (
+          <a
+            href={colabUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hidden sm:inline-flex items-center gap-1.5 h-9 px-3 rounded-xl text-xs font-semibold text-foreground bg-surface hover:bg-surface-hover border border-border transition-colors"
+            title="Open in Google Colab"
+          >
+            <Play className="h-3.5 w-3.5" />
+            Colab
+          </a>
+        )}
         <a
           ref={externalRef}
           href={resource.file_url}
@@ -357,7 +386,6 @@ export default function ResourceViewer({
         >
           {isLoading && (
             <div className="absolute inset-0 flex flex-col items-between justify-between p-8 bg-background z-20">
-              {/* Shimmer skeleton representing a PDF document */}
               <div className="w-full flex-1 flex flex-col gap-6 animate-pulse mt-12 max-w-4xl mx-auto">
                 <div className="h-8 bg-muted/40 rounded-lg w-1/3" />
                 <div className="h-4 bg-muted/30 rounded-lg w-full" />
@@ -371,16 +399,19 @@ export default function ResourceViewer({
                 </div>
               </div>
 
-              {/* Status & fallback message */}
               <div className="w-full text-center pb-8 flex flex-col items-center gap-3">
                 <div className="relative flex items-center justify-center">
                   <div className="absolute h-12 w-12 rounded-full border-4 border-muted/20 border-t-foreground animate-spin" />
                   <div className="h-6 w-6 rounded-full bg-foreground/10 animate-ping" />
                 </div>
                 <p className="text-sm font-medium text-foreground/75 mt-4 tracking-wide">
-                  {isCode
-                    ? "Loading source..."
-                    : "Preparing document preview..."}
+                  {isNotebook
+                    ? "Loading notebook..."
+                    : isCsv
+                      ? "Loading dataset..."
+                      : isCode
+                        ? "Loading source..."
+                        : "Preparing document preview..."}
                 </p>
                 {loadError && (
                   <motion.div
@@ -403,7 +434,39 @@ export default function ResourceViewer({
             </div>
           )}
 
-          {isCode ? (
+          {isNotebook ? (
+            <div className="h-full w-full">
+              {codeContent !== null && <NotebookViewer content={codeContent} />}
+              {!isLoading && loadError && codeContent === null && (
+                <div className="h-full flex flex-col items-center justify-center gap-3 text-center text-muted">
+                  <p className="text-sm">Could not load notebook in-app.</p>
+                  <a
+                    href={resource.file_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-foreground underline underline-offset-4 text-sm"
+                  >
+                    Open on Drive
+                  </a>
+                </div>
+              )}
+            </div>
+          ) : isCsv ? (
+            <div className="h-full w-full">
+              {codeContent !== null && <CsvPreview content={codeContent} />}
+              {!isLoading && loadError && codeContent === null && (
+                <div className="h-full flex flex-col items-center justify-center gap-3 text-center text-muted">
+                  <p className="text-sm">Could not load dataset in-app.</p>
+                  <a
+                    href={downloadUrl}
+                    className="text-foreground underline underline-offset-4 text-sm"
+                  >
+                    Download CSV
+                  </a>
+                </div>
+              )}
+            </div>
+          ) : isCode ? (
             <div className="h-full w-full overflow-auto bg-[#0c0c0e] p-4 sm:p-6">
               {codeContent !== null && (
                 <pre className="text-[12px] sm:text-[13px] leading-relaxed font-mono text-zinc-200 whitespace-pre tab-size-4">
@@ -445,42 +508,33 @@ export default function ResourceViewer({
           transition={{ delay: 0.15, duration: 0.3 }}
           className="absolute bottom-4 inset-x-0 z-10 flex justify-center px-4 pointer-events-none"
         >
-          <div className="pointer-events-auto flex items-center gap-2 bg-card border border-border rounded-2xl pl-3 pr-1.5 py-1.5 shadow-popover max-w-[min(92vw,42rem)]">
-            <div className="flex items-center gap-1.5 h-8 shrink-0">
-              {showRelatedCodes ? (
-                <Code2 className="h-3.5 w-3.5 text-muted" />
-              ) : (
-                <FileText className="h-3.5 w-3.5 text-muted" />
-              )}
-              <span className="text-[10px] font-bold uppercase tracking-wider text-muted whitespace-nowrap leading-none">
-                {showRelatedCodes ? "Related code" : "Related writeup"}
-              </span>
-            </div>
-            <div className="w-px h-4 bg-border shrink-0" />
-            <div className="flex items-center flex-wrap gap-1.5 min-w-0">
-              {(showRelatedCodes ? relatedCodes : relatedWriteups).map(
-                (item) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => onOpenRelated?.(item)}
-                    className="inline-flex items-center gap-1.5 h-8 px-3 rounded-xl bg-surface hover:bg-surface-hover border border-border text-xs font-medium text-foreground transition-colors max-w-full leading-none"
-                    title={item.title}
-                  >
-                    {showRelatedCodes ? (
-                      <Code2 className="h-3.5 w-3.5 text-muted shrink-0" />
-                    ) : (
-                      <FileText className="h-3.5 w-3.5 text-muted shrink-0" />
-                    )}
-                    <span className="truncate">
-                      {showRelatedCodes
-                        ? shortCodeLabel(item.title)
-                        : cleanResourceTitle(item.title)}
-                    </span>
-                  </button>
-                ),
-              )}
-            </div>
+          <div className="pointer-events-auto flex flex-col sm:flex-row items-stretch sm:items-center gap-2 bg-card border border-border rounded-2xl pl-3 pr-1.5 py-1.5 shadow-popover max-w-[min(96vw,48rem)]">
+            {showRelatedCodes && (
+              <RelatedChipRow
+                label="Related code"
+                icon={<Code2 className="h-3.5 w-3.5 text-muted" />}
+                items={relatedCodes}
+                onOpenRelated={onOpenRelated}
+                codeStyle
+              />
+            )}
+            {showRelatedWriteups && (
+              <RelatedChipRow
+                label="Related writeup"
+                icon={<FileText className="h-3.5 w-3.5 text-muted" />}
+                items={relatedWriteups}
+                onOpenRelated={onOpenRelated}
+              />
+            )}
+            {showRelatedDatasets && (
+              <RelatedChipRow
+                label="Dataset"
+                icon={<Table2 className="h-3.5 w-3.5 text-muted" />}
+                items={relatedDatasets}
+                onOpenRelated={onOpenRelated}
+                datasetStyle
+              />
+            )}
           </div>
         </motion.div>
       )}
@@ -489,4 +543,56 @@ export default function ResourceViewer({
 
   if (!mounted) return null;
   return createPortal(content, document.body);
+}
+
+function RelatedChipRow({
+  label,
+  icon,
+  items,
+  onOpenRelated,
+  codeStyle,
+  datasetStyle,
+}: {
+  label: string;
+  icon: ReactNode;
+  items: ResourceItem[];
+  onOpenRelated?: (item: ResourceItem) => void;
+  codeStyle?: boolean;
+  datasetStyle?: boolean;
+}) {
+  return (
+    <div className="flex items-center gap-2 min-w-0">
+      <div className="flex items-center gap-1.5 h-8 shrink-0">
+        {icon}
+        <span className="text-[10px] font-bold uppercase tracking-wider text-muted whitespace-nowrap leading-none">
+          {label}
+        </span>
+      </div>
+      <div className="w-px h-4 bg-border shrink-0" />
+      <div className="flex items-center flex-wrap gap-1.5 min-w-0">
+        {items.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            onClick={() => onOpenRelated?.(item)}
+            className="inline-flex items-center gap-1.5 h-8 px-3 rounded-xl bg-surface hover:bg-surface-hover border border-border text-xs font-medium text-foreground transition-colors max-w-full leading-none"
+            title={item.title}
+          >
+            {datasetStyle ? (
+              <Table2 className="h-3.5 w-3.5 text-muted shrink-0" />
+            ) : codeStyle ? (
+              <Code2 className="h-3.5 w-3.5 text-muted shrink-0" />
+            ) : (
+              <FileText className="h-3.5 w-3.5 text-muted shrink-0" />
+            )}
+            <span className="truncate">
+              {codeStyle || datasetStyle
+                ? shortCodeLabel(item.title)
+                : cleanResourceTitle(item.title)}
+            </span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
 }

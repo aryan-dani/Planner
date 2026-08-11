@@ -28,6 +28,7 @@ import { NotesDisclaimer } from "./NotesDisclaimer";
 import {
   findRelatedCodes,
   findRelatedWriteups,
+  findRelatedDatasets,
 } from "@/lib/resourceLinks";
 import {
   resolveSubjectName,
@@ -394,6 +395,12 @@ export default function ResourcesClient({
     [viewerResource, resources],
   );
 
+  const viewerRelatedDatasets = useMemo(
+    () =>
+      viewerResource ? findRelatedDatasets(viewerResource, resources) : [],
+    [viewerResource, resources],
+  );
+
   return (
     <div className="flex-1 w-full max-w-7xl mx-auto px-6 py-8 min-h-[80vh]">
       {/* Header */}
@@ -669,6 +676,7 @@ export default function ResourcesClient({
           onClose={closeViewer}
           relatedCodes={viewerRelatedCodes}
           relatedWriteups={viewerRelatedWriteups}
+          relatedDatasets={viewerRelatedDatasets}
           onOpenRelated={openResource}
         />
       )}
