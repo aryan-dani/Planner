@@ -35,11 +35,7 @@ export function resolveSubjectName(
   const exact = subjectNames.find((name) => name === decoded);
   if (exact) return exact;
   const lower = decoded.toLowerCase();
-  return (
-    subjectNames.find((name) => name.toLowerCase() === lower) ??
-    subjectNames.find((name) => name.toLowerCase().includes(lower)) ??
-    null
-  );
+  return subjectNames.find((name) => name.toLowerCase() === lower) ?? null;
 }
 
 export function subjectToSlug(subject: string): string {

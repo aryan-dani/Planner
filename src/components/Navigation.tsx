@@ -253,6 +253,10 @@ function NavigationInner() {
       const params = new URLSearchParams(searchParamsRef.current.toString());
       params.set("branch", newBranch);
       params.set("semester", newSem.toString());
+      // Drop deep-link params that belong to the previous semester/branch
+      params.delete("subject");
+      params.delete("filter");
+      params.delete("view");
       startNavigationProgress();
       startTransition(() => {
         router.push(`${pathname}?${params.toString()}`);

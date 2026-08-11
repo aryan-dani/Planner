@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect, useCallback, useRef, useTransition } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ResourceItem } from "@/lib/dataFetcher";
 import { useAcademicStore } from "@/store/academicStore";
@@ -34,9 +34,9 @@ import {
 import {
   resolveSubjectName,
   subjectToSlug,
+  parseResourceFilter,
   type ResourceFilter,
 } from "@/lib/resourceUrl";
-import { startNavigationProgress } from "./NavigationProgress";
 
 const ResourceViewer = dynamic(() => import("./ResourceViewer"), { ssr: false });
 const SummaryModal = dynamic(() => import("./SummaryModal"), { ssr: false });
@@ -138,21 +138,35 @@ export default function ResourcesClient({
   const [contentResults, setContentResults] = useState<any[]>([]);
   const [isSearchingContent, setIsSearchingContent] = useState(false);
   const didOpenInitialView = useRef(false);
-  const [isSubjectPending, startSubjectTransition] = useTransition();
+  const didHydrateFromUrl = useRef(false);
+  const lastUserSubjectRef = useRef<string | null>(null);
+  const [isSubjectPending, setIsSubjectPending] = useState(false);
   const [isScopeLoading, setIsScopeLoading] = useState(false);
   const scopeKey = `${branch}:${semester}`;
   const prevScopeRef = useRef(scopeKey);
+  const subjectPendingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const resources = initialResources;
 
   useEffect(() => {
     if (prevScopeRef.current !== scopeKey) {
       prevScopeRef.current = scopeKey;
+      didHydrateFromUrl.current = false;
+      lastUserSubjectRef.current = null;
+      didOpenInitialView.current = false;
+      setSelectedFilter("all");
+      setViewerResource(null);
       setIsScopeLoading(true);
       const t = setTimeout(() => setIsScopeLoading(false), 280);
       return () => clearTimeout(t);
     }
   }, [scopeKey, initialResources]);
+
+  useEffect(() => {
+    return () => {
+      if (subjectPendingTimer.current) clearTimeout(subjectPendingTimer.current);
+    };
+  }, []);
 
   const syncUrl = useCallback(
     (next: {
@@ -241,19 +255,66 @@ export default function ResourcesClient({
     });
   }, [subjectNames, subjectsMap, searchQuery]);
 
-  // Prefer URL subject, then keep selection, else first subject
+  const selectSubject = useCallback(
+    (subjectName: string, opts?: { filter?: ResourceFilter; fromUser?: boolean }) => {
+      const filter = opts?.filter ?? "all";
+      const fromUser = opts?.fromUser ?? true;
+
+      if (fromUser) {
+        lastUserSubjectRef.current = subjectName;
+        setIsSubjectPending(true);
+        if (subjectPendingTimer.current) clearTimeout(subjectPendingTimer.current);
+        subjectPendingTimer.current = setTimeout(() => setIsSubjectPending(false), 180);
+      }
+
+      setSelectedSubject(subjectName);
+      setSelectedFilter(filter);
+      setViewerResource(null);
+      syncUrl({ subject: subjectName, filter, view: null });
+    },
+    [syncUrl],
+  );
+
+  // Hydrate subject from URL / initial prop once, then keep client selection authoritative
   useEffect(() => {
     if (filteredSubjectNames.length === 0) {
       setSelectedSubject(null);
       return;
     }
 
-    const fromUrl =
-      resolveSubjectName(initialSubject, filteredSubjectNames) ||
-      resolveSubjectName(searchParams.get("subject"), filteredSubjectNames);
+    const urlSlug = searchParams.get("subject");
+    const fromLiveUrl = resolveSubjectName(urlSlug, filteredSubjectNames);
+    const userPick = lastUserSubjectRef.current;
 
-    if (fromUrl) {
-      if (selectedSubject !== fromUrl) setSelectedSubject(fromUrl);
+    // User click wins until the URL catches up
+    if (userPick) {
+      if (filteredSubjectNames.includes(userPick)) {
+        if (selectedSubject !== userPick) setSelectedSubject(userPick);
+        if (fromLiveUrl === userPick || subjectToSlug(userPick) === urlSlug) {
+          lastUserSubjectRef.current = null;
+        }
+        return;
+      }
+      lastUserSubjectRef.current = null;
+    }
+
+    if (!didHydrateFromUrl.current) {
+      didHydrateFromUrl.current = true;
+      const fromInitial = resolveSubjectName(initialSubject, filteredSubjectNames);
+      const target = fromLiveUrl || fromInitial || filteredSubjectNames[0];
+      if (selectedSubject !== target) setSelectedSubject(target);
+      const urlFilter = parseResourceFilter(searchParams.get("filter") || initialFilter);
+      setSelectedFilter(urlFilter);
+      return;
+    }
+
+    // After first hydrate: only follow live URL (back/forward), never stale initialSubject
+    if (fromLiveUrl) {
+      if (selectedSubject !== fromLiveUrl) {
+        setSelectedSubject(fromLiveUrl);
+        const urlFilter = parseResourceFilter(searchParams.get("filter"));
+        setSelectedFilter(urlFilter);
+      }
       return;
     }
 
@@ -262,12 +323,29 @@ export default function ResourcesClient({
     }
 
     setSelectedSubject(filteredSubjectNames[0]);
+    setSelectedFilter("all");
   }, [
     filteredSubjectNames,
     selectedSubject,
     initialSubject,
+    initialFilter,
     searchParams,
   ]);
+
+  // If current filter has no items for this subject, fall back to All
+  useEffect(() => {
+    if (!selectedSubject || selectedFilter === "all") return;
+    const items = subjectsMap[selectedSubject] ?? [];
+    const hasItems =
+      selectedFilter === "question-bank"
+        ? items.some(
+            (r) =>
+              r.category === "question-bank" ||
+              r.category === "solved-question-bank",
+          )
+        : items.some((r) => r.category === selectedFilter);
+    if (!hasItems) setSelectedFilter("all");
+  }, [selectedSubject, selectedFilter, subjectsMap]);
 
   // Open resource from ?view= on first load
   useEffect(() => {
@@ -278,7 +356,10 @@ export default function ResourcesClient({
     if (match) {
       didOpenInitialView.current = true;
       setViewerResource(match);
-      if (match.subject_name) setSelectedSubject(match.subject_name);
+      if (match.subject_name) {
+        lastUserSubjectRef.current = match.subject_name;
+        setSelectedSubject(match.subject_name);
+      }
       if (match.category === "codes" || match.category === "writeup") {
         setSelectedFilter(match.category);
       }
@@ -288,6 +369,10 @@ export default function ResourcesClient({
   // Keep URL in sync with subject / filter / open file
   useEffect(() => {
     if (!selectedSubject) return;
+    // Skip while a user pick is waiting for URL to catch up (selectSubject already wrote URL)
+    if (lastUserSubjectRef.current && lastUserSubjectRef.current !== selectedSubject) {
+      return;
+    }
     syncUrl({
       subject: selectedSubject,
       filter: selectedFilter,
@@ -463,12 +548,7 @@ export default function ResourcesClient({
                 return (
                   <button
                     key={subjectName}
-                    onClick={() => {
-                      startSubjectTransition(() => {
-                        setSelectedSubject(subjectName);
-                        setSelectedFilter("all");
-                      });
-                    }}
+                    onClick={() => selectSubject(subjectName)}
                     className={`group flex items-center gap-2.5 px-3 py-2.5 text-left transition-colors text-sm rounded-lg relative ${
                       isActive
                         ? "text-background font-medium shadow-sm"
@@ -554,7 +634,10 @@ export default function ResourcesClient({
                   </div>
 
                   {/* Compact filter pills — scrollable on mobile */}
-                  <div className="flex gap-1.5 overflow-x-auto pb-1 -mb-1 scrollbar-none relative">
+                  <div
+                    key={selectedSubject}
+                    className="flex gap-1.5 overflow-x-auto pb-1 -mb-1 scrollbar-none relative"
+                  >
                     {RESOURCE_FILTERS.map(({ value, label, Icon }) => {
                       const count = filterCounts[value] ?? 0;
                       const active = selectedFilter === value;

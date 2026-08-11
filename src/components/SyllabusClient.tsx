@@ -652,6 +652,12 @@ export default function SyllabusClient({ subjects, branch, semester, syllabusUrl
     );
   }, [displaySubjects, searchQuery]);
 
+  useEffect(() => {
+    if (!expandedSubject) return;
+    const stillVisible = filtered.some((s) => s.id === expandedSubject);
+    if (!stillVisible) setExpandedSubject(null);
+  }, [filtered, expandedSubject]);
+
   // Calculate Overall Progress
   const totalModules = filtered.reduce((acc, sub) => acc + sub.modules.length, 0);
   const completedModules = useMemo(() => {

@@ -25,6 +25,7 @@ import { useAcademicStore } from '../store/academicStore';
 import { db } from '../lib/firebase';
 import { collection, query as firestoreQuery, where, getDocs } from 'firebase/firestore';
 import { startNavigationProgress } from './NavigationProgress';
+import { subjectToSlug } from '@/lib/resourceUrl';
 
 interface CommandItem {
   id: string;
@@ -317,14 +318,18 @@ export default function CommandPalette() {
       icon: Folder,
       badge: `${branch} Sem ${semester}`,
       action: () => {
-        setSearchQuery(sub.name);
-        navigate('/resources');
+        const params = new URLSearchParams({
+          branch,
+          semester: String(semester),
+          subject: subjectToSlug(sub.name),
+        });
+        navigate(`/resources?${params.toString()}`);
         setCommandPaletteOpen(false);
       },
     }));
 
     return [...baseItems, ...subjectItems];
-  }, [router, setCommandPaletteOpen, setSearchQuery, dynamicSubjects, branch, semester]);
+  }, [router, navigate, setCommandPaletteOpen, dynamicSubjects, branch, semester]);
 
   // Filter items based on query
   const filteredItems = useMemo(() => {
