@@ -612,7 +612,10 @@ export default function SyllabusClient({ subjects, branch, semester, syllabusUrl
 
     if (officialList) {
       return officialList.map((officialSub) => {
-        const dbSub = subjects.find(s => isSubjectMatch(s.name, officialSub.name));
+        const dbSub =
+          subjects.find(
+            (s) => s.name.trim().toLowerCase() === officialSub.name.trim().toLowerCase(),
+          ) || subjects.find((s) => isSubjectMatch(s.name, officialSub.name));
         return {
           id: dbSub ? dbSub.id : officialSub.id,
           name: officialSub.name,
@@ -768,7 +771,7 @@ export default function SyllabusClient({ subjects, branch, semester, syllabusUrl
 
             return (
               <motion.div
-                key={subject.id}
+                key={subject.code || subject.id}
                 layout="position"
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}

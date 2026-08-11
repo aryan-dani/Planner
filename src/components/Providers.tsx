@@ -4,8 +4,10 @@ import { ThemeProvider, useTheme } from 'next-themes';
 import dynamic from 'next/dynamic';
 import { PWAProvider } from '@/contexts/PWAContext';
 import { Toaster } from 'sonner';
+import NavigationProgress from './NavigationProgress';
 
 const CommandPalette = dynamic(() => import('./CommandPalette'), { ssr: false });
+
 
 function ToasterProvider() {
   const { theme } = useTheme();
@@ -31,6 +33,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
       storageKey="utility-theme"
     >
       <PWAProvider>
+        <NavigationProgress />
         {children}
         <CommandPalette />
         <ToasterProvider />

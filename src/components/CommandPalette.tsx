@@ -24,6 +24,7 @@ import {
 import { useAcademicStore } from '../store/academicStore';
 import { db } from '../lib/firebase';
 import { collection, query as firestoreQuery, where, getDocs } from 'firebase/firestore';
+import { startNavigationProgress } from './NavigationProgress';
 
 interface CommandItem {
   id: string;
@@ -56,6 +57,10 @@ function highlightMatch(text: string, query: string) {
 
 export default function CommandPalette() {
   const router = useRouter();
+  const navigate = (href: string) => {
+    startNavigationProgress();
+    router.push(href);
+  };
   const { branch, semester, isCommandPaletteOpen, setCommandPaletteOpen, setSearchQuery } = useAcademicStore();
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -122,31 +127,31 @@ export default function CommandPalette() {
       const key = e.key.toLowerCase();
       const shortcutMap: Record<string, () => void> = {
         t: () => {
-          router.push('/timer?mode=work&start=true');
+          navigate('/timer?mode=work&start=true');
           setCommandPaletteOpen(false);
         },
         b: () => {
-          router.push('/timer?mode=break&start=true');
+          navigate('/timer?mode=break&start=true');
           setCommandPaletteOpen(false);
         },
         a: () => {
-          router.push('/ask');
+          navigate('/ask');
           setCommandPaletteOpen(false);
         },
         g: () => {
-          router.push('/gpa');
+          navigate('/gpa');
           setCommandPaletteOpen(false);
         },
         r: () => {
-          router.push('/srs');
+          navigate('/srs');
           setCommandPaletteOpen(false);
         },
         s: () => {
-          router.push('/syllabus');
+          navigate('/syllabus');
           setCommandPaletteOpen(false);
         },
         c: () => {
-          router.push('/community');
+          navigate('/community');
           setCommandPaletteOpen(false);
         }
       };
@@ -183,7 +188,7 @@ export default function CommandPalette() {
         shortcut: 'T',
         badge: 'Focus',
         action: () => {
-          router.push('/timer?mode=work&start=true');
+          navigate('/timer?mode=work&start=true');
           setCommandPaletteOpen(false);
         },
       },
@@ -195,7 +200,7 @@ export default function CommandPalette() {
         shortcut: 'B',
         badge: 'Rest',
         action: () => {
-          router.push('/timer?mode=break&start=true');
+          navigate('/timer?mode=break&start=true');
           setCommandPaletteOpen(false);
         },
       },
@@ -207,7 +212,7 @@ export default function CommandPalette() {
         shortcut: 'A',
         badge: 'AI RAG',
         action: () => {
-          router.push('/ask');
+          navigate('/ask');
           setCommandPaletteOpen(false);
         },
       },
@@ -219,7 +224,7 @@ export default function CommandPalette() {
         shortcut: 'G',
         badge: 'Simulator',
         action: () => {
-          router.push('/gpa');
+          navigate('/gpa');
           setCommandPaletteOpen(false);
         },
       },
@@ -231,7 +236,7 @@ export default function CommandPalette() {
         shortcut: 'R',
         badge: 'Active Recall',
         action: () => {
-          router.push('/srs');
+          navigate('/srs');
           setCommandPaletteOpen(false);
         },
       },
@@ -244,7 +249,7 @@ export default function CommandPalette() {
         icon: Layers,
         badge: 'Recall',
         action: () => {
-          router.push('/srs');
+          navigate('/srs');
           setCommandPaletteOpen(false);
         },
       },
@@ -256,7 +261,7 @@ export default function CommandPalette() {
         shortcut: 'C',
         badge: 'Social',
         action: () => {
-          router.push('/community');
+          navigate('/community');
           setCommandPaletteOpen(false);
         },
       },
@@ -268,7 +273,7 @@ export default function CommandPalette() {
         shortcut: 'S',
         badge: 'Curriculum',
         action: () => {
-          router.push('/syllabus');
+          navigate('/syllabus');
           setCommandPaletteOpen(false);
         },
       },
@@ -278,7 +283,7 @@ export default function CommandPalette() {
         category: 'Navigation',
         icon: FileText,
         action: () => {
-          router.push('/resources');
+          navigate('/resources');
           setCommandPaletteOpen(false);
         },
       },
@@ -288,7 +293,7 @@ export default function CommandPalette() {
         category: 'Navigation',
         icon: CalendarCheck,
         action: () => {
-          router.push('/planner');
+          navigate('/planner');
           setCommandPaletteOpen(false);
         },
       },
@@ -299,7 +304,7 @@ export default function CommandPalette() {
         icon: Terminal,
         badge: 'Admin',
         action: () => {
-          router.push('/admin');
+          navigate('/admin');
           setCommandPaletteOpen(false);
         },
       },
@@ -313,7 +318,7 @@ export default function CommandPalette() {
       badge: `${branch} Sem ${semester}`,
       action: () => {
         setSearchQuery(sub.name);
-        router.push('/resources');
+        navigate('/resources');
         setCommandPaletteOpen(false);
       },
     }));

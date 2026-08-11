@@ -7,7 +7,7 @@ import {
 import SyllabusClient from "@/components/SyllabusClient";
 import { Branch, Semester } from "@/store/academicStore";
 import { Suspense } from "react";
-import { Loader2 } from "lucide-react";
+import PageSkeleton from "@/components/PageSkeleton";
 
 export const revalidate = 3600;
 
@@ -30,7 +30,7 @@ export default async function SyllabusPage({ searchParams }: PageProps) {
   ]);
 
   return (
-    <Suspense fallback={<SyllabusLoading />}>
+    <Suspense fallback={<PageSkeleton variant="list" />}>
       <SyllabusClient
         subjects={subjects}
         branch={branch}
@@ -39,13 +39,5 @@ export default async function SyllabusPage({ searchParams }: PageProps) {
         initialResources={resources}
       />
     </Suspense>
-  );
-}
-
-function SyllabusLoading() {
-  return (
-    <div className="flex justify-center items-center py-40 min-h-[80vh] w-full">
-      <Loader2 className="w-8 h-8 text-primary animate-spin" />
-    </div>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect, useCallback, useRef } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef, useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ResourceItem } from "@/lib/dataFetcher";
 import { useAcademicStore } from "@/store/academicStore";
@@ -19,6 +19,7 @@ import {
   CheckCircle2,
   RefreshCw,
   Code2,
+  Loader2,
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import ResourceCard from "./resources/ResourceCard";
@@ -35,6 +36,7 @@ import {
   subjectToSlug,
   type ResourceFilter,
 } from "@/lib/resourceUrl";
+import { startNavigationProgress } from "./NavigationProgress";
 
 const ResourceViewer = dynamic(() => import("./ResourceViewer"), { ssr: false });
 const SummaryModal = dynamic(() => import("./SummaryModal"), { ssr: false });
@@ -136,8 +138,21 @@ export default function ResourcesClient({
   const [contentResults, setContentResults] = useState<any[]>([]);
   const [isSearchingContent, setIsSearchingContent] = useState(false);
   const didOpenInitialView = useRef(false);
+  const [isSubjectPending, startSubjectTransition] = useTransition();
+  const [isScopeLoading, setIsScopeLoading] = useState(false);
+  const scopeKey = `${branch}:${semester}`;
+  const prevScopeRef = useRef(scopeKey);
 
   const resources = initialResources;
+
+  useEffect(() => {
+    if (prevScopeRef.current !== scopeKey) {
+      prevScopeRef.current = scopeKey;
+      setIsScopeLoading(true);
+      const t = setTimeout(() => setIsScopeLoading(false), 280);
+      return () => clearTimeout(t);
+    }
+  }, [scopeKey, initialResources]);
 
   const syncUrl = useCallback(
     (next: {
@@ -449,8 +464,10 @@ export default function ResourcesClient({
                   <button
                     key={subjectName}
                     onClick={() => {
-                      setSelectedSubject(subjectName);
-                      setSelectedFilter("all");
+                      startSubjectTransition(() => {
+                        setSelectedSubject(subjectName);
+                        setSelectedFilter("all");
+                      });
                     }}
                     className={`group flex items-center gap-2.5 px-3 py-2.5 text-left transition-colors text-sm rounded-lg relative ${
                       isActive
@@ -492,14 +509,22 @@ export default function ResourcesClient({
           </div>
 
           {/* ── Content area ── */}
-          <div className="flex-1 w-full min-w-0">
+          <div className="flex-1 w-full min-w-0 relative">
+            {(isSubjectPending || isScopeLoading) && (
+              <div className="absolute inset-0 z-20 rounded-2xl bg-background/55 backdrop-blur-[1px] flex flex-col items-center justify-center gap-3 pointer-events-none">
+                <Loader2 className="h-6 w-6 text-foreground animate-spin" />
+                <p className="text-xs font-medium text-muted tracking-wide">
+                  {isScopeLoading ? "Loading semester…" : "Switching subject…"}
+                </p>
+              </div>
+            )}
             {selectedSubject && subjectsMap[selectedSubject] ? (
               <motion.div
                 key={selectedSubject}
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -12 }}
-                transition={{ duration: 0.2 }}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: isSubjectPending ? 0.55 : 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.18 }}
                 className="space-y-8"
               >
                 {/* Subject header + compact filter pills */}

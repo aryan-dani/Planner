@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback, Suspense } from "react";
+import React, { useState, useEffect, useRef, useCallback, Suspense, startTransition } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTheme } from "next-themes";
@@ -30,6 +30,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import dynamic from "next/dynamic";
 import { useAcademicStore, Branch, Semester } from "../store/academicStore";
+import { startNavigationProgress } from "./NavigationProgress";
 
 const NavUserMenu = dynamic(() => import("./NavUserMenu"), {
   ssr: false,
@@ -252,7 +253,10 @@ function NavigationInner() {
       const params = new URLSearchParams(searchParamsRef.current.toString());
       params.set("branch", newBranch);
       params.set("semester", newSem.toString());
-      router.push(`${pathname}?${params.toString()}`);
+      startNavigationProgress();
+      startTransition(() => {
+        router.push(`${pathname}?${params.toString()}`);
+      });
     },
     [pathname, router],
   );

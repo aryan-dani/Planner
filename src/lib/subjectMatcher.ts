@@ -25,7 +25,19 @@ export const isSubjectMatch = (nameA: string, nameB: string): boolean => {
     return false;
   }
 
-  if (a === b || a.includes(b) || b.includes(a)) {
+  if (a === b) {
+    return true;
+  }
+
+  // Single-token containment only (e.g. "daa"). Multi-word includes wrongly
+  // matches "Machine Learning" ↔ "Graph Machine Learning".
+  if (!a.includes(" ") && !b.includes(" ") && (a.includes(b) || b.includes(a))) {
+    return true;
+  }
+  if (!a.includes(" ") && b.split(" ").includes(a) && a.length >= 2) {
+    return true;
+  }
+  if (!b.includes(" ") && a.split(" ").includes(b) && b.length >= 2) {
     return true;
   }
   
