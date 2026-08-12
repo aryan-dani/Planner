@@ -4,10 +4,18 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { auth } from "@/lib/firebase";
+import { useAcademicStore } from "@/store/academicStore";
+import {
+  readStoredWorkspace,
+  resolveWorkspace,
+  workspaceQuery,
+} from "@/lib/workspace";
 
 export default function AuthButtons() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const storeBranch = useAcademicStore((s) => s.branch);
+  const storeSemester = useAcademicStore((s) => s.semester);
 
   useEffect(() => {
     setMounted(true);
@@ -19,6 +27,12 @@ export default function AuthButtons() {
 
   if (!mounted) return <div className="h-10 w-40" aria-hidden />;
 
+  const { branch, semester } = resolveWorkspace(
+    { branch: storeBranch, semester: String(storeSemester) },
+    readStoredWorkspace(),
+  );
+  const qs = workspaceQuery(branch, semester);
+
   const primary =
     "inline-flex items-center gap-2 px-5 py-2.5 bg-foreground text-background rounded-lg text-sm font-medium hover:opacity-90";
   const secondary =
@@ -26,10 +40,10 @@ export default function AuthButtons() {
 
   return isLoggedIn ? (
     <div className="flex flex-wrap gap-3">
-      <Link href="/planner" className={primary}>
+      <Link href={`/planner?${qs}`} className={primary}>
         Open Planner <ArrowRight className="w-4 h-4" />
       </Link>
-      <Link href="/resources" className={secondary}>
+      <Link href={`/resources?${qs}`} className={secondary}>
         Browse Resources
       </Link>
     </div>

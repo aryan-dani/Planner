@@ -21,6 +21,7 @@ export default function NavUserMenu({
   semester,
   setBranch,
   setSemester,
+  onWorkspaceFromPrefs,
   onUserChange,
 }: {
   collapsed: boolean;
@@ -28,6 +29,7 @@ export default function NavUserMenu({
   semester: Semester;
   setBranch: (b: Branch) => void;
   setSemester: (s: Semester) => void;
+  onWorkspaceFromPrefs?: (branch: Branch, semester: Semester) => void;
   onUserChange?: (user: NavUser | null) => void;
 }) {
   const [user, setUser] = useState<NavUser | null>(null);
@@ -74,8 +76,14 @@ export default function NavUserMenu({
 
             if (snap.exists()) {
               const data = snap.data();
-              if (data.branch) setBranch(data.branch as Branch);
-              if (data.semester) setSemester(data.semester as Semester);
+              const prefBranch = (data.branch as Branch) || branch;
+              const prefSemester = (data.semester as Semester) || semester;
+              if (onWorkspaceFromPrefs) {
+                onWorkspaceFromPrefs(prefBranch, prefSemester);
+              } else {
+                if (data.branch) setBranch(data.branch as Branch);
+                if (data.semester) setSemester(data.semester as Semester);
+              }
               await setDoc(userPrefsRef, updateData, { merge: true });
             } else {
               updateData.branch = branch;

@@ -5,9 +5,9 @@ import {
 } from "@/lib/dataFetcher";
 
 import SyllabusClient from "@/components/SyllabusClient";
-import { Branch, Semester } from "@/store/academicStore";
 import { Suspense } from "react";
 import PageSkeleton from "@/components/PageSkeleton";
+import { resolveWorkspace } from "@/lib/workspace";
 
 export const revalidate = 3600;
 
@@ -20,8 +20,7 @@ interface PageProps {
 
 export default async function SyllabusPage({ searchParams }: PageProps) {
   const params = await searchParams;
-  const branch = (params.branch as Branch) || "AIDS";
-  const semester = Number(params.semester || "4") as Semester;
+  const { branch, semester } = resolveWorkspace(params);
 
   const [subjects, syllabusUrl, resources] = await Promise.all([
     getSubjectsFromDB(branch, semester),

@@ -12,6 +12,7 @@ import {
 import Link from "next/link";
 import { ArrowLeft, Loader2, Eye, EyeOff, Layers } from "lucide-react";
 import { motion } from "framer-motion";
+import { sanitizeRedirectTo } from "@/lib/workspace";
 
 function getFriendlyErrorMessage(errorCode: string): string {
   switch (errorCode) {
@@ -47,7 +48,7 @@ function LoginContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
 
-  const redirectTo = searchParams.get("redirectTo") || "/planner";
+  const redirectTo = sanitizeRedirectTo(searchParams.get("redirectTo"));
 
   // If already logged in, redirect
   useEffect(() => {

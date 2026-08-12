@@ -110,11 +110,15 @@ function CellOutputs({ outputs }: { outputs: NotebookOutput[] }) {
                   className="max-w-full rounded-lg border border-white/10 bg-white"
                 />
               )}
-              {html && (
-                <div
-                  className="notebook-html text-[12px] text-zinc-200 overflow-x-auto [&_table]:border-collapse [&_table]:w-full [&_th]:border [&_td]:border [&_th]:border-white/15 [&_td]:border-white/10 [&_th]:px-2 [&_td]:px-2 [&_th]:py-1 [&_td]:py-1 [&_th]:bg-white/5"
-                  dangerouslySetInnerHTML={{ __html: html }}
-                />
+              {html && plain && (
+                <pre className="text-[12px] leading-relaxed font-mono text-zinc-300 whitespace-pre-wrap">
+                  {plain}
+                </pre>
+              )}
+              {html && !plain && (
+                <pre className="text-[12px] leading-relaxed font-mono text-zinc-400 whitespace-pre-wrap opacity-80">
+                  [HTML output omitted for security]
+                </pre>
               )}
               {!png && !jpeg && !html && plain && (
                 <pre className="text-[12px] leading-relaxed font-mono text-zinc-300 whitespace-pre-wrap">

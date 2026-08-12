@@ -11,6 +11,7 @@ import {
   GithubAuthProvider,
 } from "firebase/auth";
 import { motion } from "framer-motion";
+import { sanitizeRedirectTo } from "@/lib/workspace";
 
 function getFriendlyErrorMessage(errorCode: string): string {
   switch (errorCode) {
@@ -38,7 +39,7 @@ function SignupContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
 
-  const redirectTo = searchParams.get("redirectTo") || "/planner";
+  const redirectTo = sanitizeRedirectTo(searchParams.get("redirectTo"));
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((user) => {

@@ -1,12 +1,15 @@
 import { NextResponse } from 'next/server';
 import { getResourcesFromDB } from '@/lib/dataFetcher';
+import { resolveWorkspace } from '@/lib/workspace';
 
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const branch = searchParams.get('branch') || 'AIDS';
-    const semester = Number(searchParams.get('semester') || '4');
+    const { branch, semester } = resolveWorkspace({
+      branch: searchParams.get('branch'),
+      semester: searchParams.get('semester'),
+    });
 
     const resources = await getResourcesFromDB(branch, semester);
 

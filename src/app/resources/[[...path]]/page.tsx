@@ -1,10 +1,10 @@
 import { getResourcesFromDB } from "@/lib/dataFetcher";
 
 import ResourcesClient from "@/components/ResourcesClient";
-import { Branch, Semester } from "@/store/academicStore";
 import { Suspense } from "react";
 import { parseResourceFilter } from "@/lib/resourceUrl";
 import PageSkeleton from "@/components/PageSkeleton";
+import { resolveWorkspace } from "@/lib/workspace";
 
 export const revalidate = 600;
 
@@ -20,8 +20,7 @@ interface PageProps {
 
 export default async function ResourcesPage({ searchParams }: PageProps) {
   const params = await searchParams;
-  const branch = (params.branch as Branch) || "AIDS";
-  const semester = Number(params.semester || "4") as Semester;
+  const { branch, semester } = resolveWorkspace(params);
   const initialSubject = params.subject || null;
   const initialFilter = parseResourceFilter(params.filter);
   const initialView = params.view || null;

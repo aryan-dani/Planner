@@ -3,6 +3,7 @@ import { generateText } from 'ai';
 import { adminDb } from '@/lib/firebaseAdmin';
 import { performRAGSearch } from '@/lib/ragSearch';
 import { isAuthFailure, requireUser } from '@/lib/apiAuth';
+import { DEFAULT_BRANCH, DEFAULT_SEMESTER } from '@/lib/workspace';
 import { z } from 'zod';
 
 const studySchema = z.object({
@@ -33,13 +34,13 @@ export async function POST(req: Request) {
 
     const { type, topic, context } = parseResult.data;
 
-    const branch = context?.branch || 'AIDS';
+    const branch = context?.branch || DEFAULT_BRANCH;
     const branchName = branch === 'AIDS' 
       ? 'Artificial Intelligence & Data Science Engineering' 
       : branch === 'ECE'
       ? 'Electronics & Communication Engineering'
       : branch;
-    const semester = context?.semester || 4;
+    const semester = context?.semester || DEFAULT_SEMESTER;
 
     const cleanTopic = topic.trim().toLowerCase().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?]/g, "").replace(/\s+/g, " ");
     const cacheKey = `study_${type}_${cleanTopic}_${branch}_${semester}`.trim();

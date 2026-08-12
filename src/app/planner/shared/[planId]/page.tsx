@@ -1,45 +1,65 @@
 import { adminDb } from "@/lib/firebaseAdmin";
 import { notFound } from "next/navigation";
 import SharedPlanView from "@/app/planner/shared/[planId]/SharedPlanView";
+import type { Metadata } from "next";
 
-export const revalidate = 3600;
+export const dynamic = "force-dynamic";
+
+const MONTHS = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
+
+async function getPublicPlan(planId: string) {
+  const db = adminDb();
+  const docSnap = await db.collection("planner_plans").doc(planId).get();
+  if (!docSnap.exists) return null;
+  const data = docSnap.data();
+  if (!data || !data.is_public) return null;
+  return {
+    id: docSnap.id,
+    title: String(data.title || "Study Plan"),
+    owner_email: String(data.owner_email || ""),
+    month: Number(data.month || 1),
+    year: Number(data.year || new Date().getFullYear()),
+    data: (data.data || {}) as Record<
+      string,
+      { id: string; text: string; done: boolean; subtasks: { id: string; text: string; done: boolean }[] }[]
+    >,
+    is_public: true as const,
+  };
+}
 
 export async function generateMetadata({
   params,
 }: {
   params: Promise<{ planId: string }>;
-}) {
+}): Promise<Metadata> {
   const { planId } = await params;
-  const db = adminDb();
-  
-  try {
-    const docRef = db.collection("planner_plans").doc(planId);
-    const docSnap = await docRef.get();
-    
-    if (!docSnap.exists) return { title: "Plan Not Found" };
-    
-    const data = docSnap.data();
-    if (!data || !data.is_public) return { title: "Plan Not Found" };
 
-    const MONTHS = [
-      "January",
-      "February",
-      "March",
-      "April",
-      "May",
-      "June",
-      "July",
-      "August",
-      "September",
-      "October",
-      "November",
-      "December",
-    ];
+  try {
+    const plan = await getPublicPlan(planId);
+    if (!plan) return { title: "Plan Not Found" };
+
+    const monthIndex = Number(plan.month) - 1;
+    const monthLabel =
+      monthIndex >= 0 && monthIndex < 12 ? MONTHS[monthIndex] : "";
+
     return {
-      title: `${data.title} — ${MONTHS[data.month - 1]} ${data.year}`,
-      description: `Shared study plan by ${data.owner_email?.split("@")[0] || "a student"}`,
+      title: `${plan.title} — ${monthLabel} ${plan.year}`,
+      description: `Shared study plan by ${String(plan.owner_email || "").split("@")[0] || "a student"}`,
     };
-  } catch (error) {
+  } catch {
     return { title: "Plan Not Found" };
   }
 }
@@ -50,23 +70,12 @@ export default async function SharedPlanPage({
   params: Promise<{ planId: string }>;
 }) {
   const { planId } = await params;
-  const db = adminDb();
 
   try {
-    const docRef = db.collection("planner_plans").doc(planId);
-    const docSnap = await docRef.get();
-    
-    if (!docSnap.exists) {
-      notFound();
-    }
-    
-    const plan = { id: docSnap.id, ...docSnap.data() } as any;
-    if (!plan.is_public) {
-      notFound();
-    }
-    
+    const plan = await getPublicPlan(planId);
+    if (!plan) notFound();
     return <SharedPlanView plan={plan} />;
-  } catch (error) {
+  } catch {
     notFound();
   }
 }

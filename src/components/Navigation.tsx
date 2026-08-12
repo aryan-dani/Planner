@@ -31,6 +31,15 @@ import { motion, AnimatePresence } from "framer-motion";
 import dynamic from "next/dynamic";
 import { useAcademicStore, Branch, Semester } from "../store/academicStore";
 import { startNavigationProgress } from "./NavigationProgress";
+import {
+  DEFAULT_BRANCH,
+  DEFAULT_SEMESTER,
+  parseBranch,
+  parseSemester,
+  readStoredWorkspace,
+  resolveWorkspace,
+  writeStoredWorkspace,
+} from "@/lib/workspace";
 
 const NavUserMenu = dynamic(() => import("./NavUserMenu"), {
   ssr: false,
@@ -201,15 +210,26 @@ function NavigationInner() {
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const branch = (searchParams.get("branch") as Branch) || "AIDS";
-  const semester = Number(searchParams.get("semester") || "4") as Semester;
+  const storeBranch = useAcademicStore((s) => s.branch);
+  const storeSemester = useAcademicStore((s) => s.semester);
+  const urlWorkspace = resolveWorkspace(
+    {
+      branch: searchParams.get("branch"),
+      semester: searchParams.get("semester"),
+    },
+    {
+      branch: storeBranch,
+      semester: storeSemester,
+    },
+  );
+  const branch = urlWorkspace.branch;
+  const semester = urlWorkspace.semester;
 
   const {
-    searchQuery,
     setBranch,
     setSemester,
+    setWorkspace,
     setSearchQuery,
-    setAiSearchQuery,
     setCommandPaletteOpen,
   } = useAcademicStore();
 
@@ -218,10 +238,23 @@ function NavigationInner() {
   const [userEmail, setUserEmail] = useState<string | undefined>();
   const [isMac, setIsMac] = useState(true);
   const { theme, setTheme } = useTheme();
+  const prefsAppliedRef = useRef(false);
 
   useEffect(() => {
     const saved = localStorage.getItem("sidebar-collapsed");
     if (saved) setCollapsed(saved === "true");
+    const stored = readStoredWorkspace();
+    if (stored) {
+      const resolved = resolveWorkspace(
+        {
+          branch: searchParams.get("branch"),
+          semester: searchParams.get("semester"),
+        },
+        stored,
+      );
+      setWorkspace(resolved.branch, resolved.semester);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- hydrate once from localStorage
   }, []);
 
   const handleCollapseToggle = () => {
@@ -239,9 +272,15 @@ function NavigationInner() {
   }, []);
 
   useEffect(() => {
-    setBranch((searchParams.get("branch") as Branch) || "AIDS");
-    setSemester(Number(searchParams.get("semester") || "4") as Semester);
-  }, [searchParams, setBranch, setSemester]);
+    const urlBranch = searchParams.get("branch");
+    const urlSemester = searchParams.get("semester");
+    if (!urlBranch && !urlSemester) return;
+    const fromUrl = resolveWorkspace({
+      branch: urlBranch,
+      semester: urlSemester,
+    });
+    setWorkspace(fromUrl.branch, fromUrl.semester);
+  }, [searchParams.get("branch"), searchParams.get("semester"), setWorkspace]);
 
   const searchParamsRef = useRef(searchParams);
   useEffect(() => {
@@ -257,12 +296,40 @@ function NavigationInner() {
       params.delete("subject");
       params.delete("filter");
       params.delete("view");
+      writeStoredWorkspace(newBranch as Branch, newSem as Semester);
       startNavigationProgress();
       startTransition(() => {
         router.push(`${pathname}?${params.toString()}`);
       });
     },
     [pathname, router],
+  );
+
+  /** Apply Firestore/local prefs into store + URL when URL lacks workspace params. */
+  const applyPrefsToUrl = useCallback(
+    (prefBranch: Branch, prefSemester: Semester) => {
+      if (prefsAppliedRef.current) return;
+      const hasBranch = !!searchParamsRef.current.get("branch");
+      const hasSemester = !!searchParamsRef.current.get("semester");
+      if (hasBranch && hasSemester) {
+        prefsAppliedRef.current = true;
+        return;
+      }
+      setWorkspace(prefBranch, prefSemester);
+      writeStoredWorkspace(prefBranch, prefSemester);
+      prefsAppliedRef.current = true;
+      const params = new URLSearchParams(searchParamsRef.current.toString());
+      if (!hasBranch) params.set("branch", prefBranch);
+      if (!hasSemester) params.set("semester", String(prefSemester));
+      const nextQs = params.toString();
+      const currentQs = searchParamsRef.current.toString();
+      if (nextQs !== currentQs) {
+        startTransition(() => {
+          router.replace(`${pathname}?${nextQs}`);
+        });
+      }
+    },
+    [pathname, router, setWorkspace],
   );
 
   useEffect(() => {
@@ -295,8 +362,12 @@ function NavigationInner() {
 
   const renderNavLink = useCallback((link: NavLinkItem) => {
     const currentParams = searchParamsRef.current;
-    const bParam = currentParams.get("branch") || "AIDS";
-    const sParam = currentParams.get("semester") || "4";
+    const bParam =
+      parseBranch(currentParams.get("branch")) ?? storeBranch ?? DEFAULT_BRANCH;
+    const sParam =
+      parseSemester(currentParams.get("semester")) ??
+      storeSemester ??
+      DEFAULT_SEMESTER;
     const finalHref = `${link.href}?branch=${bParam}&semester=${sParam}`;
     const active = isActive(link.href);
     return (
@@ -331,7 +402,7 @@ function NavigationInner() {
         )}
       </Link>
     );
-  }, [collapsed, isActive, setSearchQuery]);
+  }, [collapsed, isActive, setSearchQuery, storeBranch, storeSemester]);
 
   const renderSidebarContent = (isMobile: boolean = false) => {
     const isCollapsed = collapsed && !isMobile;
@@ -541,6 +612,7 @@ function NavigationInner() {
             semester={semester}
             setBranch={setBranch}
             setSemester={setSemester}
+            onWorkspaceFromPrefs={applyPrefsToUrl}
             onUserChange={(u) => setUserEmail(u?.email)}
           />
 

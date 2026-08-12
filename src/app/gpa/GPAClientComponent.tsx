@@ -152,6 +152,7 @@ export default function GPAClient() {
   const [targetCGPA, setTargetCGPA] = useState<number>(8.5);
   const [targetSemester, setTargetSemester] = useState<number>(8);
   const [isTargetSemOpen, setIsTargetSemOpen] = useState(false);
+  const [hydrated, setHydrated] = useState(false);
 
   const currentBranch = useMemo(() => 
     selectedBranch ? COURSE_DATA[selectedBranch] : null, 
@@ -193,25 +194,28 @@ export default function GPAClient() {
         console.error('Failed to load GPA roadmap data', e);
       }
     }
+    setHydrated(true);
   }, []);
 
-  // Save to LocalStorage
+  // Save to LocalStorage — only after hydration so defaults cannot wipe saved data
   useEffect(() => {
+    if (!hydrated) return;
     if (selectedBranch) {
       localStorage.setItem('gpa_strategy_v1', JSON.stringify({
         branch: selectedBranch,
         marks: marks
       }));
     }
-  }, [selectedBranch, marks]);
+  }, [hydrated, selectedBranch, marks]);
 
   useEffect(() => {
+    if (!hydrated) return;
     localStorage.setItem('gpa_roadmap_v1', JSON.stringify({
       semestersData,
       targetCGPA,
       targetSemester
     }));
-  }, [semestersData, targetCGPA, targetSemester]);
+  }, [hydrated, semestersData, targetCGPA, targetSemester]);
 
   const handleMarkChange = (id: string, value: string) => {
     const num = parseFloat(value) || 0;

@@ -1,4 +1,9 @@
 import { create } from "zustand";
+import {
+  DEFAULT_BRANCH,
+  DEFAULT_SEMESTER,
+  writeStoredWorkspace,
+} from "@/lib/workspace";
 
 export type Branch = "AIDS" | "CSE" | "ECE";
 export type Semester = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
@@ -11,20 +16,37 @@ interface AcademicState {
   isCommandPaletteOpen: boolean;
   setBranch: (branch: Branch) => void;
   setSemester: (sem: Semester) => void;
+  setWorkspace: (branch: Branch, semester: Semester) => void;
   setSearchQuery: (query: string) => void;
   setAiSearchQuery: (query: string) => void;
   setCommandPaletteOpen: (open: boolean) => void;
 }
 
 export const useAcademicStore = create<AcademicState>((set) => ({
-  branch: "AIDS",
-  semester: 4,
+  branch: DEFAULT_BRANCH,
+  semester: DEFAULT_SEMESTER,
   searchQuery: "",
   aiSearchQuery: "",
   isCommandPaletteOpen: false,
-  setBranch: (branch) => set({ branch, searchQuery: "", aiSearchQuery: "" }),
+  setBranch: (branch) =>
+    set((state) => {
+      if (state.branch === branch) return state;
+      writeStoredWorkspace(branch, state.semester);
+      return { branch, searchQuery: "", aiSearchQuery: "" };
+    }),
   setSemester: (semester) =>
-    set({ semester, searchQuery: "", aiSearchQuery: "" }),
+    set((state) => {
+      if (state.semester === semester) return state;
+      writeStoredWorkspace(state.branch, semester);
+      return { semester, searchQuery: "", aiSearchQuery: "" };
+    }),
+  setWorkspace: (branch, semester) => {
+    set((state) => {
+      if (state.branch === branch && state.semester === semester) return state;
+      writeStoredWorkspace(branch, semester);
+      return { branch, semester, searchQuery: "", aiSearchQuery: "" };
+    });
+  },
   setSearchQuery: (searchQuery) =>
     set((state) => ({
       searchQuery,

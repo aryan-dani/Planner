@@ -1,9 +1,16 @@
 import { groq } from '@ai-sdk/groq';
-import { streamText } from 'ai';
+import {
+  createUIMessageStream,
+  createUIMessageStreamResponse,
+  streamText,
+} from 'ai';
 import { adminDb } from '@/lib/firebaseAdmin';
 import { performRAGSearch } from '@/lib/ragSearch';
 import { isAuthFailure, requireUser } from '@/lib/apiAuth';
+import { DEFAULT_BRANCH, DEFAULT_SEMESTER } from '@/lib/workspace';
 import { z } from 'zod';
+
+const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
 const chatSchema = z.object({
   messages: z.array(z.any()).nonempty(),
@@ -14,6 +21,45 @@ const chatSchema = z.object({
     resourceId: z.string().optional(),
   }).optional(),
 });
+
+function normalizePrompt(p: string) {
+  return p
+    .toLowerCase()
+    .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function buildCacheKey(parts: {
+  uid: string;
+  prompt: string;
+  branch: string;
+  semester: number;
+  resourceId?: string;
+}) {
+  return [
+    parts.uid,
+    parts.prompt,
+    parts.branch,
+    String(parts.semester),
+    parts.resourceId || "all",
+  ].join("::");
+}
+
+function cachedTextStreamResponse(text: string) {
+  const id = `cache-${Date.now()}`;
+  const stream = createUIMessageStream({
+    execute({ writer }) {
+      writer.write({ type: "text-start", id });
+      writer.write({ type: "text-delta", id, delta: text });
+      writer.write({ type: "text-end", id });
+    },
+  });
+  return createUIMessageStreamResponse({
+    stream,
+    headers: { "X-Semantic-Cache": "HIT" },
+  });
+}
 
 export async function POST(req: Request) {
   const auth = await requireUser(req);
@@ -34,43 +80,40 @@ export async function POST(req: Request) {
   const { messages, context } = parseResult.data;
 
   const lastMessage = messages[messages.length - 1]?.content || '';
-  const branch = context?.branch || 'AIDS';
-  const semester = context?.semester || 4;
+  const branch = context?.branch || DEFAULT_BRANCH;
+  const semester = context?.semester || DEFAULT_SEMESTER;
   const subjects = context?.subjects || [];
   const resourceId = context?.resourceId;
 
-  const cleanPrompt = lastMessage.trim().toLowerCase();
+  const normalizedPrompt = normalizePrompt(String(lastMessage).trim());
+  const cacheKey = buildCacheKey({
+    uid: auth.uid,
+    prompt: normalizedPrompt,
+    branch,
+    semester,
+    resourceId,
+  });
 
-  // Normalize prompt for more robust cache hits
-  const normalizePrompt = (p: string) => {
-    return p
-      .toLowerCase()
-      .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?]/g, "")
-      .replace(/\s+/g, " ")
-      .trim();
-  };
-  const normalizedPrompt = normalizePrompt(cleanPrompt);
-
-  // Semantic Caching Interceptor
+  // Semantic Caching Interceptor — scoped + TTL
   if (normalizedPrompt.length > 5) {
     try {
       const db = adminDb();
       const cachedSnapshot = await db
         .collection('semantic_cache')
-        .where('prompt', '==', normalizedPrompt)
+        .where('cache_key', '==', cacheKey)
         .limit(1)
         .get();
 
       if (!cachedSnapshot.empty) {
         const cached = cachedSnapshot.docs[0].data();
-        if (cached && cached.response) {
-          const streamData = '0:' + JSON.stringify(cached.response) + '\n';
-          return new Response(streamData, {
-            headers: {
-              'Content-Type': 'text/plain; charset=utf-8',
-              'X-Semantic-Cache': 'HIT',
-            },
-          });
+        const createdAt = cached.created_at
+          ? new Date(cached.created_at).getTime()
+          : 0;
+        const fresh =
+          Number.isFinite(createdAt) &&
+          Date.now() - createdAt < CACHE_TTL_MS;
+        if (fresh && cached.response && typeof cached.response === 'string') {
+          return cachedTextStreamResponse(cached.response);
         }
       }
     } catch (err) {
@@ -82,7 +125,7 @@ export async function POST(req: Request) {
   let snippets: string[] = [];
   
   // Clean query: remove common filler to extract keywords
-  const cleanQuery = lastMessage
+  const cleanQuery = String(lastMessage)
     .toLowerCase()
     .replace(/^(what are|what is|tell me about|explain|do you have|can you|show me|tell me)\s+/i, '')
     .replace(/\s+(from|in|about)\s+(my|the)\s+(slides|notes|ppt|resources|material|coursework|studies)$/i, '')
@@ -92,7 +135,7 @@ export async function POST(req: Request) {
   // Only search if there's a substantial query left
   if (cleanQuery.length > 2) {
     const finalResults = await performRAGSearch(cleanQuery, 5, resourceId);
-    snippets = finalResults.map((r: any) => `[SOURCE: ${r.title} | SUBJECT: ${r.subject_name}]: ${r.snippet}`);
+    snippets = finalResults.map((r) => `[SOURCE: ${r.title} | SUBJECT: ${r.subject_name}]: ${r.snippet}`);
   }
 
   const subjectList = subjects.length > 0
@@ -100,9 +143,9 @@ export async function POST(req: Request) {
     : 'relevant academic subjects';
 
   // Map messages to CoreMessage format
-  const finalMessages = messages?.map((m: any) => ({
+  const finalMessages = messages?.map((m: { role?: string; content?: string; parts?: { text?: string }[] }) => ({
     role: (m.role === 'assistant' ? 'assistant' : 'user') as 'user' | 'assistant',
-    content: m.content || m.parts?.map((p: any) => p.text || '').join('\n') || '',
+    content: m.content || m.parts?.map((p) => p.text || '').join('\n') || '',
   }));
 
   const systemPrompt = `You are the Academic OS AI, a high-performance tutor for university students.
@@ -137,9 +180,14 @@ MODERN TUTOR GUIDELINES:
         try {
           const db = adminDb();
           await db.collection('semantic_cache').add({
+            cache_key: cacheKey,
+            uid: auth.uid,
             prompt: normalizedPrompt,
+            branch,
+            semester,
+            resource_id: resourceId || null,
             response: text,
-            created_at: new Date().toISOString()
+            created_at: new Date().toISOString(),
           });
         } catch (err) {
           console.warn('Semantic cache insert error:', err);

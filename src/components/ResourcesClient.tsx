@@ -149,18 +149,21 @@ export default function ResourcesClient({
   const resources = initialResources;
 
   useEffect(() => {
-    if (prevScopeRef.current !== scopeKey) {
-      prevScopeRef.current = scopeKey;
-      didHydrateFromUrl.current = false;
-      lastUserSubjectRef.current = null;
-      didOpenInitialView.current = false;
-      setSelectedFilter("all");
-      setViewerResource(null);
-      setIsScopeLoading(true);
-      const t = setTimeout(() => setIsScopeLoading(false), 280);
-      return () => clearTimeout(t);
-    }
-  }, [scopeKey, initialResources]);
+    if (prevScopeRef.current === scopeKey) return;
+    prevScopeRef.current = scopeKey;
+    didHydrateFromUrl.current = false;
+    lastUserSubjectRef.current = null;
+    didOpenInitialView.current = false;
+    setSelectedFilter("all");
+    setViewerResource(null);
+    setIsScopeLoading(true);
+  }, [scopeKey]);
+
+  // New server payload means this semester is ready. A timeout was getting
+  // cleared by URL replaces (new initialResources identity) and the overlay stuck.
+  useEffect(() => {
+    setIsScopeLoading(false);
+  }, [initialResources]);
 
   useEffect(() => {
     return () => {
@@ -591,7 +594,7 @@ export default function ResourcesClient({
           {/* ── Content area ── */}
           <div className="flex-1 w-full min-w-0 relative">
             {(isSubjectPending || isScopeLoading) && (
-              <div className="absolute inset-0 z-20 rounded-2xl bg-background/55 backdrop-blur-[1px] flex flex-col items-center justify-center gap-3 pointer-events-none">
+              <div className="absolute inset-0 z-20 rounded-2xl bg-background/55 backdrop-blur-[1px] flex flex-col items-center justify-center gap-3">
                 <Loader2 className="h-6 w-6 text-foreground animate-spin" />
                 <p className="text-xs font-medium text-muted tracking-wide">
                   {isScopeLoading ? "Loading semester…" : "Switching subject…"}
@@ -728,12 +731,9 @@ export default function ResourcesClient({
                                 <h4 className="text-sm font-medium text-foreground mt-2 mb-2 line-clamp-1 group-hover:text-primary transition-colors" title={result.title}>
                                   {cleanResourceTitle(result.title)}
                                 </h4>
-                                <div
-                                  className="border-l-2 border-border-strong pl-3 text-xs text-muted leading-relaxed font-mono line-clamp-3"
-                                  dangerouslySetInnerHTML={{
-                                    __html: `"...${result.snippet}..."`,
-                                  }}
-                                />
+                                <div className="border-l-2 border-border-strong pl-3 text-xs text-muted leading-relaxed font-mono line-clamp-3">
+                                  &ldquo;...{result.snippet}...&rdquo;
+                                </div>
                               </div>
                               <div className="mt-3 pt-2 border-t border-border flex items-center justify-between text-[10px] font-medium uppercase tracking-wider text-muted group-hover:text-foreground transition-colors">
                                 <span>Open document</span>
