@@ -38,6 +38,12 @@ export function isCsvExtension(extension: string): boolean {
   return extension.toLowerCase() === "csv";
 }
 
+export function isImageExtension(extension: string): boolean {
+  return ["png", "jpg", "jpeg", "webp", "gif"].includes(
+    extension.toLowerCase(),
+  );
+}
+
 export function getFileExtension(title: string, url: string): string {
   if (title && title.includes(".")) {
     const ext = title.split(".").pop()?.toLowerCase();

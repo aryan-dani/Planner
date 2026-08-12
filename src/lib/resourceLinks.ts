@@ -3,6 +3,7 @@ import {
   getFileExtension,
   isCodeExtension,
   isCsvExtension,
+  isImageExtension,
 } from "@/lib/fileUtils";
 import { isSubjectMatch } from "@/lib/subjectMatcher";
 
@@ -31,7 +32,7 @@ function keysMatch(writeupKey: string, assignmentKey: string): boolean {
 
 export function isDatasetResource(item: ResourceItem): boolean {
   const ext = getFileExtension(item.title, item.file_url);
-  if (isCsvExtension(ext)) return true;
+  if (isCsvExtension(ext) || isImageExtension(ext)) return true;
   return /Dataset/i.test(item.title);
 }
 

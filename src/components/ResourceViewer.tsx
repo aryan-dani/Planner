@@ -12,6 +12,7 @@ import {
   Maximize,
   Table2,
   Play,
+  ImageIcon,
 } from "lucide-react";
 import { ResourceItem } from "@/lib/dataFetcher";
 import {
@@ -20,6 +21,7 @@ import {
   isCodeExtension,
   isNotebookExtension,
   isCsvExtension,
+  isImageExtension,
 } from "@/lib/fileUtils";
 import { motion } from "framer-motion";
 import { cleanResourceTitle, shortCodeLabel } from "@/lib/titleUtils";
@@ -82,8 +84,11 @@ export default function ResourceViewer({
   const isPresentation = extension === "ppt" || extension === "pptx";
   const isNotebook = isNotebookExtension(extension);
   const isCsv = isCsvExtension(extension);
+  const isImage = isImageExtension(extension);
   const isCode =
-    !isCsv && (isCodeExtension(extension) || resource.category === "codes");
+    !isCsv &&
+    !isImage &&
+    (isCodeExtension(extension) || resource.category === "codes");
   const isTextFetch = isCode || isCsv;
   const viewerUrl = useMemo(() => getViewerUrl(resource), [resource]);
   const downloadUrl = useMemo(() => getDirectUrl(resource), [resource]);
@@ -94,18 +99,27 @@ export default function ResourceViewer({
   const colabUrl = driveId
     ? `https://colab.research.google.com/drive/${driveId}`
     : null;
+  // Drive uc?export=view works for in-app <img>; download URL may force attachment
+  const imageUrl = driveId
+    ? `https://drive.google.com/uc?export=view&id=${driveId}`
+    : resource.file_url;
 
-  const FileIcon = isCsv
-    ? Table2
-    : isCode
-      ? Code2
-      : isPresentation
-        ? FileSpreadsheet
-        : FileText;
+  const FileIcon = isImage
+    ? ImageIcon
+    : isCsv
+      ? Table2
+      : isCode
+        ? Code2
+        : isPresentation
+          ? FileSpreadsheet
+          : FileText;
 
-  const showRelatedCodes = !isCode && !isCsv && relatedCodes.length > 0 && !!onOpenRelated;
+  const showRelatedCodes =
+    !isCode && !isCsv && !isImage && relatedCodes.length > 0 && !!onOpenRelated;
   const showRelatedWriteups =
-    (isCode || isCsv) && relatedWriteups.length > 0 && !!onOpenRelated;
+    (isCode || isCsv || isImage) &&
+    relatedWriteups.length > 0 &&
+    !!onOpenRelated;
   const showRelatedDatasets =
     isNotebook && relatedDatasets.length > 0 && !!onOpenRelated;
   const hasRelatedBar =
@@ -249,15 +263,17 @@ export default function ResourceViewer({
 
   const viewerKindLabel = isNotebook
     ? "Notebook"
-    : isCsv
-      ? "Dataset"
-      : isCode
-        ? `${extension.toUpperCase() || "CODE"} source`
-        : isPdf
-          ? "PDF"
-          : isPresentation
-            ? "Presentation"
-            : "File";
+    : isImage
+      ? "Image"
+      : isCsv
+        ? "Dataset"
+        : isCode
+          ? `${extension.toUpperCase() || "CODE"} source`
+          : isPdf
+            ? "PDF"
+            : isPresentation
+              ? "Presentation"
+              : "File";
 
   const content = (
     <motion.div
@@ -407,11 +423,13 @@ export default function ResourceViewer({
                 <p className="text-sm font-medium text-foreground/75 mt-4 tracking-wide">
                   {isNotebook
                     ? "Loading notebook..."
-                    : isCsv
-                      ? "Loading dataset..."
-                      : isCode
-                        ? "Loading source..."
-                        : "Preparing document preview..."}
+                    : isImage
+                      ? "Loading image..."
+                      : isCsv
+                        ? "Loading dataset..."
+                        : isCode
+                          ? "Loading source..."
+                          : "Preparing document preview..."}
                 </p>
                 {loadError && (
                   <motion.div
@@ -447,6 +465,31 @@ export default function ResourceViewer({
                     className="text-foreground underline underline-offset-4 text-sm"
                   >
                     Open on Drive
+                  </a>
+                </div>
+              )}
+            </div>
+          ) : isImage ? (
+            <div className="h-full w-full overflow-auto bg-background flex items-center justify-center p-4 sm:p-8">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={imageUrl}
+                alt={cleanResourceTitle(resource.title)}
+                className="max-w-full max-h-full object-contain rounded-xl border border-border shadow-sm bg-card"
+                onLoad={() => setIsLoading(false)}
+                onError={() => {
+                  setLoadError(true);
+                  setIsLoading(false);
+                }}
+              />
+              {!isLoading && loadError && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-center text-muted bg-background/80">
+                  <p className="text-sm">Could not preview image in-app.</p>
+                  <a
+                    href={downloadUrl}
+                    className="text-foreground underline underline-offset-4 text-sm"
+                  >
+                    Download image
                   </a>
                 </div>
               )}
