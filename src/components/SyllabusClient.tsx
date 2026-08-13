@@ -33,6 +33,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { auth, db } from '@/lib/firebase';
 import { collection, query, where, getDocs, doc, setDoc, updateDoc } from 'firebase/firestore';
 import { toast } from 'sonner';
+import { parseUnitKey, unitFolderId } from '@/lib/resourceGroups';
+import { buildResourcesHref } from '@/lib/resourceUrl';
+import AcademicBreadcrumb from '@/components/AcademicBreadcrumb';
+import Link from 'next/link';
 
 interface SyllabusClientProps {
   subjects: SubjectItem[];
@@ -475,9 +479,11 @@ export default function SyllabusClient({ subjects, branch, semester, syllabusUrl
     
     const pool = subjectResources;
     if (pool.length === 0) return [];
+
+    const moduleUnit = parseUnitKey(moduleTitle);
     
     const titleWords = moduleTitle.toLowerCase()
-      .replace(/unit\s+[ivx]+/gi, '')
+      .replace(/unit\s+[ivx\d]+/gi, '')
       .replace(/[^\w\s]/g, '')
       .split(/\s+/)
       .filter(w => w.length > 3);
@@ -492,6 +498,13 @@ export default function SyllabusClient({ subjects, branch, semester, syllabusUrl
     const scored = pool.map(resource => {
       const rTitle = resource.title.toLowerCase();
       let score = 0;
+      // Prefer same unit number / roman
+      if (moduleUnit) {
+        const resourceUnit = parseUnitKey(resource.title);
+        if (resourceUnit && resourceUnit.num === moduleUnit.num) {
+          score += 5;
+        }
+      }
       keywords.forEach(word => {
         if (rTitle.includes(word)) {
           score += 1;
@@ -702,8 +715,14 @@ export default function SyllabusClient({ subjects, branch, semester, syllabusUrl
           <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-foreground">
             Syllabus
           </h1>
+          <AcademicBreadcrumb
+            branch={branch}
+            semester={semester}
+            crumbs={[{ label: "Syllabus" }]}
+            className="mt-2"
+          />
           <p className="text-foreground-subtle text-sm mt-1.5">
-            {branch} · Semester {semester} · {filtered.length} course{filtered.length !== 1 ? 's' : ''}
+            {filtered.length} course{filtered.length !== 1 ? 's' : ''} · units link into the Resource Vault
           </p>
           <NotesDisclaimer compact className="mt-3 max-w-xl" />
         </div>
@@ -943,20 +962,29 @@ export default function SyllabusClient({ subjects, branch, semester, syllabusUrl
                                     onClick={(e) => e.stopPropagation()}
                                   >
                                     <span className="text-[9px] text-muted-foreground font-extrabold uppercase tracking-widest">Vault Files:</span>
-                                    {matches.map(file => (
-                                      <a
-                                        key={file.id}
-                                        href={file.file_url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="inline-flex items-center gap-1.5 text-xs font-bold bg-surface/50 hover:bg-surface hover:border-foreground/30 border border-border/80 px-3 py-1.5 rounded-xl text-foreground transition-all shadow-3xs hover:-translate-y-0.5"
-                                      >
-                                        <FileText className="w-3.5 h-3.5 text-foreground/70" />
-                                        <span className="truncate max-w-[150px]" title={file.title}>
-                                          {cleanResourceTitle(file.title)}
-                                        </span>
-                                      </a>
-                                    ))}
+                                    {matches.map(file => {
+                                      const unit = parseUnitKey(file.title) || parseUnitKey(mod.title);
+                                      const folder = unit ? unitFolderId(unit.num) : null;
+                                      const href = buildResourcesHref({
+                                        branch,
+                                        semester,
+                                        subject: subject.name,
+                                        folder,
+                                        view: file.id,
+                                      });
+                                      return (
+                                        <Link
+                                          key={file.id}
+                                          href={href}
+                                          className="inline-flex items-center gap-1.5 text-xs font-bold bg-surface/50 hover:bg-surface hover:border-foreground/30 border border-border/80 px-3 py-1.5 rounded-xl text-foreground transition-all shadow-3xs hover:-translate-y-0.5"
+                                        >
+                                          <FileText className="w-3.5 h-3.5 text-foreground/70" />
+                                          <span className="truncate max-w-[150px]" title={file.title}>
+                                            {cleanResourceTitle(file.title)}
+                                          </span>
+                                        </Link>
+                                      );
+                                    })}
                                   </div>
                                 )}
 
@@ -1030,15 +1058,28 @@ export default function SyllabusClient({ subjects, branch, semester, syllabusUrl
                         </div>
 
                         {/* Subject Card Footer */}
-                        <div className="pt-4 flex items-center justify-between border-t border-border/40 mt-6 pl-1">
+                        <div className="pt-4 flex items-center justify-between border-t border-border/40 mt-6 pl-1 gap-3 flex-wrap">
                           <span className="text-xs text-muted-foreground italic font-medium">Click any unit block to log completion progress.</span>
-                          <a
-                            href={`/ask?topic=${encodeURIComponent(subject.name)}`}
-                            className="inline-flex items-center gap-1 text-xs font-bold text-foreground hover:underline hover:gap-1.5 transition-all"
-                          >
-                            Query AI on Subject
-                            <ChevronRight className="w-4.5 h-4.5 text-foreground" />
-                          </a>
+                          <div className="flex items-center gap-3">
+                            <Link
+                              href={buildResourcesHref({
+                                branch,
+                                semester,
+                                subject: subject.name,
+                              })}
+                              className="inline-flex items-center gap-1 text-xs font-bold text-muted-foreground hover:text-foreground hover:underline hover:gap-1.5 transition-all"
+                            >
+                              Open vault
+                              <ChevronRight className="w-4 h-4" />
+                            </Link>
+                            <a
+                              href={`/ask?topic=${encodeURIComponent(subject.name)}`}
+                              className="inline-flex items-center gap-1 text-xs font-bold text-foreground hover:underline hover:gap-1.5 transition-all"
+                            >
+                              Query AI on Subject
+                              <ChevronRight className="w-4.5 h-4.5 text-foreground" />
+                            </a>
+                          </div>
                         </div>
                       </div>
                     </motion.div>
@@ -1066,14 +1107,14 @@ export default function SyllabusClient({ subjects, branch, semester, syllabusUrl
       {/* Global Navigation Link to Resource Vault */}
       {filtered.length > 0 && (
         <div className="mt-14 flex justify-center relative z-10">
-          <a
-            href={`/resources?branch=${branch}&semester=${semester}`}
+          <Link
+            href={buildResourcesHref({ branch, semester })}
             className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-surface border border-border/80 hover:border-border-strong hover:bg-surface-hover text-sm font-bold text-muted-foreground hover:text-foreground transition-all group shadow-sm hover:scale-[1.01]"
           >
             <Layers className="w-4 h-4 text-primary" />
             Open Study Resource Vault
             <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-foreground group-hover:translate-x-1.5 transition-all" />
-          </a>
+          </Link>
         </div>
       )}
       {/* Add to Planner Scheduler Modal */}

@@ -43,7 +43,7 @@ const FEATURES = [
     number: "04",
     Icon: FileText,
     description:
-      "Notes, PPTs, question banks, and PYQs by subject. Notes are reference-only — not exam guarantees.",
+      "Browse by subject → assignment folders (notebooks, datasets, writeups together). Notes are reference-only.",
   },
   {
     href: "/gpa",
@@ -89,8 +89,46 @@ export default function Home() {
 
       <div className="w-full border-t border-border" />
 
+      {/* How it connects */}
+      <section className="w-full max-w-7xl mx-auto px-6 py-10">
+        <p className="text-center text-sm text-foreground-subtle mb-4 font-medium">
+          How everything links
+        </p>
+        <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3 text-xs sm:text-sm font-semibold text-foreground">
+          <Link
+            href="/syllabus"
+            className="px-3 py-1.5 rounded-lg bg-surface border border-border hover:border-border-strong transition-colors"
+          >
+            Syllabus
+            <span className="text-muted font-medium"> · units</span>
+          </Link>
+          <ArrowRight className="w-3.5 h-3.5 text-muted" />
+          <Link
+            href="/resources"
+            className="px-3 py-1.5 rounded-lg bg-surface border border-border hover:border-border-strong transition-colors"
+          >
+            Vault
+            <span className="text-muted font-medium"> · files</span>
+          </Link>
+          <ArrowRight className="w-3.5 h-3.5 text-muted" />
+          <Link
+            href="/ask"
+            className="px-3 py-1.5 rounded-lg bg-surface border border-border hover:border-border-strong transition-colors"
+          >
+            Ask AI
+          </Link>
+          <ArrowRight className="w-3.5 h-3.5 text-muted" />
+          <Link
+            href="/planner"
+            className="px-3 py-1.5 rounded-lg bg-surface border border-border hover:border-border-strong transition-colors"
+          >
+            Planner
+          </Link>
+        </div>
+      </section>
+
       {/* Feature cards */}
-      <section className="w-full max-w-7xl mx-auto px-6 py-20">
+      <section className="w-full max-w-7xl mx-auto px-6 pb-20">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-px bg-border rounded-xl overflow-hidden border border-border shadow-sm">
           {FEATURES.map(({ href, label, number, Icon, description }) => (
             <Link

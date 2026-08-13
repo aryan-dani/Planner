@@ -1,0 +1,124 @@
+"use client";
+
+import { useEffect, useRef } from "react";
+import { ChevronDown, Folder, FolderOpen } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { ResourceItem } from "@/lib/dataFetcher";
+import {
+  ResourceFolderNode,
+  countFolderFiles,
+} from "@/lib/resourceGroups";
+import ResourceFileRow from "./ResourceFileRow";
+
+interface ResourceFolderProps {
+  folder: ResourceFolderNode;
+  expanded: boolean;
+  onToggle: (folderId: string) => void;
+  expandedIds: Set<string>;
+  onOpenResource: (item: ResourceItem) => void;
+  onSummarize?: (item: ResourceItem) => void;
+  depth?: number;
+  highlightFileId?: string | null;
+  scrollToId?: string | null;
+}
+
+export default function ResourceFolder({
+  folder,
+  expanded,
+  onToggle,
+  expandedIds,
+  onOpenResource,
+  onSummarize,
+  depth = 0,
+  highlightFileId = null,
+  scrollToId = null,
+}: ResourceFolderProps) {
+  const ref = useRef<HTMLDivElement>(null);
+  const fileCount = countFolderFiles(folder);
+  const paddingLeft = 8 + depth * 12;
+
+  useEffect(() => {
+    if (scrollToId === folder.id && ref.current) {
+      ref.current.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+  }, [scrollToId, folder.id]);
+
+  return (
+    <div
+      ref={ref}
+      id={`folder-${folder.id}`}
+      className="border-b border-border/60 last:border-b-0"
+    >
+      <button
+        type="button"
+        onClick={() => onToggle(folder.id)}
+        className="w-full flex items-center gap-2.5 py-3 pr-3 hover:bg-surface/50 transition-colors text-left group"
+        style={{ paddingLeft }}
+        aria-expanded={expanded}
+      >
+        <ChevronDown
+          className={`w-4 h-4 text-muted flex-shrink-0 transition-transform duration-200 ${
+            expanded ? "rotate-0" : "-rotate-90"
+          }`}
+        />
+        <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 bg-surface border border-border text-muted group-hover:text-foreground transition-colors">
+          {expanded ? (
+            <FolderOpen className="w-4 h-4" />
+          ) : (
+            <Folder className="w-4 h-4" />
+          )}
+        </div>
+        <span className="text-sm font-semibold text-foreground flex-1 truncate">
+          {folder.label}
+        </span>
+        <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-surface border border-border text-muted">
+          {fileCount}
+        </span>
+      </button>
+
+      <AnimatePresence initial={false}>
+        {expanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+            className="overflow-hidden"
+          >
+            <div className="border-t border-border/40 bg-card/50">
+              {folder.files.map((item) => (
+                <ResourceFileRow
+                  key={item.id}
+                  item={item}
+                  onOpenResource={onOpenResource}
+                  onSummarize={onSummarize}
+                  depth={depth + 1}
+                  highlight={highlightFileId === item.id}
+                />
+              ))}
+              {folder.children.map((child) => (
+                <ResourceFolder
+                  key={child.id}
+                  folder={child}
+                  expanded={expandedIds.has(child.id)}
+                  onToggle={onToggle}
+                  expandedIds={expandedIds}
+                  onOpenResource={onOpenResource}
+                  onSummarize={onSummarize}
+                  depth={depth + 1}
+                  highlightFileId={highlightFileId}
+                  scrollToId={scrollToId}
+                />
+              ))}
+              {folder.files.length === 0 && folder.children.length === 0 && (
+                <p className="px-4 py-3 text-xs text-muted" style={{ paddingLeft: paddingLeft + 40 }}>
+                  Empty folder
+                </p>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}

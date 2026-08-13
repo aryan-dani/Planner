@@ -41,3 +41,36 @@ export function resolveSubjectName(
 export function subjectToSlug(subject: string): string {
   return encodeURIComponent(subject);
 }
+
+/** Normalize folder deep-link ids: assignment-1, unit-2, year-2024, other */
+export function parseResourceFolder(
+  value: string | null | undefined,
+): string | null {
+  if (!value) return null;
+  const normalized = decodeURIComponent(value).trim().toLowerCase();
+  if (!normalized) return null;
+  if (
+    /^(assignment-[\da-z]+|unit-\d+|year-\d{4}|other)$/i.test(normalized)
+  ) {
+    return normalized;
+  }
+  return null;
+}
+
+export function buildResourcesHref(opts: {
+  branch: string;
+  semester: number | string;
+  subject?: string | null;
+  filter?: ResourceFilter | null;
+  folder?: string | null;
+  view?: string | null;
+}): string {
+  const params = new URLSearchParams();
+  params.set("branch", opts.branch);
+  params.set("semester", String(opts.semester));
+  if (opts.subject) params.set("subject", subjectToSlug(opts.subject));
+  if (opts.filter && opts.filter !== "all") params.set("filter", opts.filter);
+  if (opts.folder) params.set("folder", opts.folder);
+  if (opts.view) params.set("view", opts.view);
+  return `/resources?${params.toString()}`;
+}

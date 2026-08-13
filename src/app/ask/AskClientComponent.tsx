@@ -37,6 +37,9 @@ import { NotesDisclaimer } from '@/components/NotesDisclaimer';
 import { toast } from 'sonner';
 import { useSRSStore } from '@/store/srsStore';
 import { useSearchParams } from 'next/navigation';
+import AcademicBreadcrumb from '@/components/AcademicBreadcrumb';
+import Link from 'next/link';
+import { buildResourcesHref } from '@/lib/resourceUrl';
 
 const SUGGESTED_PROMPTS = [
   'Explain DBMS normalization with examples',
@@ -803,8 +806,20 @@ export default function AskClient() {
   return (
     <div className="flex-1 w-full mx-auto flex flex-col md:h-screen h-[calc(100vh-3.5rem)] px-6">
       {/* Top Navigation Tabs */}
-      <div className="border-b border-border px-4 sm:px-6 py-3 flex items-center justify-between gap-4 shrink-0">
-        <div className="flex items-center gap-1.5 p-1 bg-surface border border-border rounded-xl shadow-xs">
+      <div className="border-b border-border px-4 sm:px-6 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
+        <div className="flex flex-col gap-2 min-w-0">
+          <AcademicBreadcrumb
+            branch={branch}
+            semester={semester}
+            crumbs={[
+              { label: "Ask AI" },
+              {
+                label: "Vault",
+                href: buildResourcesHref({ branch, semester }),
+              },
+            ]}
+          />
+          <div className="flex items-center gap-1.5 p-1 bg-surface border border-border rounded-xl shadow-xs w-fit">
           <button
             onClick={() => setActiveTab('chat')}
             className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
@@ -838,11 +853,15 @@ export default function AskClient() {
             <HelpCircle className="w-3.5 h-3.5" />
             Practice Quiz
           </button>
+          </div>
         </div>
 
-        <span className="text-[11px] font-semibold text-muted bg-surface px-2.5 py-1 rounded-md border border-border">
-          {branch} · Sem {semester}
-        </span>
+        <Link
+          href={`/syllabus?branch=${branch}&semester=${semester}`}
+          className="text-[11px] font-semibold text-muted hover:text-foreground bg-surface px-2.5 py-1 rounded-md border border-border transition-colors self-start sm:self-auto"
+        >
+          Syllabus
+        </Link>
       </div>
 
       {/* Tab 1: Chat Assistant */}

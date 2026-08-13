@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { ResourceItem } from "@/lib/dataFetcher";
 import { useAcademicStore } from "@/store/academicStore";
 import { isSubjectMatch } from "@/lib/subjectMatcher";
@@ -17,24 +18,30 @@ import {
   PenTool,
   Brain,
   CheckCircle2,
-  RefreshCw,
   Code2,
   Loader2,
+  ChevronRight,
+  ClipboardList,
 } from "lucide-react";
 import dynamic from "next/dynamic";
-import ResourceCard from "./resources/ResourceCard";
 import ResourceSection from "./resources/ResourceSection";
 import { cleanResourceTitle } from "@/lib/titleUtils";
 import { NotesDisclaimer } from "./NotesDisclaimer";
+import { isDatasetResource } from "@/lib/resourceLinks";
 import {
-  findRelatedCodes,
-  findRelatedWriteups,
-  findRelatedDatasets,
-} from "@/lib/resourceLinks";
+  groupByAssignment,
+  groupByUnit,
+  groupByYear,
+  subjectSummaryCounts,
+  folderIdForResource,
+  folderLabelFromId,
+  findAssignmentSiblings,
+} from "@/lib/resourceGroups";
 import {
   resolveSubjectName,
   subjectToSlug,
   parseResourceFilter,
+  parseResourceFolder,
   type ResourceFilter,
 } from "@/lib/resourceUrl";
 
@@ -48,9 +55,9 @@ interface ResourcesClientProps {
   initialSubject?: string | null;
   initialFilter?: ResourceFilter;
   initialView?: string | null;
+  initialFolder?: string | null;
 }
 
-// Simplified filter config — only main categories, no clutter
 const RESOURCE_FILTERS: { value: ResourceFilter; label: string; Icon: any }[] =
   [
     { value: "all", label: "All", Icon: Layers },
@@ -62,57 +69,16 @@ const RESOURCE_FILTERS: { value: ResourceFilter; label: string; Icon: any }[] =
     { value: "codes", label: "Codes", Icon: Code2 },
   ];
 
-// Section rendering config with accent colors
-const SECTION_CONFIG = [
-  {
-    category: "notes" as const,
-    title: "Notes",
-    icon: <FileText className="w-3.5 h-3.5" />,
-    accentColor: "var(--accent-notes)",
-  },
-  {
-    category: "question-bank" as const,
-    title: "Question Banks",
-    icon: <BookOpenCheck className="w-3.5 h-3.5" />,
-    accentColor: "var(--accent-qb)",
-  },
-  {
-    category: "solved-question-bank" as const,
-    title: "Solved Question Banks",
-    icon: <CheckCircle2 className="w-3.5 h-3.5" />,
-    accentColor: "var(--accent-qb-solved)",
-  },
-  {
-    category: "ppt" as const,
-    title: "Presentations",
-    icon: <FileSpreadsheet className="w-3.5 h-3.5" />,
-    accentColor: "var(--accent-ppt)",
-  },
-  {
-    category: "pyq" as const,
-    title: "Previous Year Questions",
-    icon: <FileText className="w-3.5 h-3.5" />,
-    accentColor: "var(--accent-pyq)",
-  },
-  {
-    category: "writeup" as const,
-    title: "Writeups",
-    icon: <PenTool className="w-3.5 h-3.5" />,
-    accentColor: "var(--accent-writeup)",
-  },
-  {
-    category: "codes" as const,
-    title: "Codes",
-    icon: <Code2 className="w-3.5 h-3.5" />,
-    accentColor: "var(--accent-codes)",
-  },
-  {
-    category: "other" as const,
-    title: "Other Resources",
-    icon: <HardDrive className="w-3.5 h-3.5" />,
-    accentColor: "var(--accent-other)",
-  },
-];
+function isAssignmentCategory(category: string): boolean {
+  return category === "writeup" || category === "codes";
+}
+
+function filterLabel(filter: ResourceFilter): string | null {
+  if (filter === "all") return null;
+  if (filter === "writeup" || filter === "codes") return "Assignments";
+  const match = RESOURCE_FILTERS.find((f) => f.value === filter);
+  return match?.label ?? filter;
+}
 
 export default function ResourcesClient({
   initialResources,
@@ -121,6 +87,7 @@ export default function ResourcesClient({
   initialSubject = null,
   initialFilter = "all",
   initialView = null,
+  initialFolder = null,
 }: ResourcesClientProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -130,6 +97,9 @@ export default function ResourcesClient({
   const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
   const [selectedFilter, setSelectedFilter] =
     useState<ResourceFilter>(initialFilter);
+  const [activeFolderId, setActiveFolderId] = useState<string | null>(
+    () => parseResourceFolder(initialFolder),
+  );
   const [viewerResource, setViewerResource] = useState<ResourceItem | null>(
     null,
   );
@@ -155,12 +125,11 @@ export default function ResourcesClient({
     lastUserSubjectRef.current = null;
     didOpenInitialView.current = false;
     setSelectedFilter("all");
+    setActiveFolderId(null);
     setViewerResource(null);
     setIsScopeLoading(true);
   }, [scopeKey]);
 
-  // New server payload means this semester is ready. A timeout was getting
-  // cleared by URL replaces (new initialResources identity) and the overlay stuck.
   useEffect(() => {
     setIsScopeLoading(false);
   }, [initialResources]);
@@ -176,6 +145,7 @@ export default function ResourcesClient({
       subject?: string | null;
       filter?: ResourceFilter;
       view?: string | null;
+      folder?: string | null;
     }) => {
       const params = new URLSearchParams(searchParams.toString());
       params.set("branch", branch);
@@ -186,6 +156,8 @@ export default function ResourcesClient({
       const filter = next.filter !== undefined ? next.filter : selectedFilter;
       const view =
         next.view !== undefined ? next.view : (viewerResource?.id ?? null);
+      const folder =
+        next.folder !== undefined ? next.folder : activeFolderId;
 
       if (subject) params.set("subject", subjectToSlug(subject));
       else params.delete("subject");
@@ -193,16 +165,19 @@ export default function ResourcesClient({
       if (filter && filter !== "all") params.set("filter", filter);
       else params.delete("filter");
 
+      if (folder) params.set("folder", folder);
+      else params.delete("folder");
+
       if (view) params.set("view", view);
       else params.delete("view");
 
-      const nextQs = params.toString();
       const current = new URLSearchParams(searchParams.toString());
       current.set("branch", branch);
       current.set("semester", String(semester));
       if (
         current.get("subject") === params.get("subject") &&
         current.get("filter") === params.get("filter") &&
+        current.get("folder") === params.get("folder") &&
         current.get("view") === params.get("view") &&
         current.get("branch") === params.get("branch") &&
         current.get("semester") === params.get("semester")
@@ -210,6 +185,7 @@ export default function ResourcesClient({
         return;
       }
 
+      const nextQs = params.toString();
       router.replace(nextQs ? `${pathname}?${nextQs}` : pathname, {
         scroll: false,
       });
@@ -220,13 +196,13 @@ export default function ResourcesClient({
       semester,
       selectedSubject,
       selectedFilter,
+      activeFolderId,
       viewerResource?.id,
       router,
       pathname,
     ],
   );
 
-  // ── Derived data ──
   const subjectsMap = useMemo(
     () =>
       resources.reduce(
@@ -272,13 +248,13 @@ export default function ResourcesClient({
 
       setSelectedSubject(subjectName);
       setSelectedFilter(filter);
+      setActiveFolderId(null);
       setViewerResource(null);
-      syncUrl({ subject: subjectName, filter, view: null });
+      syncUrl({ subject: subjectName, filter, view: null, folder: null });
     },
     [syncUrl],
   );
 
-  // Hydrate subject from URL / initial prop once, then keep client selection authoritative
   useEffect(() => {
     if (filteredSubjectNames.length === 0) {
       setSelectedSubject(null);
@@ -289,7 +265,6 @@ export default function ResourcesClient({
     const fromLiveUrl = resolveSubjectName(urlSlug, filteredSubjectNames);
     const userPick = lastUserSubjectRef.current;
 
-    // User click wins until the URL catches up
     if (userPick) {
       if (filteredSubjectNames.includes(userPick)) {
         if (selectedSubject !== userPick) setSelectedSubject(userPick);
@@ -308,16 +283,21 @@ export default function ResourcesClient({
       if (selectedSubject !== target) setSelectedSubject(target);
       const urlFilter = parseResourceFilter(searchParams.get("filter") || initialFilter);
       setSelectedFilter(urlFilter);
+      const urlFolder = parseResourceFolder(
+        searchParams.get("folder") || initialFolder,
+      );
+      if (urlFolder) setActiveFolderId(urlFolder);
       return;
     }
 
-    // After first hydrate: only follow live URL (back/forward), never stale initialSubject
     if (fromLiveUrl) {
       if (selectedSubject !== fromLiveUrl) {
         setSelectedSubject(fromLiveUrl);
         const urlFilter = parseResourceFilter(searchParams.get("filter"));
         setSelectedFilter(urlFilter);
       }
+      const urlFolder = parseResourceFolder(searchParams.get("folder"));
+      if (urlFolder !== activeFolderId) setActiveFolderId(urlFolder);
       return;
     }
 
@@ -327,15 +307,17 @@ export default function ResourcesClient({
 
     setSelectedSubject(filteredSubjectNames[0]);
     setSelectedFilter("all");
+    setActiveFolderId(null);
   }, [
     filteredSubjectNames,
     selectedSubject,
     initialSubject,
     initialFilter,
+    initialFolder,
     searchParams,
+    activeFolderId,
   ]);
 
-  // If current filter has no items for this subject, fall back to All
   useEffect(() => {
     if (!selectedSubject || selectedFilter === "all") return;
     const items = subjectsMap[selectedSubject] ?? [];
@@ -346,11 +328,15 @@ export default function ResourcesClient({
               r.category === "question-bank" ||
               r.category === "solved-question-bank",
           )
-        : items.some((r) => r.category === selectedFilter);
+        : selectedFilter === "writeup" || selectedFilter === "codes"
+          ? items.some(
+              (r) =>
+                isAssignmentCategory(r.category) || isDatasetResource(r),
+            )
+          : items.some((r) => r.category === selectedFilter);
     if (!hasItems) setSelectedFilter("all");
   }, [selectedSubject, selectedFilter, subjectsMap]);
 
-  // Open resource from ?view= on first load
   useEffect(() => {
     if (didOpenInitialView.current) return;
     const viewId = initialView || searchParams.get("view");
@@ -363,16 +349,19 @@ export default function ResourcesClient({
         lastUserSubjectRef.current = match.subject_name;
         setSelectedSubject(match.subject_name);
       }
-      if (match.category === "codes" || match.category === "writeup") {
-        setSelectedFilter(match.category);
+      const folder = folderIdForResource(match);
+      if (folder) setActiveFolderId(folder);
+      if (isAssignmentCategory(match.category) || isDatasetResource(match)) {
+        // Keep All or Codes/Writeups — prefer codes filter only if URL says so
+        if (!searchParams.get("filter")) {
+          // leave as-is / all so Assignments explorer shows
+        }
       }
     }
   }, [initialView, searchParams, resources]);
 
-  // Keep URL in sync with subject / filter / open file
   useEffect(() => {
     if (!selectedSubject) return;
-    // Skip while a user pick is waiting for URL to catch up (selectSubject already wrote URL)
     if (lastUserSubjectRef.current && lastUserSubjectRef.current !== selectedSubject) {
       return;
     }
@@ -380,11 +369,14 @@ export default function ResourcesClient({
       subject: selectedSubject,
       filter: selectedFilter,
       view: viewerResource?.id ?? null,
+      folder: activeFolderId,
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- syncUrl deps already covered; avoid replace loops
-  }, [selectedSubject, selectedFilter, viewerResource?.id]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedSubject, selectedFilter, viewerResource?.id, activeFolderId]);
 
   const openResource = useCallback((item: ResourceItem) => {
+    const folder = folderIdForResource(item);
+    if (folder) setActiveFolderId(folder);
     setViewerResource(item);
   }, []);
 
@@ -392,7 +384,10 @@ export default function ResourcesClient({
     setViewerResource(null);
   }, []);
 
-  // Content Search Effect
+  const handleFolderChange = useCallback((folderId: string | null) => {
+    setActiveFolderId(folderId);
+  }, []);
+
   useEffect(() => {
     if (!aiSearchQuery.trim() || aiSearchQuery.length < 3) {
       setContentResults([]);
@@ -405,9 +400,7 @@ export default function ResourcesClient({
         setIsSearchingContent(true);
         const res = await fetch(
           `/api/search?q=${encodeURIComponent(aiSearchQuery)}`,
-          {
-            signal: abortController.signal,
-          },
+          { signal: abortController.signal },
         );
         const data = await res.json();
         setContentResults(data.results || []);
@@ -438,14 +431,21 @@ export default function ResourcesClient({
     );
   }, [selectedSubject, subjectsMap, searchQuery]);
 
+  /** For Codes/Writeups filters, include sibling assignment files so notebooks keep datasets. */
   const filteredResources = useMemo(() => {
     if (selectedFilter === "all") return searchedResources;
-    // When "Question Banks" filter is active, show both solved and unsolved
     if (selectedFilter === "question-bank") {
       return searchedResources.filter(
         (r) =>
           r.category === "question-bank" ||
           r.category === "solved-question-bank",
+      );
+    }
+    if (selectedFilter === "writeup" || selectedFilter === "codes") {
+      // Include all assignment-related files so folders stay complete
+      return searchedResources.filter(
+        (r) =>
+          isAssignmentCategory(r.category) || isDatasetResource(r),
       );
     }
     return searchedResources.filter((r) => r.category === selectedFilter);
@@ -458,11 +458,14 @@ export default function ResourcesClient({
           if (filter.value === "all") {
             acc[filter.value] = searchedResources.length;
           } else if (filter.value === "question-bank") {
-            // Count both solved and unsolved QBs under the QB filter
             acc[filter.value] = searchedResources.filter(
               (r) =>
                 r.category === "question-bank" ||
                 r.category === "solved-question-bank",
+            ).length;
+          } else if (filter.value === "writeup" || filter.value === "codes") {
+            acc[filter.value] = searchedResources.filter(
+              (r) => r.category === filter.value,
             ).length;
           } else {
             acc[filter.value] = searchedResources.filter(
@@ -476,38 +479,121 @@ export default function ResourcesClient({
     [searchedResources],
   );
 
-  const relatedCodesById = useMemo(() => {
-    const map: Record<string, ResourceItem[]> = {};
-    for (const resource of resources) {
-      if (resource.category !== "writeup") continue;
-      const related = findRelatedCodes(resource, resources);
-      if (related.length > 0) map[resource.id] = related;
+  const assignmentItems = useMemo(
+    () =>
+      filteredResources.filter(
+        (r) => isAssignmentCategory(r.category) || isDatasetResource(r),
+      ),
+    [filteredResources],
+  );
+
+  const assignmentFolders = useMemo(
+    () => groupByAssignment(assignmentItems),
+    [assignmentItems],
+  );
+
+  const notesFolders = useMemo(
+    () =>
+      groupByUnit(
+        filteredResources.filter((r) => r.category === "notes"),
+      ),
+    [filteredResources],
+  );
+
+  const pptFolders = useMemo(
+    () =>
+      groupByUnit(filteredResources.filter((r) => r.category === "ppt")),
+    [filteredResources],
+  );
+
+  const pyqFolders = useMemo(
+    () =>
+      groupByYear(filteredResources.filter((r) => r.category === "pyq")),
+    [filteredResources],
+  );
+
+  const qbItems = useMemo(
+    () =>
+      filteredResources.filter(
+        (r) =>
+          r.category === "question-bank" ||
+          r.category === "solved-question-bank",
+      ),
+    [filteredResources],
+  );
+
+  const otherItems = useMemo(
+    () =>
+      filteredResources.filter(
+        (r) =>
+          r.category === "other" &&
+          !isDatasetResource(r),
+      ),
+    [filteredResources],
+  );
+
+  const summary = useMemo(
+    () => subjectSummaryCounts(searchedResources),
+    [searchedResources],
+  );
+
+  const summaryHint = useMemo(() => {
+    const parts: string[] = [];
+    if (summary.assignments > 0) {
+      parts.push(
+        `${summary.assignments} assignment${summary.assignments === 1 ? "" : "s"}`,
+      );
     }
-    return map;
-  }, [resources]);
+    if (summary.notes > 0) {
+      parts.push(`${summary.notes} note${summary.notes === 1 ? "" : "s"}`);
+    }
+    if (summary.ppt > 0) {
+      parts.push(`${summary.ppt} PPT${summary.ppt === 1 ? "" : "s"}`);
+    }
+    if (summary.pyq > 0) {
+      parts.push(`${summary.pyq} PYQ`);
+    }
+    if (summary.qb > 0) {
+      parts.push(`${summary.qb} QB`);
+    }
+    return parts.join(" · ");
+  }, [summary]);
 
-  const viewerRelatedCodes = useMemo(
+  const viewerSiblings = useMemo(
     () =>
-      viewerResource ? findRelatedCodes(viewerResource, resources) : [],
+      viewerResource
+        ? findAssignmentSiblings(viewerResource, resources)
+        : [],
     [viewerResource, resources],
   );
 
-  const viewerRelatedWriteups = useMemo(
-    () =>
-      viewerResource ? findRelatedWriteups(viewerResource, resources) : [],
-    [viewerResource, resources],
-  );
+  const breadcrumbFolderLabel = folderLabelFromId(activeFolderId);
+  const breadcrumbFilterLabel =
+    filterLabel(selectedFilter) ||
+    (activeFolderId?.startsWith("assignment-")
+      ? "Assignments"
+      : activeFolderId?.startsWith("unit-")
+        ? selectedFilter === "ppt"
+          ? "Presentations"
+          : "Notes"
+        : activeFolderId?.startsWith("year-")
+          ? "PYQ"
+          : null);
 
-  const viewerRelatedDatasets = useMemo(
-    () =>
-      viewerResource ? findRelatedDatasets(viewerResource, resources) : [],
-    [viewerResource, resources],
-  );
+  const showAssignments =
+    selectedFilter === "all" ||
+    selectedFilter === "writeup" ||
+    selectedFilter === "codes";
+  const showNotes = selectedFilter === "all" || selectedFilter === "notes";
+  const showPpt = selectedFilter === "all" || selectedFilter === "ppt";
+  const showPyq = selectedFilter === "all" || selectedFilter === "pyq";
+  const showQb =
+    selectedFilter === "all" || selectedFilter === "question-bank";
+  const showOther = selectedFilter === "all" || selectedFilter === "other";
 
   return (
     <div className="flex-1 w-full max-w-7xl mx-auto px-6 py-8 min-h-[80vh]">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-4">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-3 gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground">
             Resource Vault
@@ -517,6 +603,65 @@ export default function ResourcesClient({
           </p>
         </div>
       </div>
+
+      {/* Breadcrumb trail */}
+      <nav
+        aria-label="Resource location"
+        className="flex flex-wrap items-center gap-1 text-xs text-muted mb-4"
+      >
+        <span className="font-medium text-foreground/80">
+          {branch} · Sem {semester}
+        </span>
+        {selectedSubject && (
+          <>
+            <ChevronRight className="w-3 h-3 flex-shrink-0" />
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedFilter("all");
+                setActiveFolderId(null);
+              }}
+              className="font-medium hover:text-foreground transition-colors truncate max-w-[10rem]"
+            >
+              {selectedSubject}
+            </button>
+          </>
+        )}
+        {breadcrumbFilterLabel && (
+          <>
+            <ChevronRight className="w-3 h-3 flex-shrink-0" />
+            <button
+              type="button"
+              onClick={() => setActiveFolderId(null)}
+              className="font-medium hover:text-foreground transition-colors"
+            >
+              {breadcrumbFilterLabel}
+            </button>
+          </>
+        )}
+        {breadcrumbFolderLabel && (
+          <>
+            <ChevronRight className="w-3 h-3 flex-shrink-0" />
+            <span className="font-semibold text-foreground truncate max-w-[12rem]">
+              {breadcrumbFolderLabel}
+            </span>
+          </>
+        )}
+        <span className="hidden sm:inline mx-2 text-border">|</span>
+        <Link
+          href={`/syllabus?branch=${branch}&semester=${semester}`}
+          className="hidden sm:inline hover:text-foreground transition-colors"
+        >
+          Syllabus
+        </Link>
+        <span className="hidden sm:inline text-border">·</span>
+        <Link
+          href={`/ask?branch=${branch}&semester=${semester}`}
+          className="hidden sm:inline hover:text-foreground transition-colors"
+        >
+          Ask AI
+        </Link>
+      </nav>
 
       <NotesDisclaimer className="mb-8" />
 
@@ -534,7 +679,6 @@ export default function ResourcesClient({
         </div>
       ) : (
         <div className="flex flex-col md:flex-row gap-8 items-start">
-          {/* ── Sidebar: Subject list ── */}
           <div className="w-full md:w-60 shrink-0 border border-border rounded-xl bg-card shadow-sm overflow-hidden md:sticky md:top-24 z-10">
             <div className="px-4 py-3 border-b border-border bg-surface/50 flex items-center justify-between">
               <h3 className="font-semibold text-xs uppercase tracking-wider text-muted">
@@ -591,7 +735,6 @@ export default function ResourcesClient({
             </div>
           </div>
 
-          {/* ── Content area ── */}
           <div className="flex-1 w-full min-w-0 relative">
             {(isSubjectPending || isScopeLoading) && (
               <div className="absolute inset-0 z-20 rounded-2xl bg-background/55 backdrop-blur-[1px] flex flex-col items-center justify-center gap-3">
@@ -610,33 +753,41 @@ export default function ResourcesClient({
                 transition={{ duration: 0.18 }}
                 className="space-y-8"
               >
-                {/* Subject header + compact filter pills */}
                 <div className="flex flex-col gap-4 border-b border-border pb-5">
-                  <div className="flex items-center gap-3">
-                    <h2 className="text-xl font-bold text-foreground tracking-tight">
-                      {selectedSubject}
-                    </h2>
-                    {(searchQuery || selectedFilter !== "all") && (
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-medium text-muted px-2 py-0.5 bg-surface border border-border rounded-md">
-                          {filteredResources.length}{" "}
-                          {filteredResources.length !== 1 ? "results" : "result"}
-                        </span>
-                        <button
-                          onClick={() => {
-                            setSearchQuery("");
-                            setAiSearchQuery("");
-                            setSelectedFilter("all");
-                          }}
-                          className="text-xs font-semibold text-foreground hover:text-muted transition-colors underline underline-offset-4"
-                        >
-                          Clear filters
-                        </button>
-                      </div>
+                  <div className="flex flex-col gap-1.5">
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <h2 className="text-xl font-bold text-foreground tracking-tight">
+                        {selectedSubject}
+                      </h2>
+                      {(searchQuery || selectedFilter !== "all") && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-medium text-muted px-2 py-0.5 bg-surface border border-border rounded-md">
+                            {filteredResources.length}{" "}
+                            {filteredResources.length !== 1
+                              ? "results"
+                              : "result"}
+                          </span>
+                          <button
+                            onClick={() => {
+                              setSearchQuery("");
+                              setAiSearchQuery("");
+                              setSelectedFilter("all");
+                              setActiveFolderId(null);
+                            }}
+                            className="text-xs font-semibold text-foreground hover:text-muted transition-colors underline underline-offset-4"
+                          >
+                            Clear filters
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                    {summaryHint && (
+                      <p className="text-xs text-muted font-medium">
+                        {summaryHint}
+                      </p>
                     )}
                   </div>
 
-                  {/* Compact filter pills — scrollable on mobile */}
                   <div
                     key={selectedSubject}
                     className="flex gap-1.5 overflow-x-auto pb-1 -mb-1 scrollbar-none relative"
@@ -644,11 +795,14 @@ export default function ResourcesClient({
                     {RESOURCE_FILTERS.map(({ value, label, Icon }) => {
                       const count = filterCounts[value] ?? 0;
                       const active = selectedFilter === value;
-                      if (value !== "all" && count === 0) return null; // Hide empty filters
+                      if (value !== "all" && count === 0) return null;
                       return (
                         <button
                           key={value}
-                          onClick={() => setSelectedFilter(value)}
+                          onClick={() => {
+                            setSelectedFilter(value);
+                            setActiveFolderId(null);
+                          }}
                           className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[11px] font-medium transition-all whitespace-nowrap flex-shrink-0 relative ${
                             active
                               ? "border-transparent text-background shadow-sm"
@@ -695,7 +849,6 @@ export default function ResourcesClient({
                   </div>
                 ) : (
                   <div className="space-y-8">
-                    {/* Intelligent Content Search Results */}
                     {contentResults.length > 0 && (
                       <div className="space-y-4 bg-surface/40 border border-border rounded-xl p-5 shadow-sm overflow-hidden">
                         <div className="flex items-center gap-2.5 border-b border-border pb-3">
@@ -709,6 +862,7 @@ export default function ResourcesClient({
                             <p className="text-[10px] font-medium text-muted">
                               AI Semantic Search · {contentResults.length}{" "}
                               snippets
+                              {isSearchingContent ? " · searching…" : ""}
                             </p>
                           </div>
                         </div>
@@ -728,7 +882,10 @@ export default function ResourcesClient({
                                 <span className="text-[10px] font-medium text-muted bg-surface border border-border px-2 py-0.5 rounded-md">
                                   {result.subject_name}
                                 </span>
-                                <h4 className="text-sm font-medium text-foreground mt-2 mb-2 line-clamp-1 group-hover:text-primary transition-colors" title={result.title}>
+                                <h4
+                                  className="text-sm font-medium text-foreground mt-2 mb-2 line-clamp-1 group-hover:text-primary transition-colors"
+                                  title={result.title}
+                                >
                                   {cleanResourceTitle(result.title)}
                                 </h4>
                                 <div className="border-l-2 border-border-strong pl-3 text-xs text-muted leading-relaxed font-mono line-clamp-3">
@@ -745,21 +902,101 @@ export default function ResourcesClient({
                       </div>
                     )}
 
-                    {/* Resource sections — organized by type */}
-                    {SECTION_CONFIG.map((section) => (
+                    {showNotes && (
                       <ResourceSection
-                        key={section.category}
-                        title={section.title}
-                        icon={section.icon}
-                        accentColor={section.accentColor}
-                        items={filteredResources.filter(
-                          (r) => r.category === section.category,
+                        title="Notes"
+                        icon={<FileText className="w-3.5 h-3.5" />}
+                        accentColor="var(--accent-notes)"
+                        folders={notesFolders}
+                        onOpenResource={openResource}
+                        onSummarize={setSummarizingResource}
+                        activeFolderId={activeFolderId}
+                        onFolderChange={handleFolderChange}
+                        highlightFileId={viewerResource?.id}
+                      />
+                    )}
+
+                    {showQb && qbItems.length > 0 && (
+                      <ResourceSection
+                        title="Question Banks"
+                        icon={<BookOpenCheck className="w-3.5 h-3.5" />}
+                        accentColor="var(--accent-qb)"
+                        items={qbItems.filter(
+                          (r) => r.category === "question-bank",
                         )}
                         onOpenResource={openResource}
                         onSummarize={setSummarizingResource}
-                        relatedCodesById={relatedCodesById}
                       />
-                    ))}
+                    )}
+
+                    {showQb &&
+                      qbItems.some(
+                        (r) => r.category === "solved-question-bank",
+                      ) && (
+                        <ResourceSection
+                          title="Solved Question Banks"
+                          icon={<CheckCircle2 className="w-3.5 h-3.5" />}
+                          accentColor="var(--accent-qb-solved)"
+                          items={qbItems.filter(
+                            (r) => r.category === "solved-question-bank",
+                          )}
+                          onOpenResource={openResource}
+                          onSummarize={setSummarizingResource}
+                        />
+                      )}
+
+                    {showPpt && (
+                      <ResourceSection
+                        title="Presentations"
+                        icon={<FileSpreadsheet className="w-3.5 h-3.5" />}
+                        accentColor="var(--accent-ppt)"
+                        folders={pptFolders}
+                        onOpenResource={openResource}
+                        onSummarize={setSummarizingResource}
+                        activeFolderId={activeFolderId}
+                        onFolderChange={handleFolderChange}
+                        highlightFileId={viewerResource?.id}
+                      />
+                    )}
+
+                    {showPyq && (
+                      <ResourceSection
+                        title="Previous Year Questions"
+                        icon={<FileText className="w-3.5 h-3.5" />}
+                        accentColor="var(--accent-pyq)"
+                        folders={pyqFolders}
+                        onOpenResource={openResource}
+                        onSummarize={setSummarizingResource}
+                        activeFolderId={activeFolderId}
+                        onFolderChange={handleFolderChange}
+                        highlightFileId={viewerResource?.id}
+                      />
+                    )}
+
+                    {showAssignments && assignmentFolders.length > 0 && (
+                      <ResourceSection
+                        title="Assignments"
+                        icon={<ClipboardList className="w-3.5 h-3.5" />}
+                        accentColor="var(--accent-codes)"
+                        folders={assignmentFolders}
+                        onOpenResource={openResource}
+                        onSummarize={setSummarizingResource}
+                        activeFolderId={activeFolderId}
+                        onFolderChange={handleFolderChange}
+                        highlightFileId={viewerResource?.id}
+                      />
+                    )}
+
+                    {showOther && otherItems.length > 0 && (
+                      <ResourceSection
+                        title="Other Resources"
+                        icon={<HardDrive className="w-3.5 h-3.5" />}
+                        accentColor="var(--accent-other)"
+                        items={otherItems}
+                        onOpenResource={openResource}
+                        onSummarize={setSummarizingResource}
+                      />
+                    )}
                   </div>
                 )}
               </motion.div>
@@ -782,9 +1019,7 @@ export default function ResourcesClient({
         <ResourceViewer
           resource={viewerResource}
           onClose={closeViewer}
-          relatedCodes={viewerRelatedCodes}
-          relatedWriteups={viewerRelatedWriteups}
-          relatedDatasets={viewerRelatedDatasets}
+          assignmentSiblings={viewerSiblings}
           onOpenRelated={openResource}
         />
       )}

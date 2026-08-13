@@ -27,13 +27,23 @@ import { motion } from "framer-motion";
 import { cleanResourceTitle, shortCodeLabel } from "@/lib/titleUtils";
 import NotebookViewer from "@/components/NotebookViewer";
 import CsvPreview from "@/components/CsvPreview";
+import {
+  folderIdForResource,
+  folderLabelFromId,
+  getResourceFileRole,
+} from "@/lib/resourceGroups";
 
 interface ResourceViewerProps {
   resource: ResourceItem;
   onClose: () => void;
+  /** @deprecated Prefer assignmentSiblings */
   relatedCodes?: ResourceItem[];
+  /** @deprecated Prefer assignmentSiblings */
   relatedWriteups?: ResourceItem[];
+  /** @deprecated Prefer assignmentSiblings */
   relatedDatasets?: ResourceItem[];
+  /** All files in the same assignment (writeup, codes, datasets) */
+  assignmentSiblings?: ResourceItem[];
   onOpenRelated?: (item: ResourceItem) => void;
 }
 
@@ -77,6 +87,7 @@ export default function ResourceViewer({
   relatedCodes = [],
   relatedWriteups = [],
   relatedDatasets = [],
+  assignmentSiblings = [],
   onOpenRelated,
 }: ResourceViewerProps) {
   const extension = getFileExtension(resource.title, resource.file_url);
@@ -114,16 +125,31 @@ export default function ResourceViewer({
           ? FileSpreadsheet
           : FileText;
 
-  const showRelatedCodes =
-    !isCode && !isCsv && !isImage && relatedCodes.length > 0 && !!onOpenRelated;
-  const showRelatedWriteups =
-    (isCode || isCsv || isImage) &&
-    relatedWriteups.length > 0 &&
-    !!onOpenRelated;
-  const showRelatedDatasets =
-    isNotebook && relatedDatasets.length > 0 && !!onOpenRelated;
-  const hasRelatedBar =
-    showRelatedCodes || showRelatedWriteups || showRelatedDatasets;
+  const siblings = useMemo(() => {
+    if (assignmentSiblings.length > 0) return assignmentSiblings;
+    // Fallback: merge legacy related props
+    const seen = new Set<string>();
+    const merged: ResourceItem[] = [];
+    for (const item of [
+      ...relatedWriteups,
+      ...relatedCodes,
+      ...relatedDatasets,
+    ]) {
+      if (seen.has(item.id)) continue;
+      seen.add(item.id);
+      merged.push(item);
+    }
+    return merged;
+  }, [assignmentSiblings, relatedCodes, relatedWriteups, relatedDatasets]);
+
+  const hasRelatedBar = siblings.length > 0 && !!onOpenRelated;
+
+  const folderLabel = folderLabelFromId(folderIdForResource(resource));
+  const trailParts = [
+    resource.subject_name,
+    folderLabel,
+    cleanResourceTitle(resource.title),
+  ].filter(Boolean) as string[];
 
   const containerRef = useRef<HTMLDivElement>(null);
   const downloadRef = useRef<HTMLAnchorElement>(null);
@@ -298,6 +324,14 @@ export default function ResourceViewer({
           <FileIcon className="h-5 w-5 text-foreground" />
         </div>
         <div className="min-w-0">
+          <p className="text-[10px] text-muted truncate mb-0.5" title={trailParts.join(" / ")}>
+            {trailParts.slice(0, -1).map((part, i) => (
+              <span key={`${part}-${i}`}>
+                {i > 0 && <span className="mx-1 opacity-50">/</span>}
+                {part}
+              </span>
+            ))}
+          </p>
           <h2
             id="viewer-title"
             className="truncate text-sm font-bold text-foreground"
@@ -552,32 +586,12 @@ export default function ResourceViewer({
           className="absolute bottom-4 inset-x-0 z-10 flex justify-center px-4 pointer-events-none"
         >
           <div className="pointer-events-auto flex flex-col sm:flex-row items-stretch sm:items-center gap-2 bg-card border border-border rounded-2xl pl-3 pr-1.5 py-1.5 shadow-popover max-w-[min(96vw,48rem)]">
-            {showRelatedCodes && (
-              <RelatedChipRow
-                label="Related code"
-                icon={<Code2 className="h-3.5 w-3.5 text-muted" />}
-                items={relatedCodes}
-                onOpenRelated={onOpenRelated}
-                codeStyle
-              />
-            )}
-            {showRelatedWriteups && (
-              <RelatedChipRow
-                label="Related writeup"
-                icon={<FileText className="h-3.5 w-3.5 text-muted" />}
-                items={relatedWriteups}
-                onOpenRelated={onOpenRelated}
-              />
-            )}
-            {showRelatedDatasets && (
-              <RelatedChipRow
-                label="Dataset"
-                icon={<Table2 className="h-3.5 w-3.5 text-muted" />}
-                items={relatedDatasets}
-                onOpenRelated={onOpenRelated}
-                datasetStyle
-              />
-            )}
+            <RelatedChipRow
+              label={folderLabel ? `This assignment` : "Related files"}
+              icon={<Code2 className="h-3.5 w-3.5 text-muted" />}
+              items={siblings}
+              onOpenRelated={onOpenRelated}
+            />
           </div>
         </motion.div>
       )}
@@ -588,20 +602,33 @@ export default function ResourceViewer({
   return createPortal(content, document.body);
 }
 
+function siblingIcon(item: ResourceItem) {
+  const role = getResourceFileRole(item);
+  if (role === "dataset") return <Table2 className="h-3.5 w-3.5 text-muted shrink-0" />;
+  if (role === "writeup") return <FileText className="h-3.5 w-3.5 text-muted shrink-0" />;
+  if (role === "notebook" || role === "code")
+    return <Code2 className="h-3.5 w-3.5 text-muted shrink-0" />;
+  return <FileText className="h-3.5 w-3.5 text-muted shrink-0" />;
+}
+
+function siblingLabel(item: ResourceItem): string {
+  const role = getResourceFileRole(item);
+  if (role === "dataset" || role === "notebook" || role === "code") {
+    return shortCodeLabel(item.title);
+  }
+  return cleanResourceTitle(item.title);
+}
+
 function RelatedChipRow({
   label,
   icon,
   items,
   onOpenRelated,
-  codeStyle,
-  datasetStyle,
 }: {
   label: string;
   icon: ReactNode;
   items: ResourceItem[];
   onOpenRelated?: (item: ResourceItem) => void;
-  codeStyle?: boolean;
-  datasetStyle?: boolean;
 }) {
   return (
     <div className="flex items-center gap-2 min-w-0">
@@ -621,18 +648,8 @@ function RelatedChipRow({
             className="inline-flex items-center gap-1.5 h-8 px-3 rounded-xl bg-surface hover:bg-surface-hover border border-border text-xs font-medium text-foreground transition-colors max-w-full leading-none"
             title={item.title}
           >
-            {datasetStyle ? (
-              <Table2 className="h-3.5 w-3.5 text-muted shrink-0" />
-            ) : codeStyle ? (
-              <Code2 className="h-3.5 w-3.5 text-muted shrink-0" />
-            ) : (
-              <FileText className="h-3.5 w-3.5 text-muted shrink-0" />
-            )}
-            <span className="truncate">
-              {codeStyle || datasetStyle
-                ? shortCodeLabel(item.title)
-                : cleanResourceTitle(item.title)}
-            </span>
+            {siblingIcon(item)}
+            <span className="truncate">{siblingLabel(item)}</span>
           </button>
         ))}
       </div>

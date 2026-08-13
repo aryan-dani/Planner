@@ -35,6 +35,7 @@ interface CommandItem {
   action: () => void;
   shortcut?: string;
   badge?: string;
+  hint?: string;
 }
 
 function highlightMatch(text: string, query: string) {
@@ -317,6 +318,7 @@ export default function CommandPalette() {
       category: 'Subjects',
       icon: Folder,
       badge: `${branch} Sem ${semester}`,
+      hint: 'Open vault · notes, assignments',
       action: () => {
         const params = new URLSearchParams({
           branch,
@@ -504,6 +506,11 @@ export default function CommandPalette() {
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="truncate">{highlightMatch(item.title, query)}</p>
+                            {item.hint && (
+                              <p className="text-[10px] text-muted truncate mt-0.5 font-medium">
+                                {item.hint}
+                              </p>
+                            )}
                           </div>
                           {item.badge && (
                             <span

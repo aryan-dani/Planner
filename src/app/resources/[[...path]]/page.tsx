@@ -2,7 +2,7 @@ import { getResourcesFromDB } from "@/lib/dataFetcher";
 
 import ResourcesClient from "@/components/ResourcesClient";
 import { Suspense } from "react";
-import { parseResourceFilter } from "@/lib/resourceUrl";
+import { parseResourceFilter, parseResourceFolder } from "@/lib/resourceUrl";
 import PageSkeleton from "@/components/PageSkeleton";
 import { resolveWorkspace } from "@/lib/workspace";
 
@@ -15,6 +15,7 @@ interface PageProps {
     subject?: string;
     filter?: string;
     view?: string;
+    folder?: string;
   }>;
 }
 
@@ -24,6 +25,7 @@ export default async function ResourcesPage({ searchParams }: PageProps) {
   const initialSubject = params.subject || null;
   const initialFilter = parseResourceFilter(params.filter);
   const initialView = params.view || null;
+  const initialFolder = parseResourceFolder(params.folder);
 
   const resources = await getResourcesFromDB(branch, semester);
 
@@ -36,6 +38,7 @@ export default async function ResourcesPage({ searchParams }: PageProps) {
         initialSubject={initialSubject}
         initialFilter={initialFilter}
         initialView={initialView}
+        initialFolder={initialFolder}
       />
     </Suspense>
   );

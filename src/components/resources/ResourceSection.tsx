@@ -1,47 +1,137 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { ChevronDown } from 'lucide-react';
-import { ResourceItem } from '@/lib/dataFetcher';
-import { motion, AnimatePresence } from 'framer-motion';
-import ResourceCard from './ResourceCard';
-import { NotesDisclaimer } from '../NotesDisclaimer';
+import { useState, useEffect, useCallback } from "react";
+import { ChevronDown } from "lucide-react";
+import { ResourceItem } from "@/lib/dataFetcher";
+import {
+  ResourceFolderNode,
+  countFolderFiles,
+} from "@/lib/resourceGroups";
+import { motion, AnimatePresence } from "framer-motion";
+import ResourceCard from "./ResourceCard";
+import ResourceFolder from "./ResourceFolder";
+import { NotesDisclaimer } from "../NotesDisclaimer";
 
 interface ResourceSectionProps {
   title: string;
   icon: React.ReactNode;
   accentColor: string;
-  items: ResourceItem[];
+  /** Flat list fallback when folders are not provided */
+  items?: ResourceItem[];
+  /** Hierarchical folder tree (preferred) */
+  folders?: ResourceFolderNode[];
   onOpenResource: (item: ResourceItem) => void;
   onSummarize: (item: ResourceItem) => void;
   defaultExpanded?: boolean;
   relatedCodesById?: Record<string, ResourceItem[]>;
+  /** Folder id to keep expanded / scroll into view */
+  activeFolderId?: string | null;
+  onFolderChange?: (folderId: string | null) => void;
+  highlightFileId?: string | null;
+}
+
+function collectExpandDefaults(
+  folders: ResourceFolderNode[],
+  activeFolderId: string | null | undefined,
+): Set<string> {
+  const ids = new Set<string>();
+  // Expand first folder by default when nothing is active
+  if (!activeFolderId && folders.length > 0) {
+    ids.add(folders[0].id);
+  }
+  const walk = (nodes: ResourceFolderNode[]) => {
+    for (const node of nodes) {
+      if (activeFolderId && (node.id === activeFolderId || hasDescendant(node, activeFolderId))) {
+        ids.add(node.id);
+      }
+      walk(node.children);
+    }
+  };
+  walk(folders);
+  return ids;
+}
+
+function hasDescendant(node: ResourceFolderNode, id: string): boolean {
+  for (const child of node.children) {
+    if (child.id === id || hasDescendant(child, id)) return true;
+  }
+  return false;
 }
 
 export default function ResourceSection({
   title,
   icon,
   accentColor,
-  items,
+  items = [],
+  folders,
   onOpenResource,
   onSummarize,
   defaultExpanded = true,
   relatedCodesById = {},
+  activeFolderId = null,
+  onFolderChange,
+  highlightFileId = null,
 }: ResourceSectionProps) {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
+  const useFolders = folders && folders.length > 0;
+  const totalCount = useFolders
+    ? folders.reduce((sum, f) => sum + countFolderFiles(f), 0)
+    : items.length;
 
-  if (items.length === 0) return null;
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(() =>
+    useFolders ? collectExpandDefaults(folders!, activeFolderId) : new Set(),
+  );
+
+  useEffect(() => {
+    if (!useFolders || !folders) return;
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (activeFolderId) {
+        const ensure = (nodes: ResourceFolderNode[]) => {
+          for (const node of nodes) {
+            if (node.id === activeFolderId || hasDescendant(node, activeFolderId)) {
+              next.add(node.id);
+            }
+            ensure(node.children);
+          }
+        };
+        ensure(folders);
+      }
+      return next;
+    });
+  }, [activeFolderId, folders, useFolders]);
+
+  const toggleFolder = useCallback(
+    (folderId: string) => {
+      const wasExpanded = expandedIds.has(folderId);
+      setExpandedIds((prev) => {
+        const next = new Set(prev);
+        if (wasExpanded) next.delete(folderId);
+        else next.add(folderId);
+        return next;
+      });
+      // Parent setState must stay outside the updater (pure) to avoid
+      // "Cannot update a component while rendering a different component".
+      if (wasExpanded) {
+        if (activeFolderId === folderId) onFolderChange?.(null);
+      } else {
+        onFolderChange?.(folderId);
+      }
+    },
+    [activeFolderId, expandedIds, onFolderChange],
+  );
+
+  if (totalCount === 0) return null;
 
   return (
     <div className="space-y-4">
-      {/* Clickable section header */}
       <button
         onClick={() => setIsExpanded(!isExpanded)}
         className="w-full flex items-center gap-3 pb-3 border-b border-border group cursor-pointer select-none"
       >
-        <div 
+        <div
           className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors"
-          style={{ 
+          style={{
             background: `color-mix(in srgb, ${accentColor} 12%, transparent)`,
             color: accentColor,
           }}
@@ -51,28 +141,27 @@ export default function ResourceSection({
         <h3 className="text-xs font-bold uppercase tracking-wider text-foreground">
           {title}
         </h3>
-        <span 
+        <span
           className="text-[10px] font-bold px-2 py-0.5 rounded-md"
           style={{
             background: `color-mix(in srgb, ${accentColor} 10%, transparent)`,
             color: accentColor,
           }}
         >
-          {items.length}
+          {totalCount}
         </span>
-        <ChevronDown 
+        <ChevronDown
           className={`w-4 h-4 ml-auto text-muted group-hover:text-foreground transition-all duration-200 ${
-            isExpanded ? 'rotate-0' : '-rotate-90'
+            isExpanded ? "rotate-0" : "-rotate-90"
           }`}
         />
       </button>
 
-      {/* Collapsible content with animation */}
       <AnimatePresence initial={false}>
         {isExpanded && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
+            animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
             className="overflow-hidden"
@@ -80,33 +169,51 @@ export default function ResourceSection({
             {/notes/i.test(title) && (
               <NotesDisclaimer compact className="mb-3" />
             )}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-px bg-border/60 rounded-xl overflow-hidden border border-border/70 shadow-sm">
-              {items.map((item, index) => (
-                <motion.div
-                  key={item.id}
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ 
-                    duration: 0.22, 
-                    delay: Math.min(index * 0.03, 0.15), 
-                    ease: 'easeOut' 
-                  }}
-                  className="h-full bg-card"
-                  style={{ willChange: 'transform, opacity' }}
-                >
-                  <ResourceCard 
-                    item={item} 
-                    onOpenResource={onOpenResource} 
+
+            {useFolders ? (
+              <div className="rounded-xl border border-border/70 overflow-hidden shadow-sm bg-card">
+                {folders!.map((folder) => (
+                  <ResourceFolder
+                    key={folder.id}
+                    folder={folder}
+                    expanded={expandedIds.has(folder.id)}
+                    onToggle={toggleFolder}
+                    expandedIds={expandedIds}
+                    onOpenResource={onOpenResource}
                     onSummarize={onSummarize}
-                    relatedCodes={relatedCodesById[item.id]}
+                    highlightFileId={highlightFileId}
+                    scrollToId={activeFolderId}
                   />
-                </motion.div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-px bg-border/60 rounded-xl overflow-hidden border border-border/70 shadow-sm">
+                {items.map((item, index) => (
+                  <motion.div
+                    key={item.id}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{
+                      duration: 0.22,
+                      delay: Math.min(index * 0.03, 0.15),
+                      ease: "easeOut",
+                    }}
+                    className="h-full bg-card"
+                    style={{ willChange: "transform, opacity" }}
+                  >
+                    <ResourceCard
+                      item={item}
+                      onOpenResource={onOpenResource}
+                      onSummarize={onSummarize}
+                      relatedCodes={relatedCodesById[item.id]}
+                    />
+                  </motion.div>
+                ))}
+              </div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
     </div>
   );
 }
-
