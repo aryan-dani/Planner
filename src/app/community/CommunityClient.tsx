@@ -21,6 +21,10 @@ import {
   Clock,
   ExternalLink,
   MessageCircle,
+  Megaphone,
+  MessagesSquare,
+  Bug,
+  Pin,
 } from "lucide-react";
 import { logActivity } from "@/lib/activity";
 import { toast } from "sonner";
@@ -29,11 +33,30 @@ const WHATSAPP_COMMUNITY_URL =
   "https://chat.whatsapp.com/IptJTcvj4F848iY2riZ3YZ";
 
 const WHATSAPP_GROUPS = [
-  "Announcements",
-  "Student Hub",
-  "Academic Help",
-  "Feedback & Bugs",
-  "General",
+  {
+    name: "Announcements",
+    blurb: "Official updates, feature launches, and the pinned community guide.",
+    tip: "Start here",
+    Icon: Megaphone,
+  },
+  {
+    name: "General",
+    blurb: "Everyday chat with peers. New here? Check Announcements first.",
+    tip: "Hang out",
+    Icon: MessagesSquare,
+  },
+  {
+    name: "Academic Help",
+    blurb: "Syllabus doubts, resources, labs, and exam-season questions.",
+    tip: "Ask peers",
+    Icon: BookOpen,
+  },
+  {
+    name: "Feedback & Bugs",
+    blurb: "Report broken previews, request features, or flag site issues.",
+    tip: "Improve Utility",
+    Icon: Bug,
+  },
 ] as const;
 
 interface CommunityDeck {
@@ -252,39 +275,88 @@ export default function CommunityClient({
   return (
     <div className="flex-1 w-full max-w-7xl mx-auto px-6 py-8 min-h-[80vh]">
       {/* WhatsApp community */}
-      <section className="mb-10 border border-border bg-card rounded-lg p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2 mb-2">
-            <MessageCircle className="w-4 h-4 text-foreground shrink-0" />
-            <h2 className="text-sm font-semibold text-foreground">
-              Utility OS · MIT-WPU on WhatsApp
-            </h2>
+      <section className="mb-12 space-y-5">
+        <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-5 border-b border-border pb-6">
+          <div className="min-w-0 max-w-2xl">
+            <div className="flex items-center gap-2 mb-2">
+              <MessageCircle className="w-4 h-4 text-foreground shrink-0" />
+              <p className="text-[11px] font-bold uppercase tracking-widest text-muted">
+                WhatsApp community
+              </p>
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+              Utility OS · MIT-WPU
+            </h1>
+            <p className="text-sm text-muted mt-2 leading-relaxed">
+              One community invite unlocks four rooms. Pick what you need —
+              updates, casual chat, academic help, or product feedback.
+            </p>
           </div>
-          <p className="text-sm text-foreground-subtle leading-relaxed max-w-xl mb-3">
-            Join the WhatsApp community for announcements, academic help,
-            feedback, and the student hub.
-          </p>
-          <p className="text-xs text-muted">
-            Groups: {WHATSAPP_GROUPS.join(" · ")}
-          </p>
+          <a
+            href={WHATSAPP_COMMUNITY_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center justify-center gap-2 shrink-0 px-5 py-2.5 bg-foreground text-background text-sm font-semibold rounded-xl hover:opacity-90 transition-opacity focus-visible:outline-offset-2"
+          >
+            Join on WhatsApp
+            <ExternalLink className="w-3.5 h-3.5" />
+          </a>
         </div>
-        <a
-          href={WHATSAPP_COMMUNITY_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center justify-center gap-2 shrink-0 px-5 py-2.5 bg-foreground text-background text-sm font-medium rounded-lg hover:opacity-90"
-        >
-          Join WhatsApp
-          <ExternalLink className="w-3.5 h-3.5" />
-        </a>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {WHATSAPP_GROUPS.map(({ name, blurb, tip, Icon }) => (
+            <a
+              key={name}
+              href={WHATSAPP_COMMUNITY_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="group flex gap-4 rounded-xl border border-border bg-card p-4 sm:p-5 text-left transition-colors hover:bg-surface/60 hover:border-border-strong focus-visible:outline-offset-2"
+            >
+              <div className="w-10 h-10 rounded-xl border border-border bg-surface flex items-center justify-center shrink-0 text-foreground group-hover:border-foreground/30 transition-colors">
+                <Icon className="w-[18px] h-[18px]" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <h2 className="text-sm font-bold text-foreground">{name}</h2>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-muted shrink-0">
+                    {tip}
+                  </span>
+                </div>
+                <p className="text-xs text-muted leading-relaxed">{blurb}</p>
+              </div>
+            </a>
+          ))}
+        </div>
+
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 rounded-xl border border-border bg-surface/40 px-4 py-3.5">
+          <div className="flex items-start gap-2.5 min-w-0 flex-1">
+            <Pin className="w-4 h-4 text-muted shrink-0 mt-0.5" />
+            <p className="text-xs text-muted leading-relaxed">
+              <span className="font-semibold text-foreground">New members:</span>{" "}
+              WhatsApp often hides messages posted before you joined. Open{" "}
+              <span className="font-semibold text-foreground">Announcements</span>{" "}
+              and read the pinned guide — that&apos;s the standing reference, not
+              the dated update posts.
+            </p>
+          </div>
+          <a
+            href={WHATSAPP_COMMUNITY_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center justify-center gap-1.5 shrink-0 text-xs font-semibold text-foreground underline underline-offset-4 hover:text-muted transition-colors"
+          >
+            Open community
+            <ArrowRight className="w-3.5 h-3.5" />
+          </a>
+        </div>
       </section>
 
-      {/* Header */}
+      {/* Decks header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 border-b border-border pb-6">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">
+          <h2 className="text-2xl font-bold tracking-tight text-foreground">
             Community Study Decks
-          </h1>
+          </h2>
           <p className="text-muted text-sm mt-1">
             Browse, upvote, and study flashcard decks shared by peer scholars
             across all engineering branches.
