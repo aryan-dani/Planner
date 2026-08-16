@@ -7,6 +7,7 @@ import {
   Brain,
   ShieldCheck,
   Layers,
+  Building2,
 } from "lucide-react";
 import AuthButtons from "./AuthButtons";
 import HomeHeatmap from "./HomeHeatmap";
@@ -60,6 +61,14 @@ const FEATURES = [
     Icon: Layers,
     description:
       "Active Leitner spacing system. Review cards to lock them in long-term memory.",
+  },
+  {
+    href: "/campus",
+    label: "Campus",
+    number: "07",
+    Icon: Building2,
+    description:
+      "Faculty seating, staff directory, and lab registry — live from campus data.",
   },
 ];
 

@@ -39,6 +39,7 @@ function FooterInner() {
                 <Link href={getLinkWithParams('/syllabus')} className="text-sm text-muted hover:text-foreground transition-colors">Syllabus</Link>
                 <Link href={getLinkWithParams('/resources')} className="text-sm text-muted hover:text-foreground transition-colors">Resources</Link>
                 <Link href={getLinkWithParams('/ask')} className="text-sm text-muted hover:text-foreground transition-colors">Ask AI</Link>
+                <Link href="/campus" className="text-sm text-muted hover:text-foreground transition-colors">Campus</Link>
               </nav>
             </div>
             <div className="space-y-4">

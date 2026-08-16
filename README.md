@@ -54,6 +54,11 @@ GROQ_API_KEY=
 # Protect /api/webhooks/storage-sync (required for Vercel Cron in production)
 CRON_SECRET=
 
+# Ishani campus API (faculty seating, directory, labs) — server-only
+# Local: http://127.0.0.1:8001
+# Production (Vercel): https://api.aryandani.com  — same host as Ishani Pages (VITE_API_URL)
+ISHANI_API_URL=
+
 # Preferred for hosted Sync Now: dispatch GitHub Actions (workflow + repo secrets)
 GH_PAT=
 ```
@@ -69,6 +74,7 @@ Set these on the Vercel project for **Production**, then redeploy:
 | `NEXT_PUBLIC_ADMIN_EMAILS` | Admin UI + Sync Now button |
 | `GH_PAT` (workflow scope) | **Recommended** — Sync Now dispatches `storage-sync.yml` (sync + index) |
 | `CRON_SECRET` | Authorizes the daily Vercel cron hit |
+| `ISHANI_API_URL` | Campus seating / directory / labs — set to `https://api.aryandani.com` (Ishani’s public FastAPI) |
 
 Without `GOOGLE_DRIVE_FOLDER_ID` **and** without `GH_PAT`, Sync Now returns **503** instead of a fake success.
 

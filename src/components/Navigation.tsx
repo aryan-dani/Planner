@@ -26,6 +26,7 @@ import {
   Timer,
   GraduationCap,
   Heart,
+  Building2,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import dynamic from "next/dynamic";
@@ -60,6 +61,10 @@ const ACADEMIC_LINKS: NavLinkItem[] = [
   { href: "/resources", label: "Resources", Icon: FileText, featured: true, desc: "Subject files — notes are reference-only" },
   { href: "/ask", label: "Ask AI", Icon: Brain, desc: "RAG-powered academic assistant" },
   { href: "/syllabus", label: "Syllabus", Icon: BookOpen, desc: "Course syllabus tracker" },
+];
+
+const CAMPUS_LINKS: NavLinkItem[] = [
+  { href: "/campus", label: "Campus", Icon: Building2, desc: "Seating, directory, and labs" },
 ];
 
 const PRODUCTIVITY_LINKS: NavLinkItem[] = [
@@ -522,6 +527,20 @@ function NavigationInner() {
             )}
             <div className="space-y-0.5">
               {ACADEMIC_LINKS.map(renderNavLink)}
+            </div>
+          </div>
+
+          {/* Section: Campus */}
+          <div className="space-y-1">
+            {!isCollapsed ? (
+              <p className="px-3 text-[9px] font-extrabold tracking-widest uppercase text-muted/70 mb-1.5">
+                Campus
+              </p>
+            ) : (
+              <div className="border-t border-border/40 my-2" />
+            )}
+            <div className="space-y-0.5">
+              {CAMPUS_LINKS.map(renderNavLink)}
             </div>
           </div>
 

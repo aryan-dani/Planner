@@ -20,6 +20,10 @@ import {
   X,
   ArrowRight,
   Users,
+  Building2,
+  MapPin,
+  BookUser,
+  FlaskConical,
 } from 'lucide-react';
 import { useAcademicStore } from '../store/academicStore';
 import { db } from '../lib/firebase';
@@ -264,6 +268,47 @@ export default function CommandPalette() {
         badge: 'Social',
         action: () => {
           navigate('/community');
+          setCommandPaletteOpen(false);
+        },
+      },
+      {
+        id: 'nav-campus',
+        title: 'Campus Hub — Seating, Directory, Labs',
+        category: 'Navigation',
+        icon: Building2,
+        badge: 'Campus',
+        action: () => {
+          navigate('/campus');
+          setCommandPaletteOpen(false);
+        },
+      },
+      {
+        id: 'nav-campus-seating',
+        title: 'Faculty Seating Chart',
+        category: 'Navigation',
+        icon: MapPin,
+        action: () => {
+          navigate('/campus/seating');
+          setCommandPaletteOpen(false);
+        },
+      },
+      {
+        id: 'nav-campus-directory',
+        title: 'Faculty Directory',
+        category: 'Navigation',
+        icon: BookUser,
+        action: () => {
+          navigate('/campus/directory');
+          setCommandPaletteOpen(false);
+        },
+      },
+      {
+        id: 'nav-campus-labs',
+        title: 'Campus Lab Registry',
+        category: 'Navigation',
+        icon: FlaskConical,
+        action: () => {
+          navigate('/campus/labs');
           setCommandPaletteOpen(false);
         },
       },
