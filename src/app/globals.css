@@ -155,11 +155,36 @@ body {
 }
 
 /* ── Focus Ring ───────────────────────────────────────────────────────────── */
+/* Quiet keyboard focus only — no mouse click outlines, no pulsing rings */
+
+:focus {
+  outline: none;
+}
 
 :focus-visible {
-  outline: 2px solid rgb(var(--primary));
+  outline: 2px solid rgb(var(--foreground) / 0.45);
+  outline-offset: 2px;
+  border-radius: inherit;
+}
+
+/* Inputs/selects: prefer border + soft glow over a second outline */
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: none;
+  border-color: rgb(var(--foreground) / 0.45);
+  box-shadow: 0 0 0 3px rgb(var(--foreground) / 0.08);
+}
+
+button:focus-visible,
+a:focus-visible,
+[role="button"]:focus-visible,
+[role="tab"]:focus-visible,
+summary:focus-visible {
+  outline: 2px solid rgb(var(--foreground) / 0.4);
   outline-offset: 2px;
 }
+
 
 /* ── Selection ────────────────────────────────────────────────────────────── */
 
@@ -192,17 +217,83 @@ h1, h2, h3, h4, h5, h6 {
 
 /* ── Utilities ────────────────────────────────────────────────────────────── */
 
-/* Shimmer loading skeleton */
-.skeleton {
-  background: linear-gradient(
-    90deg,
-    rgb(var(--surface)) 25%,
-    rgb(var(--surface-hover)) 50%,
-    rgb(var(--surface)) 75%
-  );
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
+/* Shimmer loading skeleton — visible sweep so loaders never look frozen */
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
 }
+
+@keyframes skeletonPulse {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  background-color: rgb(var(--surface));
+  background-image: linear-gradient(
+    105deg,
+    transparent 0%,
+    transparent 35%,
+    rgb(var(--foreground) / 0.08) 50%,
+    transparent 65%,
+    transparent 100%
+  );
+  background-size: 220% 100%;
+  background-repeat: no-repeat;
+  animation: shimmer 1.35s ease-in-out infinite;
+  will-change: background-position;
+}
+
+.dark .skeleton {
+  background-image: linear-gradient(
+    105deg,
+    transparent 0%,
+    transparent 35%,
+    rgb(var(--foreground) / 0.14) 50%,
+    transparent 65%,
+    transparent 100%
+  );
+}
+
+/* Staggered rows feel alive without looking chaotic */
+.skeleton-stack > .skeleton:nth-child(1) { animation-delay: 0ms; }
+.skeleton-stack > .skeleton:nth-child(2) { animation-delay: 80ms; }
+.skeleton-stack > .skeleton:nth-child(3) { animation-delay: 160ms; }
+.skeleton-stack > .skeleton:nth-child(4) { animation-delay: 240ms; }
+.skeleton-stack > .skeleton:nth-child(5) { animation-delay: 320ms; }
+.skeleton-stack > .skeleton:nth-child(6) { animation-delay: 400ms; }
+.skeleton-stack > .skeleton:nth-child(7) { animation-delay: 480ms; }
+.skeleton-stack > .skeleton:nth-child(8) { animation-delay: 560ms; }
+.skeleton-stack > .skeleton:nth-child(n + 9) { animation-delay: 640ms; }
+
+/* Compact spinner used in overlays / suspense */
+.loading-orb {
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 9999px;
+  border: 2px solid rgb(var(--border));
+  border-top-color: rgb(var(--foreground));
+  animation: spin 0.75s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 
 /* Performance & Interaction Enhancements */
 
@@ -239,7 +330,7 @@ h1, h2, h3, h4, h5, h6 {
 
 /* Reduced Motion media queries */
 @media (prefers-reduced-motion: reduce) {
-  *:not(.animate-spin):not(.animate-pulse) {
+  *:not(.animate-spin):not(.animate-pulse):not(.skeleton):not(.loading-orb) {
     animation-delay: -1ms !important;
     animation-duration: 1ms !important;
     animation-iteration-count: 1 !important;
@@ -249,6 +340,21 @@ h1, h2, h3, h4, h5, h6 {
     transition-delay: 0s !important;
     will-change: auto !important;
   }
+
+  /* Keep a gentle opacity pulse so loaders still feel alive */
+  .skeleton {
+    background-image: none !important;
+    animation: skeletonPulse 1.4s ease-in-out infinite !important;
+    animation-duration: 1.4s !important;
+    animation-iteration-count: infinite !important;
+  }
+
+  .loading-orb {
+    animation: spin 1.2s linear infinite !important;
+    animation-duration: 1.2s !important;
+    animation-iteration-count: infinite !important;
+  }
+
   .gpu-accelerated, .resource-card-hover {
     transform: none !important;
     transition: none !important;
@@ -309,22 +415,14 @@ h1, h2, h3, h4, h5, h6 {
   animation: fadeIn 0.18s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-/* Premium Focus ring animation */
-@keyframes focusRingPulse {
-  0%, 100% { 
-    box-shadow: 0 0 0 0px rgb(var(--foreground) / 0);
-    border-color: rgb(var(--border));
-  }
-  50% { 
-    box-shadow: 0 0 0 3px rgb(var(--foreground) / 0.1);
-    border-color: rgb(var(--foreground) / 0.4);
-  }
-}
-
+/* Static focus treatment (no looping pulse — that felt broken) */
 .focus-premium:focus-within,
-.focus-premium:focus {
-  animation: focusRingPulse 2s infinite ease-in-out;
+.focus-premium:focus,
+.focus-premium:focus-visible {
+  border-color: rgb(var(--foreground) / 0.45) !important;
+  box-shadow: 0 0 0 3px rgb(var(--foreground) / 0.08) !important;
   outline: none !important;
+  animation: none !important;
 }
 
 /* Custom range slider styling */
@@ -496,10 +594,11 @@ input[type="range"].accent-slider::-moz-range-thumb:hover {
 
 /* High-end input styling with smooth outer border glows */
 .input-premium-focus {
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
-.input-premium-focus:focus {
-  border-color: rgb(var(--foreground)) !important;
+.input-premium-focus:focus,
+.input-premium-focus:focus-visible {
+  border-color: rgb(var(--foreground) / 0.45) !important;
   box-shadow: 0 0 0 3px rgb(var(--foreground) / 0.08) !important;
   outline: none !important;
 }

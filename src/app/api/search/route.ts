@@ -1,17 +1,21 @@
 import { performRAGSearch } from '@/lib/ragSearch';
 import { NextResponse } from 'next/server';
+import { isAuthFailure, requireUser } from '@/lib/apiAuth';
 import { z } from 'zod';
 
 const searchSchema = z.object({
-  q: z.string().min(2),
+  q: z.string().min(2).max(200),
 });
 
 export async function GET(request: Request) {
+  const auth = await requireUser(request);
+  if (isAuthFailure(auth)) return auth;
+
   const { searchParams } = new URL(request.url);
   const query = searchParams.get('q');
 
   const parseResult = searchSchema.safeParse({ q: query });
-  
+
   if (!parseResult.success) {
     return NextResponse.json({ results: [] });
   }
@@ -24,12 +28,15 @@ export async function GET(request: Request) {
       { results },
       {
         headers: {
-          'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=86400',
+          'Cache-Control': 'private, no-store',
         },
-      }
+      },
     );
-  } catch (err: any) {
+  } catch (err) {
     console.error('Search API Error:', err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Failed to search resources' },
+      { status: 500 },
+    );
   }
 }

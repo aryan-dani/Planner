@@ -42,7 +42,7 @@ export async function GET(request: Request) {
         { summary: ai_summary },
         {
           headers: {
-            'Cache-Control': 'public, s-maxage=31536000, stale-while-revalidate=86400',
+            'Cache-Control': 'private, no-store',
           },
         }
       );
@@ -76,7 +76,7 @@ export async function GET(request: Request) {
       { summary: text },
       {
         headers: {
-          'Cache-Control': 'public, s-maxage=31536000, stale-while-revalidate=86400',
+          'Cache-Control': 'private, no-store',
         },
       }
     );

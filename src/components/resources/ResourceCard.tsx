@@ -90,8 +90,16 @@ export default function ResourceCard({
 
   return (
     <div
+      role="button"
+      tabIndex={0}
       onClick={handleOpen}
-      className="group bg-card hover:bg-surface/50 p-5 flex flex-col gap-3.5 text-left cursor-pointer relative overflow-hidden h-full transition-colors duration-200"
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          handleOpen();
+        }
+      }}
+      className="group bg-card hover:bg-surface/50 p-5 flex flex-col gap-3.5 text-left cursor-pointer relative overflow-hidden h-full transition-colors duration-200 w-full focus-visible:outline-offset-2 focus-visible:z-10"
       style={{
         ["--card-accent" as any]: config.color,
       }}

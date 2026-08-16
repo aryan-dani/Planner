@@ -12,15 +12,33 @@ import { z } from 'zod';
 
 const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
+const messagePartSchema = z.object({
+  text: z.string().optional(),
+}).passthrough();
+
+const chatMessageSchema = z.object({
+  role: z.enum(['user', 'assistant', 'system']).optional(),
+  content: z.string().max(8000).optional(),
+  parts: z.array(messagePartSchema).max(50).optional(),
+}).passthrough();
+
 const chatSchema = z.object({
-  messages: z.array(z.any()).nonempty(),
+  messages: z.array(chatMessageSchema).min(1).max(20),
   context: z.object({
-    branch: z.string().optional(),
-    semester: z.number().optional(),
-    subjects: z.array(z.string()).optional(),
-    resourceId: z.string().optional(),
+    branch: z.string().max(32).optional(),
+    semester: z.number().int().min(1).max(8).optional(),
+    subjects: z.array(z.string().max(120)).max(40).optional(),
+    resourceId: z.string().max(128).optional(),
   }).optional(),
 });
+
+function messageText(m: z.infer<typeof chatMessageSchema>): string {
+  if (typeof m.content === 'string' && m.content.trim()) return m.content;
+  if (Array.isArray(m.parts)) {
+    return m.parts.map((p) => p.text || '').join('\n').trim();
+  }
+  return '';
+}
 
 function normalizePrompt(p: string) {
   return p
@@ -74,18 +92,18 @@ export async function POST(req: Request) {
 
   const parseResult = chatSchema.safeParse(body);
   if (!parseResult.success) {
-    return new Response(JSON.stringify({ error: 'Invalid request payload', details: parseResult.error.format() }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify({ error: 'Invalid request payload' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
   }
 
   const { messages, context } = parseResult.data;
 
-  const lastMessage = messages[messages.length - 1]?.content || '';
+  const lastMessage = messageText(messages[messages.length - 1]);
   const branch = context?.branch || DEFAULT_BRANCH;
   const semester = context?.semester || DEFAULT_SEMESTER;
   const subjects = context?.subjects || [];
   const resourceId = context?.resourceId;
 
-  const normalizedPrompt = normalizePrompt(String(lastMessage).trim());
+  const normalizedPrompt = normalizePrompt(lastMessage);
   const cacheKey = buildCacheKey({
     uid: auth.uid,
     prompt: normalizedPrompt,
@@ -121,18 +139,15 @@ export async function POST(req: Request) {
     }
   }
 
-  // RAG: Fetch relevant snippets from resources
   let snippets: string[] = [];
-  
-  // Clean query: remove common filler to extract keywords
-  const cleanQuery = String(lastMessage)
+
+  const cleanQuery = lastMessage
     .toLowerCase()
     .replace(/^(what are|what is|tell me about|explain|do you have|can you|show me|tell me)\s+/i, '')
     .replace(/\s+(from|in|about)\s+(my|the)\s+(slides|notes|ppt|resources|material|coursework|studies)$/i, '')
     .replace(/^(context of|information on|details about)\s+/i, '')
     .trim();
 
-  // Only search if there's a substantial query left
   if (cleanQuery.length > 2) {
     const finalResults = await performRAGSearch(cleanQuery, 5, resourceId);
     snippets = finalResults.map((r) => `[SOURCE: ${r.title} | SUBJECT: ${r.subject_name}]: ${r.snippet}`);
@@ -142,11 +157,10 @@ export async function POST(req: Request) {
     ? subjects.join(', ')
     : 'relevant academic subjects';
 
-  // Map messages to CoreMessage format
-  const finalMessages = messages?.map((m: { role?: string; content?: string; parts?: { text?: string }[] }) => ({
+  const finalMessages = messages.map((m) => ({
     role: (m.role === 'assistant' ? 'assistant' : 'user') as 'user' | 'assistant',
-    content: m.content || m.parts?.map((p) => p.text || '').join('\n') || '',
-  }));
+    content: messageText(m),
+  })).filter((m) => m.content.length > 0);
 
   const systemPrompt = `You are the Academic OS AI, a high-performance tutor for university students.
   

@@ -23,7 +23,7 @@ export function logActivity(actionType: string, count = 1) {
 
   user
     .getIdToken()
-    .then((idToken) => {
+    .then((idToken) =>
       fetch("/api/activity", {
         method: "POST",
         headers: {
@@ -31,9 +31,13 @@ export function logActivity(actionType: string, count = 1) {
           Authorization: `Bearer ${idToken}`,
         },
         body: JSON.stringify({ actionType, count }),
-      }).catch((err) => console.error("API logActivity network error:", err));
-    })
-    .catch((err) => console.error("API logActivity token error:", err));
+      }).then((res) => {
+        if (!res.ok) {
+          console.error("API logActivity failed:", res.status);
+        }
+      }),
+    )
+    .catch((err) => console.error("API logActivity error:", err));
 }
 
 export { STORAGE_KEY as ACTIVITY_STORAGE_KEY };

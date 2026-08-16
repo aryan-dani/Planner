@@ -1,7 +1,6 @@
 import { adminDb, hasFirebaseCredentials } from "@/lib/firebaseAdmin";
 import CommunityClient from "./CommunityClient";
 import { Suspense } from "react";
-import { Loader2 } from "lucide-react";
 
 export const revalidate = 3600;
 
@@ -34,6 +33,7 @@ export default async function CommunityPage() {
           branch: d.branch || "",
           semester: Number(d.semester || 0),
           author_name: d.author_name || "",
+          author_uid: d.author_uid || "",
           upvotes: Number(d.upvotes || 0),
           cardCount: cards.length,
           flashcards: [] as unknown[],
@@ -56,8 +56,13 @@ export default async function CommunityPage() {
 
 function CommunityLoading() {
   return (
-    <div className="flex justify-center items-center py-40 min-h-[80vh] w-full">
-      <Loader2 className="w-8 h-8 text-primary animate-spin" />
+    <div
+      className="flex flex-col justify-center items-center gap-3 py-40 min-h-[80vh] w-full"
+      role="status"
+      aria-live="polite"
+    >
+      <span className="loading-orb" aria-hidden />
+      <p className="text-xs font-medium text-muted tracking-wide">Loading community…</p>
     </div>
   );
 }

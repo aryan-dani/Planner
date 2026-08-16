@@ -1,6 +1,8 @@
 import { google } from "googleapis";
 import { NextResponse } from "next/server";
 
+const MAX_BYTES = 2 * 1024 * 1024; // 2 MB
+
 function cleanPrivateKey(key: string | undefined): string | undefined {
   if (!key) return undefined;
   let cleaned = key.trim();
@@ -52,6 +54,13 @@ export async function GET(request: Request) {
 
     const content =
       typeof res.data === "string" ? res.data : String(res.data ?? "");
+
+    if (Buffer.byteLength(content, "utf8") > MAX_BYTES) {
+      return NextResponse.json(
+        { error: "File too large to preview in-app" },
+        { status: 413 },
+      );
+    }
 
     return new NextResponse(content, {
       status: 200,

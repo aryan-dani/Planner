@@ -2,9 +2,8 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { auth, db } from "@/lib/firebase";
+import { auth } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
-import { doc, updateDoc, increment } from "firebase/firestore";
 import { useAcademicStore } from "@/store/academicStore";
 import { useSRSStore } from "@/store/srsStore";
 import {
@@ -43,6 +42,7 @@ interface CommunityDeck {
   branch: string;
   semester: number;
   author_name: string;
+  author_uid?: string;
   upvotes: number;
   cardCount?: number;
   flashcards: any[];
@@ -66,7 +66,7 @@ export default function CommunityClient({
   const [currentCardIdx, setCurrentCardIdx] = useState<number>(0);
   const [showAnswer, setShowAnswer] = useState<boolean>(false);
   const [copiedDeckId, setCopiedDeckId] = useState<string | null>(null);
-  const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
+  const [currentUserUid, setCurrentUserUid] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<"top" | "newest">("top");
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
 
@@ -76,17 +76,19 @@ export default function CommunityClient({
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user?.email) {
-        setCurrentUserEmail(user.email);
-      } else {
-        setCurrentUserEmail(null);
-      }
+      setCurrentUserUid(user?.uid ?? null);
     });
     return () => unsubscribe();
   }, []);
 
   const handleUpvote = async (deckId: string, currentUpvotes: number) => {
     if (upvotedDecks[deckId]) return;
+
+    const user = auth.currentUser;
+    if (!user) {
+      toast.error("Sign in to upvote decks.");
+      return;
+    }
 
     const newUpvotes = currentUpvotes + 1;
     setUpvotedDecks((prev) => ({ ...prev, [deckId]: true }));
@@ -95,11 +97,39 @@ export default function CommunityClient({
     );
 
     try {
-      const docRef = doc(db, "community_decks", deckId);
-      await updateDoc(docRef, { upvotes: increment(1) });
+      const idToken = await user.getIdToken();
+      const res = await fetch(`/api/community-decks/${deckId}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({ action: "upvote" }),
+      });
+      if (!res.ok) {
+        throw new Error("Failed to upvote");
+      }
+      const data = await res.json();
+      if (typeof data.upvotes === "number") {
+        setDecks((prev) =>
+          prev.map((d) =>
+            d.id === deckId ? { ...d, upvotes: data.upvotes } : d,
+          ),
+        );
+      }
       logActivity("community_deck_upvoted", 1);
     } catch (err) {
       console.warn("Upvote error:", err);
+      setUpvotedDecks((prev) => {
+        const next = { ...prev };
+        delete next[deckId];
+        return next;
+      });
+      setDecks((prev) =>
+        prev.map((d) =>
+          d.id === deckId ? { ...d, upvotes: currentUpvotes } : d,
+        ),
+      );
       toast.error("Failed to upvote deck.");
     }
   };
@@ -332,8 +362,8 @@ export default function CommunityClient({
                     {deck.branch} · Sem {deck.semester}
                   </span>
                   <div className="flex items-center gap-2">
-                    {currentUserEmail &&
-                      currentUserEmail.split("@")[0] === deck.author_name && (
+                    {currentUserUid &&
+                      deck.author_uid === currentUserUid && (
                         <button
                           onClick={() => handleDeleteDeck(deck.id)}
                           disabled={isDeleting === deck.id}

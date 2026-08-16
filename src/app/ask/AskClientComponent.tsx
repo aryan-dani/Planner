@@ -42,12 +42,12 @@ import Link from 'next/link';
 import { buildResourcesHref } from '@/lib/resourceUrl';
 
 const SUGGESTED_PROMPTS = [
-  'Explain DBMS normalization with examples',
-  'What are OS scheduling algorithms? Compare them.',
-  'Create 10 flashcards on Computer Networks basics',
-  'Summarize the key topics in Data Structures',
-  'Write a Python program for binary search tree',
-  'Explain the difference between TCP and UDP',
+  'Explain overfitting vs underfitting in Machine Learning with examples',
+  'How do Graph Neural Networks embed nodes? Keep it exam-oriented.',
+  'Walk through Matplotlib vs Seaborn for a DVP dashboard assignment',
+  'Compare FCFS, SJF, and Round Robin OS scheduling with a small table',
+  'Create 10 flashcards on OS deadlock prevention and Banker’s algorithm',
+  'Outline UI/UX heuristic evaluation steps for a Sem 5 mini-project',
 ];
 
 function CopyButton({ text }: { text: string }) {
@@ -313,25 +313,43 @@ export default function AskClient() {
 
   // Fetch subjects for context
   useEffect(() => {
+    let cancelled = false;
     const q = query(
       collection(db, 'subjects'),
       where('branch', '==', branch),
       where('semester', '==', semester)
     );
-    getDocs(q).then((snapshot) => {
-      const data = snapshot.docs.map(doc => ({ name: doc.data().name as string }));
-      setSubjects(data.map((s: { name: string }) => s.name).filter((n: string) => n.toUpperCase() !== 'SYLLABUS'));
-    }).catch(err => console.error("Error loading subjects in AskAI:", err));
+    getDocs(q)
+      .then((snapshot) => {
+        if (cancelled) return;
+        const data = snapshot.docs.map(doc => ({ name: doc.data().name as string }));
+        setSubjects(data.map((s: { name: string }) => s.name).filter((n: string) => n.toUpperCase() !== 'SYLLABUS'));
+      })
+      .catch(err => {
+        if (!cancelled) console.error("Error loading subjects in AskAI:", err);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [branch, semester]);
 
   // Fetch resources for grounded chat selector
   useEffect(() => {
-    fetch(`/api/resources/list?branch=${branch}&semester=${semester}`)
-      .then(res => res.json())
-      .then(data => {
+    const abortController = new AbortController();
+    fetch(`/api/resources/list?branch=${branch}&semester=${semester}`, {
+      signal: abortController.signal,
+    })
+      .then(async (res) => {
+        if (!res.ok) return;
+        const data = await res.json();
         if (data.resources) setResources(data.resources);
       })
-      .catch(err => console.error('Error loading resources for Ask AI:', err));
+      .catch((err) => {
+        if (err?.name !== 'AbortError') {
+          console.error('Error loading resources for Ask AI:', err);
+        }
+      });
+    return () => abortController.abort();
   }, [branch, semester]);
 
   // Initialize Speech Recognition
@@ -733,6 +751,7 @@ export default function AskClient() {
         branch,
         semester,
         author_name: authorName,
+        author_uid: user?.uid || '',
         flashcards: flashcards,
         upvotes: 0,
         created_at: new Date().toISOString()
@@ -819,10 +838,13 @@ export default function AskClient() {
               },
             ]}
           />
-          <div className="flex items-center gap-1.5 p-1 bg-surface border border-border rounded-xl shadow-xs w-fit">
+          <div className="flex items-center gap-1.5 p-1 bg-surface border border-border rounded-xl shadow-xs w-fit" role="tablist" aria-label="Ask modes">
           <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'chat'}
             onClick={() => setActiveTab('chat')}
-            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-colors focus-visible:outline-offset-1 ${
               activeTab === 'chat'
                 ? 'bg-primary text-primary-foreground shadow-xs'
                 : 'text-muted hover:text-foreground'
@@ -832,8 +854,11 @@ export default function AskClient() {
             Chat Assistant
           </button>
           <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'flashcards'}
             onClick={() => setActiveTab('flashcards')}
-            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-colors focus-visible:outline-offset-1 ${
               activeTab === 'flashcards'
                 ? 'bg-primary text-primary-foreground shadow-xs'
                 : 'text-muted hover:text-foreground'
@@ -843,8 +868,11 @@ export default function AskClient() {
             Flashcards
           </button>
           <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'quiz'}
             onClick={() => setActiveTab('quiz')}
-            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-colors focus-visible:outline-offset-1 ${
               activeTab === 'quiz'
                 ? 'bg-primary text-primary-foreground shadow-xs'
                 : 'text-muted hover:text-foreground'
@@ -1175,7 +1203,7 @@ export default function AskClient() {
                 value={flashcardTopic}
                 onChange={(e) => setFlashcardTopic(e.target.value)}
                 disabled={isGeneratingFlashcards}
-                className="flex-1 bg-surface border border-border rounded-xl px-4 py-3 text-sm outline-none text-foreground placeholder:text-muted focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all shadow-sm"
+                className="flex-1 bg-surface border border-border rounded-xl px-4 py-3 text-sm outline-none text-foreground placeholder:text-muted focus:ring-0 focus-visible:ring-0 transition-[border-color,box-shadow] duration-150 shadow-sm input-premium-focus"
               />
               <button
                 type="submit"
@@ -1408,7 +1436,7 @@ export default function AskClient() {
                 value={quizTopic}
                 onChange={(e) => setQuizTopic(e.target.value)}
                 disabled={isGeneratingQuiz}
-                className="flex-1 bg-surface border border-border rounded-xl px-4 py-3 text-sm outline-none text-foreground placeholder:text-muted focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all shadow-sm"
+                className="flex-1 bg-surface border border-border rounded-xl px-4 py-3 text-sm outline-none text-foreground placeholder:text-muted focus:ring-0 focus-visible:ring-0 transition-[border-color,box-shadow] duration-150 shadow-sm input-premium-focus"
               />
               <button
                 type="submit"

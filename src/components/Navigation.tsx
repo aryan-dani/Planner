@@ -121,7 +121,7 @@ function WorkspaceSelectInner<T extends string | number>({
     <div ref={ref} className="relative flex-1">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-between gap-1.5 px-2 py-2 bg-background border border-border/80 rounded-xl text-xs font-semibold hover:border-border-strong hover:bg-surface/55 transition-all text-foreground"
+        className="w-full flex items-center justify-between gap-1.5 px-2 py-2 bg-background border border-border/80 rounded-xl text-xs font-semibold hover:border-border-strong hover:bg-surface/55 transition-all text-foreground focus-visible:outline-offset-1"
       >
         <span className="flex items-center gap-1 truncate">
           {Icon && <Icon className="w-3.5 h-3.5 text-muted shrink-0" />}
@@ -172,7 +172,7 @@ function SegmentedThemeToggle({ theme, setTheme }: { theme: string | undefined; 
   useEffect(() => setMounted(true), []);
 
   if (!mounted) {
-    return <div className="h-8 bg-surface/50 rounded-xl border border-border/80 w-full animate-pulse" />;
+    return <div className="skeleton h-8 rounded-xl border border-border/80 w-full" aria-hidden />;
   }
 
   const options = [

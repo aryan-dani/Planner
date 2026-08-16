@@ -65,8 +65,14 @@ export default function RootLayout({
               <main role="main" className="flex-1 w-full flex flex-col pt-14 md:pt-0">
                 <Suspense
                   fallback={
-                    <div className="flex-1 flex items-center justify-center min-h-[60vh]">
-                      <div className="w-6 h-6 border-2 border-border border-t-foreground rounded-full animate-spin" />
+                    <div
+                      className="flex-1 flex flex-col items-center justify-center gap-3 min-h-[60vh]"
+                      role="status"
+                      aria-live="polite"
+                      aria-label="Loading"
+                    >
+                      <span className="loading-orb" aria-hidden />
+                      <p className="text-xs font-medium text-muted tracking-wide">Loading…</p>
                     </div>
                   }
                 >

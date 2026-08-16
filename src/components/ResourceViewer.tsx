@@ -211,17 +211,15 @@ export default function ResourceViewer({
     };
   }, [isTextFetch, resource.file_url, driveId]);
 
+  // 15s timeout only for iframe previews still loading (not text/image/notebook fetch paths)
+  const usesIframePreview = !isTextFetch && !isNotebook && !isImage;
   useEffect(() => {
-    let timer: NodeJS.Timeout;
-    if (isLoading) {
-      timer = setTimeout(() => {
-        setLoadError(true);
-      }, 15000);
-    } else {
-      setLoadError(false);
-    }
+    if (!usesIframePreview || !isLoading) return;
+    const timer = setTimeout(() => {
+      setLoadError(true);
+    }, 15000);
     return () => clearTimeout(timer);
-  }, [isLoading, viewerUrl]);
+  }, [usesIframePreview, isLoading, viewerUrl]);
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
@@ -436,25 +434,22 @@ export default function ResourceViewer({
         >
           {isLoading && (
             <div className="absolute inset-0 flex flex-col items-between justify-between p-8 bg-background z-20">
-              <div className="w-full flex-1 flex flex-col gap-6 animate-pulse mt-12 max-w-4xl mx-auto">
-                <div className="h-8 bg-muted/40 rounded-lg w-1/3" />
-                <div className="h-4 bg-muted/30 rounded-lg w-full" />
-                <div className="h-4 bg-muted/30 rounded-lg w-5/6" />
-                <div className="h-4 bg-muted/30 rounded-lg w-4/5" />
+              <div className="w-full flex-1 flex flex-col gap-6 mt-12 max-w-4xl mx-auto">
+                <div className="skeleton h-8 rounded-lg w-1/3" />
+                <div className="skeleton h-4 rounded-lg w-full" />
+                <div className="skeleton h-4 rounded-lg w-5/6" />
+                <div className="skeleton h-4 rounded-lg w-4/5" />
                 <div className="flex-1 min-h-[200px] border border-border/40 rounded-xl p-6 flex flex-col gap-4">
-                  <div className="h-6 bg-muted/30 rounded-lg w-1/4" />
-                  <div className="h-40 bg-muted/20 rounded-lg w-full" />
-                  <div className="h-4 bg-muted/30 rounded-lg w-3/4" />
-                  <div className="h-4 bg-muted/30 rounded-lg w-1/2" />
+                  <div className="skeleton h-6 rounded-lg w-1/4" />
+                  <div className="skeleton h-40 rounded-lg w-full" />
+                  <div className="skeleton h-4 rounded-lg w-3/4" />
+                  <div className="skeleton h-4 rounded-lg w-1/2" />
                 </div>
               </div>
 
               <div className="w-full text-center pb-8 flex flex-col items-center gap-3">
-                <div className="relative flex items-center justify-center">
-                  <div className="absolute h-12 w-12 rounded-full border-4 border-muted/20 border-t-foreground animate-spin" />
-                  <div className="h-6 w-6 rounded-full bg-foreground/10 animate-ping" />
-                </div>
-                <p className="text-sm font-medium text-foreground/75 mt-4 tracking-wide">
+                <span className="loading-orb" aria-hidden />
+                <p className="text-sm font-medium text-foreground/75 mt-2 tracking-wide">
                   {isNotebook
                     ? "Loading notebook..."
                     : isImage

@@ -200,8 +200,9 @@ function SignupContent() {
 export default function SignupPage() {
   return (
     <Suspense fallback={
-      <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center">
-        <Loader2 className="w-6 h-6 animate-spin text-muted" />
+      <div className="flex min-h-[calc(100vh-4rem)] flex-col items-center justify-center gap-3" role="status">
+        <span className="loading-orb" aria-hidden />
+        <p className="text-xs font-medium text-muted tracking-wide">Loading…</p>
       </div>
     }>
       <SignupContent />

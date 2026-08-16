@@ -6,12 +6,14 @@ import { isAuthFailure, requireUser } from '@/lib/apiAuth';
 import { DEFAULT_BRANCH, DEFAULT_SEMESTER } from '@/lib/workspace';
 import { z } from 'zod';
 
+const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
 const studySchema = z.object({
   type: z.enum(['flashcards', 'quiz']),
-  topic: z.string().min(2),
+  topic: z.string().min(2).max(500),
   context: z.object({
-    branch: z.string().optional(),
-    semester: z.number().optional(),
+    branch: z.string().max(32).optional(),
+    semester: z.number().int().min(1).max(8).optional(),
   }).optional(),
 });
 
@@ -29,7 +31,7 @@ export async function POST(req: Request) {
 
     const parseResult = studySchema.safeParse(body);
     if (!parseResult.success) {
-      return new Response(JSON.stringify({ error: 'Invalid request payload', details: parseResult.error.format() }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+      return new Response(JSON.stringify({ error: 'Invalid request payload' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
     }
 
     const { type, topic, context } = parseResult.data;
@@ -43,21 +45,30 @@ export async function POST(req: Request) {
     const semester = context?.semester || DEFAULT_SEMESTER;
 
     const cleanTopic = topic.trim().toLowerCase().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?]/g, "").replace(/\s+/g, " ");
-    const cacheKey = `study_${type}_${cleanTopic}_${branch}_${semester}`.trim();
+    const cacheKey = `study_${auth.uid}_${type}_${cleanTopic}_${branch}_${semester}`.trim();
 
-    // Semantic Caching Interceptor
     try {
       const db = adminDb();
       const cachedSnapshot = await db
         .collection('semantic_cache')
-        .where('prompt', '==', cacheKey)
+        .where('cache_key', '==', cacheKey)
         .limit(1)
         .get();
 
       if (!cachedSnapshot.empty) {
         const cached = cachedSnapshot.docs[0].data();
-        if (cached && cached.response) {
-          return new Response(cached.response, {
+        const createdAt = cached.created_at
+          ? new Date(cached.created_at).getTime()
+          : 0;
+        const fresh =
+          Number.isFinite(createdAt) &&
+          Date.now() - createdAt < CACHE_TTL_MS;
+        if (fresh && cached.response) {
+          const bodyText =
+            typeof cached.response === 'string'
+              ? cached.response
+              : JSON.stringify(cached.response);
+          return new Response(bodyText, {
             status: 200,
             headers: {
               'Content-Type': 'application/json',
@@ -70,11 +81,10 @@ export async function POST(req: Request) {
       console.warn('Study semantic cache check error:', err);
     }
 
-    // RAG: Fetch relevant snippets from resources to ground the flashcards/quiz in their actual coursework!
     let snippets: string[] = [];
     if (topic && topic.length > 2) {
       const finalResults = await performRAGSearch(topic, 5);
-      snippets = finalResults.map((r: any) => `[SOURCE: ${r.title} | SUBJECT: ${r.subject_name}]: ${r.snippet}`);
+      snippets = finalResults.map((r) => `[SOURCE: ${r.title} | SUBJECT: ${r.subject_name}]: ${r.snippet}`);
     }
 
     const basePromptContext = `You are an expert academic AI tutor for university engineering students in the ${branchName} program, Semester ${semester}.
@@ -93,6 +103,9 @@ CRITICAL DOMAIN NOTICE:
 - "CNM" stands for Computer Networks.
 - "COA" stands for Computer Organization & Architecture.
 - "OS" stands for Operating Systems.
+- "ML" stands for Machine Learning.
+- "DVP" stands for Data Visualization using Python.
+- "GML" stands for Graph Machine Learning.
 DO NOT under any circumstances generate medical, clinical, or biological content. Ground all questions strictly in computer science and engineering syllabus.`;
 
     const prompt = type === 'flashcards'
@@ -135,13 +148,22 @@ CRITICAL INSTRUCTION: You MUST output ONLY a block of valid JSON matching the ex
       prompt: prompt,
     });
 
-    const cleanJson = text.replace(/```json|```/g, '').trim();
-    const data = JSON.parse(cleanJson);
+    let data: unknown;
+    try {
+      const cleanJson = text.replace(/```json|```/g, '').trim();
+      data = JSON.parse(cleanJson);
+    } catch {
+      return new Response(JSON.stringify({ error: 'Failed to generate study material' }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
 
-    // Save to Semantic Cache
     try {
       const db = adminDb();
       await db.collection('semantic_cache').add({
+        cache_key: cacheKey,
+        uid: auth.uid,
         prompt: cacheKey,
         response: JSON.stringify(data),
         created_at: new Date().toISOString()
@@ -155,9 +177,9 @@ CRITICAL INSTRUCTION: You MUST output ONLY a block of valid JSON matching the ex
       headers: { 'Content-Type': 'application/json' },
     });
 
-  } catch (error: any) {
+  } catch (error) {
     console.error('Study API Error:', error);
-    return new Response(JSON.stringify({ error: error.message || 'Failed to generate study material' }), {
+    return new Response(JSON.stringify({ error: 'Failed to generate study material' }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' },
     });

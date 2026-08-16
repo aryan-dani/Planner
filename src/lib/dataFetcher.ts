@@ -174,14 +174,19 @@ async function fetchResourcesFromDB(
     // 2. Fetch resources for these subjects (Firestore 'in' supports up to 30 items)
     const resources: ResourceItem[] = [];
     const chunkSize = 30;
-
+    const chunks: string[][] = [];
     for (let i = 0; i < subjectIds.length; i += chunkSize) {
-      const chunk = subjectIds.slice(i, i + chunkSize);
-      const resourcesSnapshot = await db.collection("resources")
-        .where("subject_id", "in", chunk)
-        .get();
+      chunks.push(subjectIds.slice(i, i + chunkSize));
+    }
 
-      resourcesSnapshot.docs.forEach(doc => {
+    const snapshots = await Promise.all(
+      chunks.map((chunk) =>
+        db.collection("resources").where("subject_id", "in", chunk).get(),
+      ),
+    );
+
+    for (const resourcesSnapshot of snapshots) {
+      resourcesSnapshot.docs.forEach((doc) => {
         const d = doc.data();
         const url = d.file_url || "";
         const subId = d.subject_id || "";
@@ -190,7 +195,7 @@ async function fetchResourcesFromDB(
         // Parse created_at. If it's a Firestore Timestamp, convert to ISOString.
         let createdAtStr = new Date().toISOString();
         if (d.created_at) {
-          if (typeof d.created_at.toDate === 'function') {
+          if (typeof d.created_at.toDate === "function") {
             createdAtStr = d.created_at.toDate().toISOString();
           } else if (d.created_at.seconds) {
             createdAtStr = new Date(d.created_at.seconds * 1000).toISOString();

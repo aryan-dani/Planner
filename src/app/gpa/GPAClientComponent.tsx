@@ -19,6 +19,8 @@ import {
 } from 'lucide-react';
 import { FadeIn, ScaleButton, StaggerContainer, StaggerItem } from '@/components/Animations';
 import Link from 'next/link';
+import { useAcademicStore } from '@/store/academicStore';
+import { getAidsGpaData } from '@/lib/syllabusData';
 
 interface Subject {
   id: string;
@@ -29,14 +31,16 @@ interface Subject {
 interface BranchData {
   name: string;
   totalCredits: number;
+  semester: number;
   completed: Subject[];
   finals: Subject[];
 }
 
 const COURSE_DATA: Record<string, BranchData> = {
   'CORE': { 
-    name: 'Computer Engineering (CORE)', 
+    name: 'Computer Engineering (CORE) — CSE workspace', 
     totalCredits: 23,
+    semester: 4,
     completed: [
       {id:'c_oopl',name:'OOPL',credits:3}, 
       {id:'c_dbmsl',name:'DBMSL',credits:1}, 
@@ -55,6 +59,7 @@ const COURSE_DATA: Record<string, BranchData> = {
   'CSF': { 
     name: 'Cybersecurity & Forensics (CSF)', 
     totalCredits: 22,
+    semester: 4,
     completed: [
       {id:'csf_dbmsl',name:'DBMS Lab',credits:1}, 
       {id:'csf_osl',name:'OS Lab',credits:1}, 
@@ -72,8 +77,9 @@ const COURSE_DATA: Record<string, BranchData> = {
     ]
   },
   'AIDS': { 
-    name: 'AI & Data Science (AIDS)', 
-    totalCredits: 21, // Adjusted (22 - 1 for LTS)
+    name: 'AI & Data Science (AIDS) — Sem 4', 
+    totalCredits: 21,
+    semester: 4,
     completed: [
       {id:'ai_detl',name:'DET Lab',credits:1}, 
       {id:'ai_aiesl',name:'AI & ES Lab',credits:1}, 
@@ -81,7 +87,6 @@ const COURSE_DATA: Record<string, BranchData> = {
       {id:'ai_ue3',name:'UE-III',credits:3}, 
       {id:'ai_cog',name:'Cognitive Skills',credits:1}, 
       {id:'ai_ruip',name:'Rural Immersion',credits:1}, 
-      // LTS removed as requested
       {id:'ai_iks',name:'IKS',credits:2}
     ],
     finals: [
@@ -94,6 +99,7 @@ const COURSE_DATA: Record<string, BranchData> = {
   'ECE': { 
     name: 'Electronics & Communication (ECE)', 
     totalCredits: 22,
+    semester: 4,
     completed: [
       {id:'ece_acal',name:'Analog Circuits Lab',credits:1}, 
       {id:'ece_csfll',name:'Control Systems Lab',credits:1}, 
@@ -111,6 +117,25 @@ const COURSE_DATA: Record<string, BranchData> = {
     ]
   }
 };
+
+
+function resolveWorkspaceCourse(
+  branch: string,
+  semester: number,
+  courseKeyOverride: string | null,
+): BranchData {
+  if (courseKeyOverride && COURSE_DATA[courseKeyOverride]) {
+    return COURSE_DATA[courseKeyOverride];
+  }
+  if (branch === 'AIDS') {
+    const fromSyllabus = getAidsGpaData(semester);
+    if (fromSyllabus) return fromSyllabus as BranchData;
+    return COURSE_DATA.AIDS;
+  }
+  if (branch === 'ECE') return COURSE_DATA.ECE;
+  // CSE workspace → CORE Sem 4 table (explicit label; no CORE/CSF product split yet)
+  return COURSE_DATA.CORE;
+}
 
 function getGradePoint(marks: number) {
   if(marks >= 90) return 10; 
@@ -133,11 +158,13 @@ function getThreshold(gp: number) {
 }
 
 export default function GPAClient() {
-  const [selectedBranch, setSelectedBranch] = useState<string | null>(null);
+  const { branch: workspaceBranch, semester: workspaceSemester } = useAcademicStore();
+  const [courseKeyOverride, setCourseKeyOverride] = useState<string | null>(null);
   const [marks, setMarks] = useState<Record<string, number>>({});
   const [simSelections, setSimSelections] = useState<Record<string, number>>({});
   const [isCalculated, setIsCalculated] = useState(false);
   const [activeTab, setActiveTab] = useState<'semester' | 'roadmap'>('semester');
+  const [showCoursePicker, setShowCoursePicker] = useState(false);
 
   const [semestersData, setSemestersData] = useState<Record<number, { sgpa: number; credits: number; active: boolean; completed: boolean }>>({
     1: { sgpa: 0, credits: 20, active: false, completed: false },
@@ -154,9 +181,16 @@ export default function GPAClient() {
   const [isTargetSemOpen, setIsTargetSemOpen] = useState(false);
   const [hydrated, setHydrated] = useState(false);
 
-  const currentBranch = useMemo(() => 
-    selectedBranch ? COURSE_DATA[selectedBranch] : null, 
-  [selectedBranch]);
+  const currentBranch = useMemo(
+    () => resolveWorkspaceCourse(workspaceBranch, workspaceSemester, courseKeyOverride),
+    [workspaceBranch, workspaceSemester, courseKeyOverride],
+  );
+  const calcSemester = currentBranch.semester;
+
+  useEffect(() => {
+    setIsCalculated(false);
+    setSimSelections({});
+  }, [workspaceBranch, workspaceSemester, courseKeyOverride]);
 
   // Load from LocalStorage
   useEffect(() => {
@@ -164,7 +198,10 @@ export default function GPAClient() {
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        if (parsed.branch) setSelectedBranch(parsed.branch);
+        if (parsed.courseKeyOverride) setCourseKeyOverride(parsed.courseKeyOverride);
+        else if (parsed.branch && COURSE_DATA[parsed.branch] && parsed.branch !== 'AIDS') {
+          setCourseKeyOverride(parsed.branch);
+        }
         if (parsed.marks) setMarks(parsed.marks);
       } catch (e) {
         console.error('Failed to load GPA data', e);
@@ -200,13 +237,11 @@ export default function GPAClient() {
   // Save to LocalStorage — only after hydration so defaults cannot wipe saved data
   useEffect(() => {
     if (!hydrated) return;
-    if (selectedBranch) {
-      localStorage.setItem('gpa_strategy_v1', JSON.stringify({
-        branch: selectedBranch,
-        marks: marks
-      }));
-    }
-  }, [hydrated, selectedBranch, marks]);
+    localStorage.setItem('gpa_strategy_v1', JSON.stringify({
+      courseKeyOverride,
+      marks,
+    }));
+  }, [hydrated, courseKeyOverride, marks]);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -274,20 +309,20 @@ export default function GPAClient() {
     return parseFloat((totalPoints / currentBranch.totalCredits).toFixed(2));
   }, [currentBranch, marks, simSelections]);
 
-  // Sync simulatedGPA into semestersData Semester 4
+  // Sync simulatedGPA into the active calculator semester
   useEffect(() => {
-    if (isCalculated && selectedBranch && currentBranch) {
+    if (isCalculated && currentBranch) {
       setSemestersData(prev => {
-        const currentSem4 = prev[4];
+        const currentSem = prev[calcSemester];
         if (
-          currentSem4.sgpa !== simulatedGPA || 
-          currentSem4.credits !== currentBranch.totalCredits || 
-          !currentSem4.active || 
-          !currentSem4.completed
+          currentSem.sgpa !== simulatedGPA || 
+          currentSem.credits !== currentBranch.totalCredits || 
+          !currentSem.active || 
+          !currentSem.completed
         ) {
           return {
             ...prev,
-            4: {
+            [calcSemester]: {
               sgpa: simulatedGPA,
               credits: currentBranch.totalCredits,
               active: true,
@@ -298,7 +333,7 @@ export default function GPAClient() {
         return prev;
       });
     }
-  }, [simulatedGPA, isCalculated, selectedBranch, currentBranch]);
+  }, [simulatedGPA, isCalculated, currentBranch, calcSemester]);
 
   // Calculations for Cumulative CGPA
   const { currentCGPA, totalCompletedCredits, activeCompletedSemestersCount } = useMemo(() => {
@@ -398,28 +433,41 @@ export default function GPAClient() {
     }));
   };
 
-  if (!selectedBranch) {
+  if (showCoursePicker) {
     return (
       <div className="flex-1 w-full max-w-7xl mx-auto px-6 py-8 min-h-[80vh]">
         <FadeIn>
           <div className="text-center mb-12">
             <h1 className="text-4xl font-black tracking-tight text-foreground mb-4 flex items-center justify-center gap-3">
               <Calculator className="w-10 h-10" />
-              Sem IV Strategy
+              Course Table Override
             </h1>
             <p className="text-muted text-lg max-w-xl mx-auto">
-              Select your branch to calculate your potential GPA and build a study strategy.
+              Workspace is {workspaceBranch} Sem {workspaceSemester}. Pick a Sem 4 fallback table if needed (CSE defaults to CORE).
             </p>
+            <button
+              type="button"
+              onClick={() => {
+                setCourseKeyOverride(null);
+                setShowCoursePicker(false);
+              }}
+              className="mt-4 text-sm font-bold text-primary underline underline-offset-4"
+            >
+              Use workspace syllabus defaults
+            </button>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {Object.entries(COURSE_DATA).map(([key, data]) => (
               <ScaleButton
                 key={key}
-                onClick={() => setSelectedBranch(key)}
+                onClick={() => {
+                  setCourseKeyOverride(key);
+                  setShowCoursePicker(false);
+                  setIsCalculated(false);
+                }}
                 className="group relative resource-card-hover rounded-2xl bg-card p-8 text-left w-full h-full border border-border transition-all duration-300 flex flex-col justify-between overflow-hidden"
               >
-                {/* Glow highlight */}
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(var(--foreground),0.02),transparent_70%)] opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
                 <div>
                   <div className="w-12 h-12 bg-surface border border-border rounded-xl flex items-center justify-center mb-6 transition-all duration-300 group-hover:bg-foreground group-hover:text-background group-hover:border-foreground shadow-xs">
@@ -462,20 +510,20 @@ export default function GPAClient() {
             <div>
               <button 
                 onClick={() => {
-                  setSelectedBranch(null);
+                  setShowCoursePicker(true);
                   setIsCalculated(false);
                 }}
                 className="group flex items-center gap-2 text-muted hover:text-foreground text-sm font-bold uppercase tracking-wider mb-4 transition-colors"
               >
                 <ChevronLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-                Change Branch
+                Change course table
               </button>
               <h1 className="text-3xl font-black tracking-tight text-foreground flex items-center gap-3">
                 {currentBranch?.name}
               </h1>
               <p className="text-muted text-sm mt-2 flex items-center gap-2">
                 <Info className="w-4 h-4" />
-                Calculation based on Sem IV curriculum credits and passing rules.
+                Sem {calcSemester} from workspace ({workspaceBranch}). Credits follow the official syllabus where available.
               </p>
             </div>
 
@@ -504,8 +552,11 @@ export default function GPAClient() {
           {/* Premium Tab Bar */}
           <div className="flex border-b border-border mb-8">
             <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === 'semester'}
               onClick={() => setActiveTab('semester')}
-              className={`pb-4 px-6 text-sm font-black uppercase tracking-widest border-b-2 transition-all ${
+              className={`pb-4 px-6 text-sm font-black uppercase tracking-widest border-b-2 transition-colors focus-visible:outline-offset-[-2px] rounded-t-md ${
                 activeTab === 'semester'
                   ? 'border-foreground text-foreground'
                   : 'border-transparent text-muted hover:text-foreground'
@@ -514,8 +565,11 @@ export default function GPAClient() {
               Semester Strategy
             </button>
             <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === 'roadmap'}
               onClick={() => setActiveTab('roadmap')}
-              className={`pb-4 px-6 text-sm font-black uppercase tracking-widest border-b-2 transition-all ${
+              className={`pb-4 px-6 text-sm font-black uppercase tracking-widest border-b-2 transition-colors focus-visible:outline-offset-[-2px] rounded-t-md ${
                 activeTab === 'roadmap'
                   ? 'border-foreground text-foreground'
                   : 'border-transparent text-muted hover:text-foreground'
@@ -525,7 +579,7 @@ export default function GPAClient() {
             </button>
           </div>
 
-          {/* TAB 1: Semester IV Strategy */}
+          {/* TAB 1: Semester Strategy */}
           {activeTab === 'semester' && (
             <div>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
@@ -736,7 +790,7 @@ export default function GPAClient() {
                               </div>
 
                               <Link
-                                href={`/ask?tab=chat&prompt=${encodeURIComponent(`I want to achieve a high grade in my Semester 4 course: "${sub.name}". Based on my current class resources, can you explain the most critical units, concepts, and formulas I should focus on to score 90+? Please break down a study schedule and list some potential exam questions.`)}`}
+                                href={`/ask?tab=chat&prompt=${encodeURIComponent(`I want to achieve a high grade in my Semester ${calcSemester} course: "${sub.name}". Based on my current class resources, can you explain the most critical units, concepts, and formulas I should focus on to score 90+? Please break down a study schedule and list some potential exam questions.`)}`}
                                 className="w-full mt-4 flex items-center justify-center gap-1.5 py-2 bg-foreground text-background hover:opacity-90 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-opacity text-center block"
                               >
                                 <Target className="w-3.5 h-3.5" />
@@ -922,7 +976,7 @@ export default function GPAClient() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-px bg-border/60 rounded-xl overflow-hidden border border-border/70 shadow-sm">
                   {Array.from({ length: 8 }, (_, i) => i + 1).map((semNum) => {
                     const sem = semestersData[semNum] || { sgpa: 0, credits: 20, active: false, completed: false };
-                    const isSyncedSem4 = semNum === 4 && isCalculated;
+                    const isSyncedSem = semNum === calcSemester && isCalculated;
                     
                     return (
                       <div 
@@ -958,23 +1012,23 @@ export default function GPAClient() {
                               <div className="flex gap-1 bg-surface border border-border rounded-xl p-0.5">
                                 <button
                                   onClick={() => handleSemesterCompletedToggle(semNum, true)}
-                                  disabled={isSyncedSem4}
+                                  disabled={isSyncedSem}
                                   className={`flex-1 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${
                                     sem.completed 
                                       ? 'bg-card text-foreground shadow-sm' 
                                       : 'text-muted hover:text-foreground'
-                                  } ${isSyncedSem4 ? 'cursor-not-allowed opacity-50' : ''}`}
+                                  } ${isSyncedSem ? 'cursor-not-allowed opacity-50' : ''}`}
                                 >
                                   Completed
                                 </button>
                                 <button
                                   onClick={() => handleSemesterCompletedToggle(semNum, false)}
-                                  disabled={isSyncedSem4}
+                                  disabled={isSyncedSem}
                                   className={`flex-1 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${
                                     !sem.completed 
                                       ? 'bg-card text-foreground shadow-sm' 
                                       : 'text-muted hover:text-foreground'
-                                  } ${isSyncedSem4 ? 'cursor-not-allowed opacity-50' : ''}`}
+                                  } ${isSyncedSem ? 'cursor-not-allowed opacity-50' : ''}`}
                                 >
                                   Planned
                                 </button>
@@ -988,10 +1042,10 @@ export default function GPAClient() {
                                 <input
                                   type="number"
                                   value={sem.credits || ''}
-                                  disabled={isSyncedSem4}
+                                  disabled={isSyncedSem}
                                   onChange={(e) => handleSemesterCreditsChange(semNum, e.target.value)}
                                   className={`w-full bg-surface border border-border rounded-xl px-3 py-2 text-xs font-bold text-foreground outline-none focus:border-foreground/50 transition-all ${
-                                    isSyncedSem4 ? 'opacity-70 cursor-not-allowed' : ''
+                                    isSyncedSem ? 'opacity-70 cursor-not-allowed' : ''
                                   }`}
                                 />
                               </div>
@@ -1008,10 +1062,10 @@ export default function GPAClient() {
                                     min="0"
                                     max="10"
                                     value={sem.sgpa || ''}
-                                    disabled={isSyncedSem4}
+                                    disabled={isSyncedSem}
                                     onChange={(e) => handleSemesterSgpaChange(semNum, e.target.value)}
                                     className={`w-full bg-surface border border-border rounded-xl px-3 py-2 text-xs font-bold text-foreground outline-none focus:border-foreground/50 transition-all ${
-                                      isSyncedSem4 ? 'opacity-70 cursor-not-allowed font-black' : ''
+                                      isSyncedSem ? 'opacity-70 cursor-not-allowed font-black' : ''
                                     }`}
                                   />
                                 </div>
@@ -1036,11 +1090,11 @@ export default function GPAClient() {
                           )}
                         </div>
 
-                        {/* Sync Badge for Semester 4 */}
-                        {isSyncedSem4 && (
+                        {/* Sync Badge for calculator semester */}
+                        {isSyncedSem && (
                           <div className="mt-4 pt-2 border-t border-border/50 text-[9px] font-black text-foreground flex items-center gap-1 uppercase tracking-wider justify-center">
                             <Zap className="w-2.5 h-2.5 fill-current text-foreground" />
-                            Synced from Sem IV
+                            Synced from semester strategy
                           </div>
                         )}
                       </div>
@@ -1063,14 +1117,14 @@ export default function GPAClient() {
         {/* Branch Info */}
         <div className="mb-6">
           <h2 className="text-lg font-bold border-b border-gray-300 pb-1 mb-2">Branch Configuration</h2>
-          <p className="text-sm"><strong>Selected Branch:</strong> {currentBranch?.name || 'None'}</p>
-          <p className="text-sm"><strong>Total Semester IV Credits:</strong> {currentBranch?.totalCredits || 0} Credits</p>
+          <p className="text-sm"><strong>Course:</strong> {currentBranch?.name || 'None'}</p>
+          <p className="text-sm"><strong>Total Semester {calcSemester} Credits:</strong> {currentBranch?.totalCredits || 0} Credits</p>
         </div>
 
         {/* Semester Strategy (only if branch is selected) */}
         {currentBranch && (
           <div className="mb-6">
-            <h2 className="text-lg font-bold border-b border-gray-300 pb-1 mb-3">Semester IV Strategy & Projections</h2>
+            <h2 className="text-lg font-bold border-b border-gray-300 pb-1 mb-3">Semester Strategy & Projections</h2>
             
             <div className="grid grid-cols-2 gap-4 mb-4" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
               <div className="p-3 border border-gray-300 rounded">

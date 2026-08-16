@@ -89,7 +89,7 @@ export const isSubjectMatch = (nameA: string, nameB: string): boolean => {
     dvp: ["data visualization using python", "data visualization"],
     sem: ["software engineering and modelling", "software engineering"],
     uiux: ["user interface and user experience design", "ui ux", "ux design"],
-    gml: ["graph machine learning"],
+    gml: ["graph machine learning", "graph ml"],
     sscd: ["system software and compiler design", "compiler design"],
     aisa: ["ai systems and applications"],
   };

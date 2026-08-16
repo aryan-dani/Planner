@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
-import { X, Brain, Loader2, Copy, Check, Info, Layers } from 'lucide-react';
+import { X, Brain, Copy, Check, Info, Layers } from 'lucide-react';
 import { auth } from '@/lib/firebase';
 import { NotesDisclaimer } from './NotesDisclaimer';
 
@@ -22,9 +22,14 @@ export default function SummaryModal({ resourceId, resourceTitle, onClose }: Sum
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
+    const abortController = new AbortController();
+    let active = true;
+
     async function fetchSummary() {
       try {
         setLoading(true);
+        setError(null);
+        setSummary(null);
         const user = auth.currentUser;
         if (!user) {
           throw new Error('Please sign in to generate AI summaries.');
@@ -32,20 +37,29 @@ export default function SummaryModal({ resourceId, resourceTitle, onClose }: Sum
         const idToken = await user.getIdToken();
         const res = await fetch(`/api/resources/summarize?id=${resourceId}`, {
           headers: { Authorization: `Bearer ${idToken}` },
+          signal: abortController.signal,
         });
+        if (!active) return;
         const data = await res.json();
-        
+
         if (!res.ok) throw new Error(data.error || 'Failed to generate summary');
-        
+
+        if (!active) return;
         setSummary(data.summary);
-      } catch (err: any) {
-        setError(err.message);
+      } catch (err: unknown) {
+        if (!active || abortController.signal.aborted) return;
+        const message = err instanceof Error ? err.message : 'Failed to generate summary';
+        setError(message);
       } finally {
-        setLoading(false);
+        if (active) setLoading(false);
       }
     }
 
     fetchSummary();
+    return () => {
+      active = false;
+      abortController.abort();
+    };
   }, [resourceId]);
 
   // Escape key handler to close the modal
@@ -116,15 +130,10 @@ export default function SummaryModal({ resourceId, resourceTitle, onClose }: Sum
           {/* Content */}
           <div className="flex-1 overflow-y-auto p-6 custom-scrollbar bg-card">
             {loading ? (
-              <div className="flex flex-col items-center justify-center py-20 text-center">
-                <motion.div
-                  animate={{ rotate: 360 }}
-                  transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
-                >
-                  <Loader2 className="w-10 h-10 text-primary opacity-50" />
-                </motion.div>
-                <h4 className="mt-4 text-base font-semibold text-foreground">Reading & Summarizing...</h4>
-                <p className="text-sm text-muted max-w-xs mt-2">
+              <div className="flex flex-col items-center justify-center py-20 text-center gap-3" role="status">
+                <span className="loading-orb" aria-hidden />
+                <h4 className="mt-2 text-base font-semibold text-foreground">Reading & Summarizing...</h4>
+                <p className="text-sm text-muted max-w-xs">
                   Our AI is analyzing the document content to generate a high-density study guide for you.
                 </p>
               </div>

@@ -28,6 +28,7 @@ import ResourceSection from "./resources/ResourceSection";
 import { cleanResourceTitle } from "@/lib/titleUtils";
 import { NotesDisclaimer } from "./NotesDisclaimer";
 import { isDatasetResource } from "@/lib/resourceLinks";
+import { auth } from "@/lib/firebase";
 import {
   groupByAssignment,
   groupByUnit,
@@ -115,6 +116,7 @@ export default function ResourcesClient({
   const scopeKey = `${branch}:${semester}`;
   const prevScopeRef = useRef(scopeKey);
   const subjectPendingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchRequestId = useRef(0);
 
   const resources = initialResources;
 
@@ -391,25 +393,48 @@ export default function ResourcesClient({
   useEffect(() => {
     if (!aiSearchQuery.trim() || aiSearchQuery.length < 3) {
       setContentResults([]);
+      setIsSearchingContent(false);
       return;
     }
 
     const abortController = new AbortController();
+    const requestId = ++searchRequestId.current;
     const timer = setTimeout(async () => {
       try {
         setIsSearchingContent(true);
+        const user = auth.currentUser;
+        if (!user) {
+          if (searchRequestId.current === requestId) {
+            setContentResults([]);
+            setIsSearchingContent(false);
+          }
+          return;
+        }
+        const idToken = await user.getIdToken();
         const res = await fetch(
           `/api/search?q=${encodeURIComponent(aiSearchQuery)}`,
-          { signal: abortController.signal },
+          {
+            signal: abortController.signal,
+            headers: { Authorization: `Bearer ${idToken}` },
+          },
         );
+        if (!res.ok) {
+          if (searchRequestId.current === requestId) setContentResults([]);
+          return;
+        }
         const data = await res.json();
-        setContentResults(data.results || []);
-      } catch (err: any) {
-        if (err.name !== "AbortError") {
+        if (searchRequestId.current === requestId) {
+          setContentResults(data.results || []);
+        }
+      } catch (err: unknown) {
+        const name = err instanceof Error ? err.name : "";
+        if (name !== "AbortError") {
           console.error("Content search error:", err);
         }
       } finally {
-        setIsSearchingContent(false);
+        if (searchRequestId.current === requestId) {
+          setIsSearchingContent(false);
+        }
       }
     }, 500);
 
@@ -737,8 +762,12 @@ export default function ResourcesClient({
 
           <div className="flex-1 w-full min-w-0 relative">
             {(isSubjectPending || isScopeLoading) && (
-              <div className="absolute inset-0 z-20 rounded-2xl bg-background/55 backdrop-blur-[1px] flex flex-col items-center justify-center gap-3">
-                <Loader2 className="h-6 w-6 text-foreground animate-spin" />
+              <div
+                className="absolute inset-0 z-20 rounded-2xl bg-background/70 backdrop-blur-[2px] flex flex-col items-center justify-center gap-3"
+                role="status"
+                aria-live="polite"
+              >
+                <span className="loading-orb" aria-hidden />
                 <p className="text-xs font-medium text-muted tracking-wide">
                   {isScopeLoading ? "Loading semester…" : "Switching subject…"}
                 </p>
@@ -849,19 +878,25 @@ export default function ResourcesClient({
                   </div>
                 ) : (
                   <div className="space-y-8">
-                    {contentResults.length > 0 && (
+                    {(contentResults.length > 0 || isSearchingContent) && (
                       <div className="space-y-4 bg-surface/40 border border-border rounded-xl p-5 shadow-sm overflow-hidden">
                         <div className="flex items-center gap-2.5 border-b border-border pb-3">
                           <div className="w-7 h-7 rounded-lg bg-surface border border-border flex items-center justify-center text-foreground">
-                            <Brain className="w-3.5 h-3.5" />
+                            {isSearchingContent ? (
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                              <Brain className="w-3.5 h-3.5" />
+                            )}
                           </div>
                           <div>
                             <h3 className="text-xs font-bold uppercase tracking-wider text-foreground">
                               Content Matches
                             </h3>
                             <p className="text-[10px] font-medium text-muted">
-                              AI Semantic Search · {contentResults.length}{" "}
-                              snippets
+                              AI Semantic Search
+                              {contentResults.length > 0
+                                ? ` · ${contentResults.length} snippets`
+                                : ""}
                               {isSearchingContent ? " · searching…" : ""}
                             </p>
                           </div>
@@ -869,6 +904,7 @@ export default function ResourcesClient({
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           {contentResults.map((result, idx) => (
                             <button
+                              type="button"
                               key={`${result.resource_id}-${idx}`}
                               onClick={() => {
                                 const resource = resources.find(

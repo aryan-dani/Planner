@@ -234,7 +234,7 @@ function LoginContent() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
-                className="w-full bg-background border border-border rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-foreground/10 focus:border-foreground/40 text-foreground placeholder:text-muted transition-all duration-200 focus-premium"
+                className="w-full bg-background border border-border rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-0 focus-visible:ring-0 focus:border-foreground/40 text-foreground placeholder:text-muted transition-[border-color,box-shadow] duration-150 input-premium-focus"
               />
             </div>
 
@@ -250,7 +250,7 @@ function LoginContent() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full bg-background border border-border rounded-xl px-3 py-2.5 pr-10 text-sm outline-none focus:ring-2 focus:ring-foreground/10 focus:border-foreground/40 text-foreground placeholder:text-muted transition-all duration-200 focus-premium"
+                  className="w-full bg-background border border-border rounded-xl px-3 py-2.5 pr-10 text-sm outline-none focus:ring-0 focus-visible:ring-0 focus:border-foreground/40 text-foreground placeholder:text-muted transition-[border-color,box-shadow] duration-150 input-premium-focus"
                 />
                 <button
                   type="button"
@@ -300,8 +300,9 @@ function LoginContent() {
 export default function LoginPage() {
   return (
     <Suspense fallback={
-      <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center">
-        <Loader2 className="w-6 h-6 animate-spin text-muted" />
+      <div className="flex min-h-[calc(100vh-4rem)] flex-col items-center justify-center gap-3" role="status">
+        <span className="loading-orb" aria-hidden />
+        <p className="text-xs font-medium text-muted tracking-wide">Loading…</p>
       </div>
     }>
       <LoginContent />

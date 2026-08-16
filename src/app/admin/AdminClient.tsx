@@ -79,7 +79,7 @@ export default function AdminClient() {
     }
   }, [tab, fetchUsers]);
   const [branch, setBranch] = useState("AIDS");
-  const [semester, setSemester] = useState("4");
+  const [semester, setSemester] = useState("5");
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [loadingAuth, setLoadingAuth] = useState(true);

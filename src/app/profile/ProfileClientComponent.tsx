@@ -217,9 +217,13 @@ export default function ProfileClientComponent() {
 
   if (loading) {
     return (
-      <div className="flex flex-col min-h-screen items-center justify-center bg-background">
-        <Loader2 className="w-10 h-10 animate-spin text-muted" />
-        <p className="text-xs font-semibold text-muted mt-4">Loading your preferences...</p>
+      <div
+        className="flex flex-col min-h-screen items-center justify-center bg-background gap-3"
+        role="status"
+        aria-live="polite"
+      >
+        <span className="loading-orb" aria-hidden />
+        <p className="text-xs font-semibold text-muted">Loading your preferences...</p>
       </div>
     );
   }

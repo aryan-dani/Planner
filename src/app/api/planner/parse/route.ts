@@ -1,32 +1,40 @@
 import { groq } from '@ai-sdk/groq';
 import { generateText } from 'ai';
 import { isAuthFailure, requireUser } from '@/lib/apiAuth';
+import { z } from 'zod';
 
 export const runtime = 'nodejs';
+
+const parseSchema = z.object({
+  prompt: z.string().min(1).max(4000),
+  month: z.coerce.number().int().min(1).max(12),
+  year: z.coerce.number().int().min(2000).max(2100),
+});
 
 export async function POST(req: Request) {
   const auth = await requireUser(req);
   if (isAuthFailure(auth)) return auth;
 
   try {
-    const { prompt, month, year } = await req.json();
-
-    if (!prompt || typeof prompt !== 'string') {
-      return new Response(JSON.stringify({ error: 'Missing or invalid prompt' }), {
+    let body: unknown;
+    try {
+      body = await req.json();
+    } catch {
+      return new Response(JSON.stringify({ error: 'Invalid JSON body' }), {
         status: 400,
         headers: { 'Content-Type': 'application/json' },
       });
     }
 
-    const monthNum = Number(month);
-    const yearNum = Number(year);
-
-    if (isNaN(monthNum) || isNaN(yearNum) || monthNum < 1 || monthNum > 12) {
-      return new Response(JSON.stringify({ error: 'Invalid month or year context' }), {
+    const parsed = parseSchema.safeParse(body);
+    if (!parsed.success) {
+      return new Response(JSON.stringify({ error: 'Invalid request payload' }), {
         status: 400,
         headers: { 'Content-Type': 'application/json' },
       });
     }
+
+    const { prompt, month: monthNum, year: yearNum } = parsed.data;
 
     const MONTH_NAMES = [
       'January', 'February', 'March', 'April', 'May', 'June',
@@ -64,28 +72,6 @@ Example JSON output format:
         "subtasks": []
       }
     ]
-  },
-  {
-    "date": "${yearNum}-${String(monthNum).padStart(2, '0')}-28",
-    "tasks": [
-      {
-        "id": "def456uvw",
-        "text": "1st half notes , second half memorizing 3rd",
-        "done": false,
-        "subtasks": [
-          {
-            "id": "sub123456",
-            "text": "1st half notes",
-            "done": false
-          },
-          {
-            "id": "sub789012",
-            "text": "second half memorizing 3rd",
-            "done": false
-          }
-        ]
-      }
-    ]
   }
 ]`;
 
@@ -94,17 +80,25 @@ Example JSON output format:
       prompt: `${systemInstructions}\n\nUser Input to Parse:\n"${prompt}"`,
     });
 
-    const cleanJson = response.text.replace(/```json|```/g, '').trim();
-    const parsedData = JSON.parse(cleanJson);
+    let parsedData: unknown;
+    try {
+      const cleanJson = response.text.replace(/```json|```/g, '').trim();
+      parsedData = JSON.parse(cleanJson);
+    } catch {
+      return new Response(JSON.stringify({ error: 'Failed to parse prompt with AI' }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
 
     return new Response(JSON.stringify({ data: parsedData }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });
 
-  } catch (error: any) {
+  } catch (error) {
     console.error('Parse API Error:', error);
-    return new Response(JSON.stringify({ error: error.message || 'Failed to parse prompt with AI' }), {
+    return new Response(JSON.stringify({ error: 'Failed to parse prompt with AI' }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' },
     });
