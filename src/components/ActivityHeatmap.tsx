@@ -16,6 +16,15 @@ export default function ActivityHeatmap() {
   const [activityMap, setActivityMap] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [hoveredCell, setHoveredCell] = useState<{ date: string; count: number; top?: number; left?: number } | null>(null);
+  const [weekCount, setWeekCount] = useState(18);
+
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 768px)');
+    const apply = () => setWeekCount(mq.matches ? 18 : 8);
+    apply();
+    mq.addEventListener('change', apply);
+    return () => mq.removeEventListener('change', apply);
+  }, []);
  
   const fetchActivity = async () => {
     // Load local storage first
@@ -79,10 +88,11 @@ export default function ActivityHeatmap() {
     };
   }, []);
 
-  // Generate last 18 weeks of dates (18 weeks * 7 days = 126 days)
+  // Generate last N weeks of dates
   const today = new Date();
+  const daySpan = weekCount * 7;
   const startDate = new Date();
-  startDate.setDate(today.getDate() - 125); // 126 days total
+  startDate.setDate(today.getDate() - (daySpan - 1));
 
   const days: { date: string; count: number; label: string }[] = [];
   let curr = new Date(startDate);
@@ -146,7 +156,7 @@ export default function ActivityHeatmap() {
   };
 
   return (
-    <div className="w-full bg-card border border-border p-6 sm:p-8 rounded-2xl shadow-sm my-12">
+    <div className="w-full bg-card border border-border p-4 sm:p-8 rounded-2xl shadow-sm my-12">
       {/* Header & Stats */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-8 pb-6 border-b border-border">
         <div>
@@ -187,7 +197,7 @@ export default function ActivityHeatmap() {
               <Info className="w-3.5 h-3.5 text-foreground" /> Daily Avg
             </span>
             <span className="text-lg font-bold text-foreground">
-              {(totalContributions / 126).toFixed(1)}
+              {(totalContributions / Math.max(days.length, 1)).toFixed(1)}
             </span>
           </div>
         </div>
@@ -196,16 +206,16 @@ export default function ActivityHeatmap() {
       {/* Grid container */}
       <div className="relative">
         <div className="relative overflow-x-auto pb-4 custom-scrollbar">
-          <div className="min-w-[700px] flex gap-2 items-start justify-center">
+          <div className={`flex gap-2 items-start ${weekCount >= 18 ? 'min-w-[700px] justify-center' : 'min-w-0 justify-start'}`}>
             {/* Day labels (Mon, Wed, Fri) */}
             <div className="flex flex-col gap-2 pr-2 text-[10px] font-semibold text-muted uppercase tracking-wider py-1 select-none">
-              <span className="h-4 flex items-center">Mon</span>
-              <span className="h-4 flex items-center">Tue</span>
-              <span className="h-4 flex items-center">Wed</span>
-              <span className="h-4 flex items-center">Thu</span>
-              <span className="h-4 flex items-center">Fri</span>
-              <span className="h-4 flex items-center">Sat</span>
-              <span className="h-4 flex items-center">Sun</span>
+              <span className="h-5 md:h-4 flex items-center">Mon</span>
+              <span className="h-5 md:h-4 flex items-center">Tue</span>
+              <span className="h-5 md:h-4 flex items-center">Wed</span>
+              <span className="h-5 md:h-4 flex items-center">Thu</span>
+              <span className="h-5 md:h-4 flex items-center">Fri</span>
+              <span className="h-5 md:h-4 flex items-center">Sat</span>
+              <span className="h-5 md:h-4 flex items-center">Sun</span>
             </div>
 
             {/* 18 Columns of 7 days */}
@@ -219,6 +229,20 @@ export default function ActivityHeatmap() {
                         key={day.date}
                         role="gridcell"
                         aria-label={`${day.count} activities on ${day.label}`}
+                        onClick={(e) => {
+                          const rect = e.currentTarget.getBoundingClientRect();
+                          const parentRect = e.currentTarget.parentElement?.parentElement?.parentElement?.getBoundingClientRect();
+                          if (parentRect) {
+                            const top = rect.top - parentRect.top - 34;
+                            const left = rect.left - parentRect.left + (rect.width / 2);
+                            setHoveredCell({
+                              date: day.label,
+                              count: day.count,
+                              top,
+                              left
+                            });
+                          }
+                        }}
                         onMouseEnter={(e) => {
                           const rect = e.currentTarget.getBoundingClientRect();
                           const parentRect = e.currentTarget.parentElement?.parentElement?.parentElement?.getBoundingClientRect();
@@ -234,7 +258,7 @@ export default function ActivityHeatmap() {
                           }
                         }}
                         onMouseLeave={() => setHoveredCell(null)}
-                        className={`w-4 h-4 rounded-sm border transition-all cursor-pointer ${getCellColor(
+                        className={`w-5 h-5 md:w-4 md:h-4 rounded-sm border transition-all cursor-pointer ${getCellColor(
                           day.count
                         )}`}
                       />

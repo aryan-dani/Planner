@@ -32,7 +32,7 @@ export default function InstallPrompt() {
   if (!isVisible || !isInstallable) return null;
 
   return (
-    <div className="fixed bottom-4 left-4 right-4 z-50 md:left-auto md:w-96 flex flex-col gap-3 p-4 bg-surface border border-border shadow-popover rounded-xl animate-slide-up">
+    <div className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] left-4 right-4 z-50 md:left-auto md:w-96 flex flex-col gap-3 p-4 bg-surface border border-border shadow-popover rounded-xl animate-slide-up">
       <div className="flex items-start justify-between">
         <div>
           <h3 className="text-sm font-semibold text-foreground">Install Utility</h3>

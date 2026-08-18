@@ -21,7 +21,7 @@ function FooterInner() {
   return (
     <footer className="w-full border-t border-border/40 bg-background-subtle mt-auto relative overflow-hidden">
       <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent opacity-50 pointer-events-none" />
-      <div className="max-w-7xl mx-auto px-6 py-12">
+      <div className="max-w-7xl mx-auto page-gutter py-12">
         <div className="flex flex-col md:flex-row justify-between items-start gap-12 mb-12">
           <div className="max-w-xs">
             <Link href={getLinkWithParams('/')} className="font-display text-xl tracking-tight text-foreground flex items-center gap-2 mb-3">

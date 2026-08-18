@@ -217,6 +217,31 @@ h1, h2, h3, h4, h5, h6 {
 
 /* ── Utilities ────────────────────────────────────────────────────────────── */
 
+/* 44px minimum hit area for icon buttons / hamburger / close */
+.tap-target {
+  min-height: 2.75rem;
+  min-width: 2.75rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Horizontal page gutter — tighter on phones, existing desktop padding from sm */
+.page-gutter {
+  padding-left: max(1rem, env(safe-area-inset-left));
+  padding-right: max(1rem, env(safe-area-inset-right));
+}
+@media (min-width: 640px) {
+  .page-gutter {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+}
+
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
 /* Shimmer loading skeleton — visible sweep so loaders never look frozen */
 @keyframes shimmer {
   0% {
@@ -626,6 +651,10 @@ input[type="range"].accent-slider::-moz-range-thumb:hover {
   transform: translateY(-2px);
   border-color: rgb(var(--border-strong)) !important;
   box-shadow: 0 10px 25px -10px rgba(0, 0, 0, 0.1) !important;
+}
+.card-premium-hover:active {
+  transform: translateY(0);
+  background-color: rgb(var(--surface) / 0.55);
 }
 
 /* Elegant animated underline effect for inline links */

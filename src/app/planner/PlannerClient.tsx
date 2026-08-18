@@ -203,10 +203,10 @@ function TaskItem({
       <div className="flex items-start gap-2.5">
         <button
           onClick={onToggle}
-          className={`flex-shrink-0 w-[18px] h-[18px] mt-0.5 rounded-md border-[1.5px] flex items-center justify-center transition-all ${
+          className={`flex-shrink-0 w-6 h-6 mt-0.5 rounded-md border-[1.5px] flex items-center justify-center transition-all ${
             task.done
               ? 'bg-foreground border-foreground text-background'
-              : 'bg-card border-border-strong hover:border-foreground'
+              : 'bg-card border-border-strong hover:border-foreground active:bg-surface'
           }`}
         >
           {task.done && <Check className="w-2.5 h-2.5" />}
@@ -229,7 +229,8 @@ function TaskItem({
 
         <button
           onClick={onDelete}
-          className="opacity-0 group-hover/task:opacity-100 flex-shrink-0 text-muted hover:text-red-500 transition-all mt-0.5"
+          className="opacity-100 md:opacity-0 md:group-hover/task:opacity-100 flex-shrink-0 text-muted hover:text-red-500 active:text-red-500 transition-all mt-0.5 tap-target md:min-h-0 md:min-w-0 p-0"
+          aria-label="Delete task"
         >
           <X className="w-3.5 h-3.5" />
         </button>
@@ -241,7 +242,7 @@ function TaskItem({
         <select
           value={currentCategory}
           onChange={(e) => onUpdateCategory?.(e.target.value as any)}
-          className={`text-[9px] font-bold px-2 py-0.5 rounded-md border outline-none cursor-pointer ${catColor.bg} ${catColor.text} ${catColor.border}`}
+          className={`text-xs font-bold px-2 py-1.5 min-h-11 md:min-h-0 rounded-md border outline-none cursor-pointer ${catColor.bg} ${catColor.text} ${catColor.border}`}
         >
           <option value="General">General</option>
           <option value="Revision">Revision</option>
@@ -254,7 +255,7 @@ function TaskItem({
         <select
           value={task.status || (task.done ? 'done' : 'todo')}
           onChange={(e) => onUpdateStatus?.(e.target.value as any)}
-          className="text-[9px] font-bold px-2 py-0.5 rounded-md border border-border bg-surface text-foreground outline-none cursor-pointer"
+          className="text-xs font-bold px-2 py-1.5 min-h-11 md:min-h-0 rounded-md border border-border bg-surface text-foreground outline-none cursor-pointer"
         >
           <option value="todo">To Do</option>
           <option value="in-progress">In Progress</option>
@@ -264,7 +265,7 @@ function TaskItem({
         {/* Recurring button toggle */}
         <button
           onClick={onToggleRecurring}
-          className={`flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-md border transition-all ${
+          className={`flex items-center gap-1 text-xs font-bold px-2 py-1.5 min-h-11 md:min-h-0 rounded-md border transition-all ${
             task.isRecurring
               ? 'bg-primary/10 border-primary/20 text-primary'
               : 'bg-surface border-border text-muted hover:text-foreground'
@@ -296,7 +297,8 @@ function TaskItem({
               </span>
               <button
                 onClick={() => onDeleteSubtask(sub.id)}
-                className="opacity-0 group-hover/sub:opacity-100 text-muted hover:text-red-500 transition-all ml-auto"
+                className="opacity-100 md:opacity-0 md:group-hover/sub:opacity-100 text-muted hover:text-red-500 transition-all ml-auto tap-target md:min-h-0 md:min-w-0 p-0"
+                aria-label="Delete subtask"
               >
                 <Minus className="w-3 h-3" />
               </button>
@@ -875,6 +877,7 @@ export default function PlannerClient() {
   const [plannerView, setPlannerView] = useState<'calendar' | 'list' | 'kanban'>('calendar');
   const [quickAddDate, setQuickAddDate] = useState<string | null>(null);
   const [quickAddText, setQuickAddText] = useState('');
+  const [moreOpen, setMoreOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const today = todayISO();
@@ -1290,7 +1293,7 @@ export default function PlannerClient() {
   if (!mounted) return null;
 
   return (
-    <div className="flex-1 w-full px-6 py-8 max-w-7xl mx-auto min-h-[80vh]">
+    <div className="flex-1 w-full page-gutter py-8 max-w-7xl mx-auto min-h-[80vh]">
       {/* ── Header ── */}
       <div className="flex flex-col gap-4 mb-6 pb-5 border-b border-border">
         {/* Title row */}
@@ -1319,7 +1322,7 @@ export default function PlannerClient() {
           <div className="flex flex-wrap items-center gap-2">
             {/* Cloud sync */}
             {user ? (
-              <div className="flex items-center gap-1.5 text-[11px] text-muted">
+              <div className="flex items-center gap-1.5 text-xs text-muted">
                 {syncing ? (
                   <>
                     <div className="w-3 h-3 border border-muted border-t-foreground rounded-full animate-spin" />
@@ -1340,7 +1343,7 @@ export default function PlannerClient() {
             ) : (
               <Link
                 href="/login"
-                className="inline-flex items-center gap-1.5 text-[11px] text-muted hover:text-foreground border border-border rounded-lg px-2.5 py-1.5 hover:bg-surface transition-colors"
+                className="inline-flex items-center gap-1.5 text-xs text-muted hover:text-foreground border border-border rounded-lg px-2.5 py-2 min-h-11 hover:bg-surface transition-colors"
               >
                 <CloudOff className="w-3.5 h-3.5" />
                 Sign in to sync
@@ -1348,40 +1351,61 @@ export default function PlannerClient() {
               </Link>
             )}
 
-            {/* Prompt button */}
             <button
               onClick={() => setPromptOpen(true)}
-              className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-foreground border border-border rounded-lg px-2.5 py-1.5 hover:bg-surface transition-colors"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-foreground border border-border rounded-lg px-2.5 py-2 min-h-11 hover:bg-surface active:bg-surface-hover transition-colors"
             >
               Add from Prompt
             </button>
 
-            {/* Share */}
-            <button
-              onClick={() => setShareOpen(true)}
-              className="inline-flex items-center gap-1.5 text-[11px] font-medium text-muted hover:text-foreground border border-border rounded-lg px-2.5 py-1.5 hover:bg-surface transition-colors"
-            >
-              <Share2 className="w-3.5 h-3.5" />
-              Share
-            </button>
+            <div className="hidden sm:flex flex-wrap items-center gap-2">
+              <button
+                onClick={() => setShareOpen(true)}
+                className="inline-flex items-center gap-1.5 text-xs font-medium text-muted hover:text-foreground border border-border rounded-lg px-2.5 py-2 min-h-11 hover:bg-surface transition-colors"
+              >
+                <Share2 className="w-3.5 h-3.5" />
+                Share
+              </button>
+              <button onClick={exportData} className="inline-flex items-center gap-1.5 text-xs font-medium text-muted hover:text-foreground border border-border rounded-lg px-2.5 py-2 min-h-11 hover:bg-surface transition-colors">
+                <Download className="w-3.5 h-3.5" />
+                Export
+              </button>
+              <button onClick={() => fileInputRef.current?.click()} className="inline-flex items-center gap-1.5 text-xs font-medium text-muted hover:text-foreground border border-border rounded-lg px-2.5 py-2 min-h-11 hover:bg-surface transition-colors">
+                <Upload className="w-3.5 h-3.5" />
+                Import
+              </button>
+              <button onClick={clearAll} className="inline-flex items-center gap-1.5 text-xs font-medium text-muted hover:text-red-500 border border-border rounded-lg px-2.5 py-2 min-h-11 hover:bg-surface hover:border-red-200 dark:hover:border-red-900 transition-colors">
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            </div>
 
-            {/* Export */}
-            <button onClick={exportData} className="inline-flex items-center gap-1.5 text-[11px] font-medium text-muted hover:text-foreground border border-border rounded-lg px-2.5 py-1.5 hover:bg-surface transition-colors">
-              <Download className="w-3.5 h-3.5" />
-              Export
-            </button>
-
-            {/* Import */}
-            <button onClick={() => fileInputRef.current?.click()} className="inline-flex items-center gap-1.5 text-[11px] font-medium text-muted hover:text-foreground border border-border rounded-lg px-2.5 py-1.5 hover:bg-surface transition-colors">
-              <Upload className="w-3.5 h-3.5" />
-              Import
-            </button>
+            <div className="relative sm:hidden">
+              <button
+                onClick={() => setMoreOpen((o) => !o)}
+                className="tap-target rounded-lg border border-border text-muted hover:text-foreground hover:bg-surface"
+                aria-label="More planner actions"
+                aria-expanded={moreOpen}
+              >
+                <MoreHorizontal className="w-4 h-4" />
+              </button>
+              {moreOpen && (
+                <div className="absolute right-0 top-full mt-1.5 z-30 w-44 bg-card border border-border rounded-xl shadow-popover p-1 flex flex-col">
+                  <button onClick={() => { setShareOpen(true); setMoreOpen(false); }} className="flex items-center gap-2 px-3 py-2.5 min-h-11 text-xs font-medium text-foreground hover:bg-surface rounded-lg text-left">
+                    <Share2 className="w-3.5 h-3.5" /> Share
+                  </button>
+                  <button onClick={() => { exportData(); setMoreOpen(false); }} className="flex items-center gap-2 px-3 py-2.5 min-h-11 text-xs font-medium text-foreground hover:bg-surface rounded-lg text-left">
+                    <Download className="w-3.5 h-3.5" /> Export
+                  </button>
+                  <button onClick={() => { fileInputRef.current?.click(); setMoreOpen(false); }} className="flex items-center gap-2 px-3 py-2.5 min-h-11 text-xs font-medium text-foreground hover:bg-surface rounded-lg text-left">
+                    <Upload className="w-3.5 h-3.5" /> Import
+                  </button>
+                  <button onClick={() => { clearAll(); setMoreOpen(false); }} className="flex items-center gap-2 px-3 py-2.5 min-h-11 text-xs font-medium text-red-500 hover:bg-surface rounded-lg text-left">
+                    <Trash2 className="w-3.5 h-3.5" /> Clear month
+                  </button>
+                </div>
+              )}
+            </div>
             <input ref={fileInputRef} type="file" accept=".json" className="hidden" onChange={importData} />
-
-            {/* Clear */}
-            <button onClick={clearAll} className="inline-flex items-center gap-1.5 text-[11px] font-medium text-muted hover:text-red-500 border border-border rounded-lg px-2.5 py-1.5 hover:bg-surface hover:border-red-200 dark:hover:border-red-900 transition-colors">
-              <Trash2 className="w-3.5 h-3.5" />
-            </button>
           </div>
         </div>
 
@@ -1390,7 +1414,7 @@ export default function PlannerClient() {
           <div className="flex items-center gap-2">
             <button
               onClick={goPrevMonth}
-              className="w-8 h-8 rounded-lg bg-surface border border-border flex items-center justify-center text-muted hover:text-foreground hover:bg-surface-hover transition-colors"
+              className="tap-target rounded-lg bg-surface border border-border text-muted hover:text-foreground hover:bg-surface-hover transition-colors"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
@@ -1400,7 +1424,7 @@ export default function PlannerClient() {
             </div>
             <button
               onClick={goNextMonth}
-              className="w-8 h-8 rounded-lg bg-surface border border-border flex items-center justify-center text-muted hover:text-foreground hover:bg-surface-hover transition-colors"
+              className="tap-target rounded-lg bg-surface border border-border text-muted hover:text-foreground hover:bg-surface-hover transition-colors"
             >
               <ChevronRight className="w-4 h-4" />
             </button>
@@ -1466,7 +1490,8 @@ export default function PlannerClient() {
 
       {/* ── Calendar View ── */}
       {plannerView === 'calendar' && (
-        <div className="grid grid-cols-7 gap-px bg-border rounded-xl overflow-hidden border border-border shadow-card animate-fade-in">
+        <>
+        <div className="hidden md:grid grid-cols-7 gap-px bg-border rounded-xl overflow-hidden border border-border shadow-card animate-fade-in">
           {/* Day headers */}
           {DAY_LABELS.map((d) => (
             <div key={d} className="bg-surface py-2.5 text-center">
@@ -1590,6 +1615,96 @@ export default function PlannerClient() {
             );
           })}
         </div>
+
+        <div className="md:hidden space-y-3 animate-fade-in">
+          {(() => {
+            const monthDays = calendarDays.filter((d) => d.isCurrentMonth);
+            const todayIdx = monthDays.findIndex((d) => d.date === today);
+            const ordered =
+              todayIdx >= 0
+                ? [...monthDays.slice(todayIdx), ...monthDays.slice(0, todayIdx)]
+                : monthDays;
+            return ordered.map(({ date, dayNum }) => {
+              const tasks = planData[date] || [];
+              const isToday = date === today;
+              const done = tasks.filter((t) => t.done).length;
+              const dateObj = new Date(date + "T00:00:00");
+              const dayName = dateObj.toLocaleDateString("en-US", { weekday: "short" });
+              return (
+                <div
+                  key={date}
+                  className="bg-card border border-border rounded-xl p-3 active:bg-surface/50"
+                >
+                  <div className="flex items-center gap-3 mb-2">
+                    <div
+                      className={`w-11 h-11 rounded-lg flex flex-col items-center justify-center shrink-0 ${
+                        isToday
+                          ? "bg-foreground text-background"
+                          : "bg-surface border border-border text-foreground"
+                      }`}
+                    >
+                      <span className="text-[10px] font-bold uppercase leading-none opacity-85">
+                        {dayName}
+                      </span>
+                      <span className="text-base font-black leading-none">{dayNum}</span>
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-bold text-foreground">
+                        {isToday ? "Today" : dateObj.toLocaleDateString("en-US", { weekday: "long" })}
+                      </p>
+                      <p className="text-xs text-muted">
+                        {tasks.length === 0
+                          ? "No tasks"
+                          : `${done}/${tasks.length} done`}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedDate(date);
+                        addTask(date);
+                      }}
+                      className="tap-target rounded-lg border border-border text-muted hover:text-foreground"
+                      aria-label={`Add task on ${date}`}
+                    >
+                      <Plus className="w-4 h-4" />
+                    </button>
+                  </div>
+                  {tasks.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setSelectedDate(date)}
+                      className="w-full text-left space-y-1.5"
+                    >
+                      {tasks.slice(0, 4).map((task) => (
+                        <div key={task.id} className="flex items-center gap-2 text-sm">
+                          <span
+                            className={`w-4 h-4 rounded border shrink-0 ${
+                              task.done
+                                ? "bg-foreground border-foreground"
+                                : "border-border-strong"
+                            }`}
+                          />
+                          <span
+                            className={`truncate ${
+                              task.done ? "line-through text-muted" : "text-foreground"
+                            }`}
+                          >
+                            {task.text || "Untitled"}
+                          </span>
+                        </div>
+                      ))}
+                      {tasks.length > 4 && (
+                        <p className="text-xs text-muted">+{tasks.length - 4} more</p>
+                      )}
+                    </button>
+                  )}
+                </div>
+              );
+            });
+          })()}
+        </div>
+        </>
       )}
 
       {/* ── List View ── */}

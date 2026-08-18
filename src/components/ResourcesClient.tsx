@@ -617,7 +617,7 @@ export default function ResourcesClient({
   const showOther = selectedFilter === "all" || selectedFilter === "other";
 
   return (
-    <div className="flex-1 w-full max-w-7xl mx-auto px-6 py-8 min-h-[80vh]">
+    <div className="flex-1 w-full max-w-7xl mx-auto page-gutter py-8 min-h-[80vh]">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-3 gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground">

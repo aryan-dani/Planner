@@ -382,10 +382,10 @@ function NavigationInner() {
         onClick={() => setSearchQuery("")}
         aria-label={link.label}
         title={collapsed ? link.label : undefined}
-        className={`flex items-center ${collapsed ? "justify-center" : "justify-between"} px-3 py-2 rounded-xl text-xs font-semibold tracking-wide transition-all border group relative overflow-visible ${
+        className={`flex items-center min-h-11 ${collapsed ? "justify-center" : "justify-between"} px-3 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all border group relative overflow-visible ${
           active
             ? "bg-foreground/8 border-foreground/15 text-foreground font-bold shadow-xs"
-            : "text-muted hover:text-foreground hover:bg-surface/50 border-transparent"
+            : "text-muted hover:text-foreground hover:bg-surface/50 active:bg-surface/70 border-transparent"
         }`}
       >
         {active && (
@@ -401,7 +401,7 @@ function NavigationInner() {
           {!collapsed && <span className="truncate">{link.label}</span>}
         </span>
         {!collapsed && link.featured && (
-          <span className="flex items-center px-1.5 py-0.5 rounded-md text-[9px] font-extrabold uppercase tracking-wider bg-foreground/10 text-foreground border border-foreground/20 shrink-0">
+          <span className="flex items-center px-1.5 py-0.5 rounded-md text-xs font-extrabold uppercase tracking-wider bg-foreground/10 text-foreground border border-foreground/20 shrink-0">
             Core
           </span>
         )}
@@ -434,15 +434,15 @@ function NavigationInner() {
           {isMobile ? (
             <button
               onClick={() => setMobileOpen(false)}
-              className="p-1.5 rounded-lg text-muted hover:text-foreground hover:bg-surface/50 border border-transparent transition-colors md:hidden"
+              className="tap-target rounded-lg text-muted hover:text-foreground hover:bg-surface/50 active:bg-surface border border-transparent transition-colors md:hidden"
               aria-label="Close navigation menu"
             >
-              <X className="w-4.5 h-4.5" />
+              <X className="w-5 h-5" />
             </button>
           ) : (
             <button
               onClick={handleCollapseToggle}
-              className={`p-1.5 rounded-lg hover:bg-surface border border-transparent text-muted hover:text-foreground transition-all shrink-0 hover:border-border/60 ${isCollapsed ? "" : "ml-2"}`}
+              className={`tap-target rounded-lg hover:bg-surface active:bg-surface-hover border border-transparent text-muted hover:text-foreground transition-all shrink-0 hover:border-border/60 ${isCollapsed ? "" : "ml-2"}`}
               title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
               aria-label={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
             >
@@ -462,7 +462,7 @@ function NavigationInner() {
               className="px-3 overflow-visible relative z-50"
             >
               <div className="mt-3 bg-surface/40 border border-border/70 p-2.5 rounded-2xl flex flex-col gap-2 shadow-xs">
-                <p className="text-[9px] font-extrabold tracking-widest uppercase text-muted/80">
+                <p className="text-xs font-extrabold tracking-widest uppercase text-muted/80">
                   Workspace Filters
                 </p>
                 <div className="flex gap-1.5">
@@ -492,7 +492,7 @@ function NavigationInner() {
             <button
               onClick={() => setCommandPaletteOpen(true)}
               aria-label="Search resources"
-              className="w-full flex items-center justify-center p-2.5 bg-surface/50 border border-border/80 rounded-xl text-muted hover:text-foreground hover:border-border-strong transition-all shadow-xs"
+              className="w-full flex items-center justify-center min-h-11 p-2.5 bg-surface/50 border border-border/80 rounded-xl text-muted hover:text-foreground hover:border-border-strong active:bg-surface transition-all shadow-xs"
               title="Search (Ctrl+K)"
             >
               <Search className="w-4 h-4 text-muted" />
@@ -501,7 +501,7 @@ function NavigationInner() {
             <button
               onClick={() => setCommandPaletteOpen(true)}
               aria-label="Search resources"
-              className="w-full flex items-center justify-between px-3 py-2 bg-surface/50 border border-border/80 rounded-xl text-xs text-muted hover:text-foreground hover:border-border-strong transition-all shadow-xs group"
+              className="w-full flex items-center justify-between min-h-11 px-3 py-2 bg-surface/50 border border-border/80 rounded-xl text-xs text-muted hover:text-foreground hover:border-border-strong active:bg-surface transition-all shadow-xs group"
             >
               <span className="flex items-center gap-2 truncate">
                 <Search className="w-3.5 h-3.5 text-muted group-hover:text-primary transition-colors" />
@@ -519,7 +519,7 @@ function NavigationInner() {
           {/* Section 1: Academic Workspace */}
           <div className="space-y-1">
             {!isCollapsed ? (
-              <p className="px-3 text-[9px] font-extrabold tracking-widest uppercase text-muted/70 mb-1.5">
+              <p className="px-3 text-xs font-extrabold tracking-widest uppercase text-muted/70 mb-1.5">
                 Academic Workspace
               </p>
             ) : (
@@ -533,7 +533,7 @@ function NavigationInner() {
           {/* Section: Campus */}
           <div className="space-y-1">
             {!isCollapsed ? (
-              <p className="px-3 text-[9px] font-extrabold tracking-widest uppercase text-muted/70 mb-1.5">
+              <p className="px-3 text-xs font-extrabold tracking-widest uppercase text-muted/70 mb-1.5">
                 Campus
               </p>
             ) : (
@@ -547,7 +547,7 @@ function NavigationInner() {
           {/* Section 2: Productivity Apps */}
           <div className="space-y-1">
             {!isCollapsed ? (
-              <p className="px-3 text-[9px] font-extrabold tracking-widest uppercase text-muted/70 mb-1.5">
+              <p className="px-3 text-xs font-extrabold tracking-widest uppercase text-muted/70 mb-1.5">
                 Productivity Tools
               </p>
             ) : (
@@ -561,7 +561,7 @@ function NavigationInner() {
           {/* Section 3: Social & Connect */}
           <div className="space-y-1">
             {!isCollapsed ? (
-              <p className="px-3 text-[9px] font-extrabold tracking-widest uppercase text-muted/70 mb-1.5">
+              <p className="px-3 text-xs font-extrabold tracking-widest uppercase text-muted/70 mb-1.5">
                 Connect
               </p>
             ) : (
@@ -575,7 +575,7 @@ function NavigationInner() {
           {/* Section 4: System */}
           <div className="space-y-1">
             {!isCollapsed ? (
-              <p className="px-3 text-[9px] font-extrabold tracking-widest uppercase text-muted/70 mb-1.5">
+              <p className="px-3 text-xs font-extrabold tracking-widest uppercase text-muted/70 mb-1.5">
                 System
               </p>
             ) : (
@@ -589,10 +589,10 @@ function NavigationInner() {
                   onClick={() => setSearchQuery("")}
                   title={isCollapsed ? "Admin Dashboard" : undefined}
                   aria-label="Admin Dashboard"
-                  className={`flex items-center ${isCollapsed ? "justify-center" : "gap-2.5 px-3 py-2"} rounded-xl text-xs font-semibold tracking-wide transition-all border group ${
+                  className={`flex items-center min-h-11 ${isCollapsed ? "justify-center" : "gap-2.5 px-3 py-2.5"} rounded-xl text-xs font-semibold tracking-wide transition-all border group ${
                     isActive("/admin")
                       ? "bg-primary/10 border-primary/20 text-primary font-bold shadow-xs"
-                      : "text-muted hover:text-foreground hover:bg-surface/50 border-transparent"
+                      : "text-muted hover:text-foreground hover:bg-surface/50 active:bg-surface/70 border-transparent"
                   }`}
                 >
                   <ShieldCheck className="w-4 h-4 text-muted group-hover:text-foreground" />
@@ -609,7 +609,7 @@ function NavigationInner() {
           {isCollapsed ? (
             <button
               onClick={cycleTheme}
-              className="w-full flex items-center justify-center p-2 bg-surface/60 border border-border/70 rounded-xl text-muted hover:text-foreground transition-all"
+              className="w-full flex items-center justify-center min-h-11 p-2 bg-surface/60 border border-border/70 rounded-xl text-muted hover:text-foreground active:bg-surface transition-all"
               title={`Theme: ${theme}`}
               aria-label="Cycle color theme"
             >
@@ -678,11 +678,11 @@ function NavigationInner() {
       </aside>
  
       {/* 2. Mobile Top Header */}
-      <header className="h-14 fixed top-0 left-0 right-0 border-b border-border bg-background z-30 flex items-center justify-between px-4 md:hidden transition-colors">
+      <header className="fixed top-0 left-0 right-0 h-[calc(3.5rem+env(safe-area-inset-top))] pt-[env(safe-area-inset-top)] border-b border-border bg-background z-30 flex items-center justify-between px-4 md:hidden transition-colors">
         <Link
           href="/"
           onClick={() => setSearchQuery("")}
-          className="text-sm font-bold tracking-tight text-foreground flex items-center gap-2"
+          className="text-sm font-bold tracking-tight text-foreground flex items-center gap-2 min-h-11"
         >
           <div className="w-6 h-6 rounded bg-foreground flex items-center justify-center text-background">
             <Layers className="w-3.5 h-3.5" />
@@ -691,7 +691,7 @@ function NavigationInner() {
         </Link>
  
         <button
-          className="p-1.5 rounded-lg text-muted hover:text-foreground hover:bg-surface/50 border border-transparent transition-colors"
+          className="tap-target rounded-lg text-muted hover:text-foreground hover:bg-surface/50 active:bg-surface border border-transparent transition-colors"
           onClick={() => setMobileOpen(true)}
           aria-label="Open navigation menu"
         >
@@ -718,7 +718,7 @@ function NavigationInner() {
               animate={{ x: 0 }}
               exit={{ x: "-100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 300, mass: 0.8 }}
-              className="fixed top-0 bottom-0 left-0 w-72 bg-background border-r border-border shadow-popover z-[101] md:hidden flex flex-col"
+              className="fixed top-0 bottom-0 left-0 w-72 max-w-[85vw] bg-background border-r border-border shadow-popover z-[101] md:hidden flex flex-col pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]"
             >
               {renderSidebarContent(true)}
             </motion.aside>

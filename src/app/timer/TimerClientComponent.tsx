@@ -393,7 +393,7 @@ export default function TimerClient() {
   }, [weeklyChartData]);
 
   return (
-    <div className="flex-1 w-full px-6 py-10 flex flex-col md:flex-row items-center justify-center gap-12 min-h-screen">
+    <div className="flex-1 w-full page-gutter py-10 flex flex-col md:flex-row items-center justify-center gap-12 min-h-screen">
       
       {/* Left panel: Pomodoro timer */}
       <div className="flex-1 flex flex-col items-center max-w-md w-full">
@@ -567,11 +567,11 @@ export default function TimerClient() {
           </h3>
           <div className="grid grid-cols-2 gap-4">
             <div className="bg-surface/50 border border-border rounded-xl p-3 text-center">
-              <span className="text-[10px] font-bold text-muted uppercase tracking-widest">Completed</span>
+              <span className="text-xs font-bold text-muted uppercase tracking-widest">Completed</span>
               <p className="text-2xl font-black text-foreground mt-1">{sessions}</p>
             </div>
             <div className="bg-surface/50 border border-border rounded-xl p-3 text-center">
-              <span className="text-[10px] font-bold text-muted uppercase tracking-widest">Today's Focus</span>
+              <span className="text-xs font-bold text-muted uppercase tracking-widest">Today's Focus</span>
               <p className="text-2xl font-black text-foreground mt-1">
                 {focusLogs.find(l => l.date === new Date().toISOString().split('T')[0])?.minutes || 0}m
               </p>
@@ -590,17 +590,16 @@ export default function TimerClient() {
               const pct = (d.minutes / maxMinutes) * 100;
               return (
                 <div key={index} className="flex flex-col items-center flex-1 group relative">
-                  {/* Tooltip */}
-                  <div className="absolute -top-8 bg-foreground text-background text-[10px] font-bold rounded px-1.5 py-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-150 pointer-events-none whitespace-nowrap shadow-md z-10">
+                  <div className="absolute -top-8 bg-foreground text-background text-xs font-bold rounded px-1.5 py-0.5 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-150 pointer-events-none whitespace-nowrap shadow-md z-10">
                     {d.minutes}m
                   </div>
-                  <div className="w-5 bg-surface border border-border rounded-full overflow-hidden flex items-end h-20 transition-all group-hover:border-foreground/30">
+                  <div className="w-6 md:w-5 bg-surface border border-border rounded-full overflow-hidden flex items-end h-20 transition-all group-hover:border-foreground/30 group-active:border-foreground/30">
                     <div 
                       className="w-full bg-foreground transition-all duration-500 ease-out rounded-full" 
                       style={{ height: `${pct}%` }}
                     />
                   </div>
-                  <span className="text-[10px] font-semibold text-muted mt-2">{d.day}</span>
+                  <span className="text-xs font-semibold text-muted mt-2">{d.day}</span>
                 </div>
               );
             })}

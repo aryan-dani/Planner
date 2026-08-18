@@ -77,7 +77,7 @@ export default function SeatingClient({
   }, [seating, search, typeFilter]);
 
   return (
-    <div className="flex-1 w-full max-w-7xl mx-auto px-6 py-8 min-h-[80vh]">
+    <div className="flex-1 w-full max-w-7xl mx-auto page-gutter py-8 min-h-[80vh]">
       <div className="mb-8 border-b border-border pb-6">
         <Link
           href="/campus"
@@ -88,7 +88,7 @@ export default function SeatingClient({
         </Link>
         <div className="flex items-center gap-2 mb-2">
           <MapPin className="w-4 h-4 text-foreground shrink-0" />
-          <p className="text-[11px] font-bold uppercase tracking-widest text-muted">
+          <p className="text-xs font-bold uppercase tracking-widest text-muted">
             Faculty seating
           </p>
         </div>
@@ -128,10 +128,10 @@ export default function SeatingClient({
               <button
                 type="button"
                 onClick={() => setTypeFilter("ALL")}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                className={`px-3 py-2 min-h-11 rounded-lg text-xs font-semibold transition-colors ${
                   typeFilter === "ALL"
                     ? "bg-foreground text-background"
-                    : "bg-surface border border-border text-muted hover:text-foreground"
+                    : "bg-surface border border-border text-muted hover:text-foreground active:bg-surface-hover"
                 }`}
               >
                 All
@@ -141,10 +141,10 @@ export default function SeatingClient({
                   key={t}
                   type="button"
                   onClick={() => setTypeFilter(t)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                  className={`px-3 py-2 min-h-11 rounded-lg text-xs font-semibold transition-colors ${
                     typeFilter === t
                       ? "bg-foreground text-background"
-                      : "bg-surface border border-border text-muted hover:text-foreground"
+                      : "bg-surface border border-border text-muted hover:text-foreground active:bg-surface-hover"
                   }`}
                 >
                   {t}
@@ -158,7 +158,36 @@ export default function SeatingClient({
               No seating entries match your filters.
             </div>
           ) : (
-            <div className="overflow-x-auto rounded-xl border border-border shadow-sm">
+            <>
+            <div className="md:hidden space-y-3">
+              {filtered.map((row, idx) => (
+                <article
+                  key={`${row.Seating_ID}-${row.Name_of_Faculty}-${idx}`}
+                  className="rounded-xl border border-border bg-card p-4 active:bg-surface/50"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <h2 className="text-sm font-bold text-foreground">
+                        {String(row.Name_of_Faculty || "—")}
+                      </h2>
+                      <p className="text-xs text-muted mt-1">
+                        {String(row.Designation || "—")}
+                      </p>
+                      <p className="text-xs text-muted mt-0.5">
+                        {String(row.Department || "—")}
+                      </p>
+                    </div>
+                    <span className="shrink-0 px-2 py-1 rounded-md text-xs font-bold uppercase tracking-wider bg-surface border border-border text-muted">
+                      {String(row.Type || "—")}
+                    </span>
+                  </div>
+                  <p className="mt-3 font-mono text-sm text-foreground">
+                    {String(row.Seating_ID || "—")}
+                  </p>
+                </article>
+              ))}
+            </div>
+            <div className="hidden md:block overflow-x-auto rounded-xl border border-border shadow-sm">
               <table className="min-w-full text-sm">
                 <thead>
                   <tr className="bg-surface/60 border-b border-border text-left">
@@ -207,6 +236,7 @@ export default function SeatingClient({
                 </tbody>
               </table>
             </div>
+            </>
           )}
         </>
       )}

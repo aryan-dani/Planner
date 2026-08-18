@@ -72,7 +72,7 @@ export default function SharedPlanView({ plan }: { plan: Plan }) {
   const progressPct = totalTasks > 0 ? (doneTasks / totalTasks) * 100 : 0;
 
   return (
-    <div className="flex-1 w-full px-6 py-8 max-w-7xl mx-auto min-h-[80vh]">
+    <div className="flex-1 w-full page-gutter py-8 max-w-7xl mx-auto min-h-[80vh]">
       {/* Header */}
       <div className="flex flex-col gap-4 mb-6 pb-5 border-b border-border">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
@@ -107,7 +107,7 @@ export default function SharedPlanView({ plan }: { plan: Plan }) {
       </div>
 
       {/* Calendar Grid */}
-      <div className="grid grid-cols-7 gap-px bg-border rounded-xl overflow-hidden border border-border shadow-card">
+      <div className="hidden md:grid grid-cols-7 gap-px bg-border rounded-xl overflow-hidden border border-border shadow-card">
         {DAY_LABELS.map((d) => (
           <div key={d} className="bg-surface py-2.5 text-center">
             <span className="text-[11px] font-bold text-muted uppercase tracking-wider">{d}</span>
@@ -165,6 +165,64 @@ export default function SharedPlanView({ plan }: { plan: Plan }) {
             </div>
           );
         })}
+      </div>
+
+      <div className="md:hidden space-y-3">
+        {(() => {
+          const monthDays = calendarDays.filter((d) => d.isCurrentMonth);
+          const todayIdx = monthDays.findIndex((d) => d.date === today);
+          const ordered =
+            todayIdx >= 0
+              ? [...monthDays.slice(todayIdx), ...monthDays.slice(0, todayIdx)]
+              : monthDays;
+          return ordered.map(({ date, dayNum }) => {
+            const tasks = planData[date] || [];
+            const isToday = date === today;
+            const done = tasks.filter((t) => t.done).length;
+            const dateObj = new Date(date + "T00:00:00");
+            const dayName = dateObj.toLocaleDateString("en-US", { weekday: "short" });
+            return (
+              <div key={date} className="bg-card border border-border rounded-xl p-3">
+                <div className="flex items-center gap-3 mb-2">
+                  <div
+                    className={`w-11 h-11 rounded-lg flex flex-col items-center justify-center shrink-0 ${
+                      isToday
+                        ? "bg-foreground text-background"
+                        : "bg-surface border border-border text-foreground"
+                    }`}
+                  >
+                    <span className="text-[10px] font-bold uppercase leading-none opacity-85">{dayName}</span>
+                    <span className="text-base font-black leading-none">{dayNum}</span>
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-bold text-foreground">
+                      {isToday ? "Today" : dateObj.toLocaleDateString("en-US", { weekday: "long" })}
+                    </p>
+                    <p className="text-xs text-muted">
+                      {tasks.length === 0 ? "No tasks" : `${done}/${tasks.length} done`}
+                    </p>
+                  </div>
+                </div>
+                {tasks.length > 0 && (
+                  <div className="space-y-1.5">
+                    {tasks.map((task) => (
+                      <div key={task.id} className="flex items-center gap-2 text-sm">
+                        <span
+                          className={`w-4 h-4 rounded border shrink-0 ${
+                            task.done ? "bg-foreground border-foreground" : "border-border-strong"
+                          }`}
+                        />
+                        <span className={`truncate ${task.done ? "line-through text-muted" : "text-foreground"}`}>
+                          {task.text || "Untitled"}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          });
+        })()}
       </div>
     </div>
   );

@@ -285,7 +285,7 @@ export default function SrsClient() {
   }
 
   return (
-    <div className="flex-1 w-full max-w-7xl mx-auto px-6 py-8 min-h-[80vh]">
+    <div className="flex-1 w-full max-w-7xl mx-auto page-gutter py-8 min-h-[80vh]">
       
       {/* ── 1. DASHBOARD VIEW ─────────────────────────────────────────────── */}
       {view === 'dashboard' && (
@@ -400,7 +400,7 @@ export default function SrsClient() {
                       <div className="flex items-center gap-1">
                         <button
                           onClick={() => exportDeck(deck)}
-                          className="opacity-0 group-hover:opacity-100 p-1.5 text-muted hover:text-foreground rounded-lg transition-all"
+                          className="opacity-100 md:opacity-0 md:group-hover:opacity-100 p-2 min-h-11 min-w-11 md:p-1.5 md:min-h-0 md:min-w-0 text-muted hover:text-foreground rounded-lg transition-all inline-flex items-center justify-center"
                           title="Export Deck to JSON"
                         >
                           <Download className="w-3.5 h-3.5" />
@@ -411,7 +411,7 @@ export default function SrsClient() {
                               deleteDeck(deck.id);
                             }
                           }}
-                          className="opacity-0 group-hover:opacity-100 p-1.5 text-muted hover:text-red-500 rounded-lg transition-all"
+                          className="opacity-100 md:opacity-0 md:group-hover:opacity-100 p-2 min-h-11 min-w-11 md:p-1.5 md:min-h-0 md:min-w-0 text-muted hover:text-red-500 rounded-lg transition-all inline-flex items-center justify-center"
                           title="Delete Deck"
                         >
                           <Trash2 className="w-3.5 h-3.5" />

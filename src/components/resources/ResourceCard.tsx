@@ -173,7 +173,7 @@ export default function ResourceCard({
       </div>
 
       {/* File info */}
-      <p className="text-[10px] font-semibold text-muted uppercase tracking-wider mt-auto">
+      <p className="text-xs font-semibold text-muted uppercase tracking-wider mt-auto">
         {isCode
           ? extension.toUpperCase() || "CODE"
           : isPdf
@@ -190,9 +190,9 @@ export default function ResourceCard({
       <div
         className={`grid gap-2 ${
           isSummarizable && hasRelatedCode
-            ? "grid-cols-3"
+            ? "grid-cols-1 sm:grid-cols-3"
             : isSummarizable || hasRelatedCode
-              ? "grid-cols-2"
+              ? "grid-cols-1 sm:grid-cols-2"
               : "grid-cols-1"
         }`}
       >
@@ -203,7 +203,7 @@ export default function ResourceCard({
             e.stopPropagation();
             handleOpen();
           }}
-          className="flex items-center justify-center gap-1.5 w-full py-2 bg-surface hover:bg-surface-hover border border-border rounded-xl text-xs font-medium text-foreground transition-colors"
+          className="flex items-center justify-center gap-1.5 w-full min-h-11 py-2 bg-surface hover:bg-surface-hover active:bg-surface-hover border border-border rounded-xl text-xs font-medium text-foreground transition-colors"
         >
           <ExternalLink className="w-3.5 h-3.5 text-muted" />
           Open
@@ -212,7 +212,7 @@ export default function ResourceCard({
           <button
             type="button"
             onClick={handleOpenCode}
-            className="flex items-center justify-center gap-1.5 w-full py-2 bg-surface hover:bg-surface-hover border border-border rounded-xl text-xs font-medium text-foreground transition-colors"
+            className="flex items-center justify-center gap-1.5 w-full min-h-11 py-2 bg-surface hover:bg-surface-hover border border-border rounded-xl text-xs font-medium text-foreground transition-colors"
             title={
               relatedCodes.length === 1
                 ? relatedCodes[0].title
@@ -231,7 +231,7 @@ export default function ResourceCard({
               e.stopPropagation();
               onSummarize(item);
             }}
-            className="flex items-center justify-center gap-1.5 w-full py-2 bg-foreground text-background hover:opacity-90 rounded-xl text-xs font-medium transition-opacity"
+            className="flex items-center justify-center gap-1.5 w-full min-h-11 py-2 bg-foreground text-background hover:opacity-90 rounded-xl text-xs font-medium transition-opacity"
           >
             Summarize
           </button>

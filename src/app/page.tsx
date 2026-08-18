@@ -79,7 +79,7 @@ export default function Home() {
       <div className="absolute inset-0 bg-[linear-gradient(to_right,rgb(var(--foreground)/0.06)_1px,transparent_1px),linear-gradient(to_bottom,rgb(var(--foreground)/0.06)_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_50%,#000_70%,transparent_100%)] pointer-events-none -z-20" />
 
       {/* Hero */}
-      <section className="w-full max-w-7xl mx-auto px-6 pt-28 pb-28 flex flex-col items-center justify-center text-center relative min-h-[78vh]">
+      <section className="w-full max-w-7xl mx-auto page-gutter pt-28 pb-28 flex flex-col items-center justify-center text-center relative min-h-[78vh]">
         <p className="font-display text-6xl sm:text-7xl md:text-8xl text-foreground tracking-tight mb-5">
           Utility
         </p>
@@ -99,14 +99,14 @@ export default function Home() {
       <div className="w-full border-t border-border" />
 
       {/* How it connects */}
-      <section className="w-full max-w-7xl mx-auto px-6 py-10">
+      <section className="w-full max-w-7xl mx-auto page-gutter py-10">
         <p className="text-center text-sm text-foreground-subtle mb-4 font-medium">
           How everything links
         </p>
         <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3 text-xs sm:text-sm font-semibold text-foreground">
           <Link
             href="/syllabus"
-            className="px-3 py-1.5 rounded-lg bg-surface border border-border hover:border-border-strong transition-colors"
+            className="px-3 py-2 min-h-11 rounded-lg bg-surface border border-border hover:border-border-strong active:bg-surface-hover transition-colors"
           >
             Syllabus
             <span className="text-muted font-medium"> · units</span>
@@ -114,7 +114,7 @@ export default function Home() {
           <ArrowRight className="w-3.5 h-3.5 text-muted" />
           <Link
             href="/resources"
-            className="px-3 py-1.5 rounded-lg bg-surface border border-border hover:border-border-strong transition-colors"
+            className="px-3 py-2 min-h-11 rounded-lg bg-surface border border-border hover:border-border-strong active:bg-surface-hover transition-colors"
           >
             Vault
             <span className="text-muted font-medium"> · files</span>
@@ -122,14 +122,14 @@ export default function Home() {
           <ArrowRight className="w-3.5 h-3.5 text-muted" />
           <Link
             href="/ask"
-            className="px-3 py-1.5 rounded-lg bg-surface border border-border hover:border-border-strong transition-colors"
+            className="px-3 py-2 min-h-11 rounded-lg bg-surface border border-border hover:border-border-strong active:bg-surface-hover transition-colors"
           >
             Ask AI
           </Link>
           <ArrowRight className="w-3.5 h-3.5 text-muted" />
           <Link
             href="/planner"
-            className="px-3 py-1.5 rounded-lg bg-surface border border-border hover:border-border-strong transition-colors"
+            className="px-3 py-2 min-h-11 rounded-lg bg-surface border border-border hover:border-border-strong active:bg-surface-hover transition-colors"
           >
             Planner
           </Link>
@@ -137,7 +137,7 @@ export default function Home() {
       </section>
 
       {/* Feature cards */}
-      <section className="w-full max-w-7xl mx-auto px-6 pb-20">
+      <section className="w-full max-w-7xl mx-auto page-gutter pb-20">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-px bg-border rounded-xl overflow-hidden border border-border shadow-sm">
           {FEATURES.map(({ href, label, number, Icon, description }) => (
             <Link
@@ -177,7 +177,7 @@ export default function Home() {
       </section>
 
       {/* Full-width heatmap */}
-      <section className="w-full max-w-7xl mx-auto px-6 py-10">
+      <section className="w-full max-w-7xl mx-auto page-gutter py-10">
         <HomeHeatmap />
       </section>
 

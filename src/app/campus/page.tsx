@@ -33,11 +33,11 @@ const CAMPUS_LINKS = [
 
 export default function CampusHubPage() {
   return (
-    <div className="flex-1 w-full max-w-7xl mx-auto px-6 py-8 min-h-[80vh]">
+    <div className="flex-1 w-full max-w-7xl mx-auto page-gutter py-8 min-h-[80vh]">
       <div className="mb-10 border-b border-border pb-6">
         <div className="flex items-center gap-2 mb-2">
           <Building2 className="w-4 h-4 text-foreground shrink-0" />
-          <p className="text-[11px] font-bold uppercase tracking-widest text-muted">
+          <p className="text-xs font-bold uppercase tracking-widest text-muted">
             Campus
           </p>
         </div>
@@ -55,7 +55,7 @@ export default function CampusHubPage() {
           <Link
             key={href}
             href={href}
-            className="group flex flex-col gap-4 rounded-xl border border-border bg-card p-5 sm:p-6 text-left transition-colors hover:bg-surface/60 hover:border-border-strong focus-visible:outline-offset-2"
+            className="group flex flex-col gap-4 rounded-xl border border-border bg-card p-5 sm:p-6 text-left transition-colors hover:bg-surface/60 active:bg-surface hover:border-border-strong focus-visible:outline-offset-2"
           >
             <div className="w-10 h-10 rounded-xl border border-border bg-surface flex items-center justify-center text-foreground group-hover:border-foreground/30 transition-colors">
               <Icon className="w-[18px] h-[18px]" />

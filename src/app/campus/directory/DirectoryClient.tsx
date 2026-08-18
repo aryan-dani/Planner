@@ -117,7 +117,7 @@ export default function DirectoryClient({
   }, [filtered]);
 
   return (
-    <div className="flex-1 w-full max-w-7xl mx-auto px-6 py-8 min-h-[80vh]">
+    <div className="flex-1 w-full max-w-7xl mx-auto page-gutter py-8 min-h-[80vh]">
       <div className="mb-8 border-b border-border pb-6">
         <Link
           href="/campus"
@@ -128,7 +128,7 @@ export default function DirectoryClient({
         </Link>
         <div className="flex items-center gap-2 mb-2">
           <BookUser className="w-4 h-4 text-foreground shrink-0" />
-          <p className="text-[11px] font-bold uppercase tracking-widest text-muted">
+          <p className="text-xs font-bold uppercase tracking-widest text-muted">
             Faculty directory
           </p>
         </div>
@@ -169,10 +169,10 @@ export default function DirectoryClient({
               <button
                 type="button"
                 onClick={() => setGroupFilter("ALL")}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                className={`px-3 py-2 min-h-11 rounded-lg text-xs font-semibold transition-colors ${
                   groupFilter === "ALL"
                     ? "bg-foreground text-background"
-                    : "bg-surface border border-border text-muted hover:text-foreground"
+                    : "bg-surface border border-border text-muted hover:text-foreground active:bg-surface-hover"
                 }`}
               >
                 All tracks
@@ -182,10 +182,10 @@ export default function DirectoryClient({
                   key={g}
                   type="button"
                   onClick={() => setGroupFilter(g)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                  className={`px-3 py-2 min-h-11 rounded-lg text-xs font-semibold transition-colors ${
                     groupFilter === g
                       ? "bg-foreground text-background"
-                      : "bg-surface border border-border text-muted hover:text-foreground"
+                      : "bg-surface border border-border text-muted hover:text-foreground active:bg-surface-hover"
                   }`}
                   title={g}
                 >
@@ -212,7 +212,7 @@ export default function DirectoryClient({
                         key={`${member.name}-${member.email}-${idx}`}
                         type="button"
                         onClick={() => setSelected(member)}
-                        className="text-left rounded-xl border border-border bg-card p-4 hover:bg-surface/50 hover:border-border-strong transition-colors focus-visible:outline-offset-2"
+                        className="text-left rounded-xl border border-border bg-card p-4 hover:bg-surface/50 active:bg-surface hover:border-border-strong transition-colors focus-visible:outline-offset-2"
                       >
                         <p className="text-sm font-bold text-foreground line-clamp-1">
                           {String(member.name || "Unknown")}
@@ -221,7 +221,7 @@ export default function DirectoryClient({
                           {String(member.designation || "—")}
                         </p>
                         {member.email ? (
-                          <p className="text-[11px] text-muted mt-3 flex items-center gap-1.5 truncate">
+                          <p className="text-xs text-muted mt-3 flex items-center gap-1.5 truncate">
                             <Mail className="w-3 h-3 shrink-0" />
                             <span className="truncate">
                               {String(member.email)}
@@ -267,7 +267,7 @@ export default function DirectoryClient({
               <button
                 type="button"
                 onClick={() => setSelected(null)}
-                className="p-2 rounded-xl text-muted hover:text-foreground hover:bg-surface transition-colors"
+                className="tap-target rounded-xl text-muted hover:text-foreground hover:bg-surface transition-colors"
                 aria-label="Close"
               >
                 <X className="w-4 h-4" />
@@ -284,7 +284,7 @@ export default function DirectoryClient({
               ].map(([label, value]) =>
                 value ? (
                   <div key={String(label)}>
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted mb-0.5">
+                    <p className="text-xs font-bold uppercase tracking-widest text-muted mb-0.5">
                       {label}
                     </p>
                     <p className="text-foreground break-words">

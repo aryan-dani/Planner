@@ -76,7 +76,7 @@ export default function LabsClient({
   }, [labs, search, floorFilter]);
 
   return (
-    <div className="flex-1 w-full max-w-7xl mx-auto px-6 py-8 min-h-[80vh]">
+    <div className="flex-1 w-full max-w-7xl mx-auto page-gutter py-8 min-h-[80vh]">
       <div className="mb-8 border-b border-border pb-6">
         <Link
           href="/campus"
@@ -87,7 +87,7 @@ export default function LabsClient({
         </Link>
         <div className="flex items-center gap-2 mb-2">
           <FlaskConical className="w-4 h-4 text-foreground shrink-0" />
-          <p className="text-[11px] font-bold uppercase tracking-widest text-muted">
+          <p className="text-xs font-bold uppercase tracking-widest text-muted">
             Lab registry
           </p>
         </div>
@@ -127,10 +127,10 @@ export default function LabsClient({
               <button
                 type="button"
                 onClick={() => setFloorFilter("ALL")}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                className={`px-3 py-2 min-h-11 rounded-lg text-xs font-semibold transition-colors ${
                   floorFilter === "ALL"
                     ? "bg-foreground text-background"
-                    : "bg-surface border border-border text-muted hover:text-foreground"
+                    : "bg-surface border border-border text-muted hover:text-foreground active:bg-surface-hover"
                 }`}
               >
                 All floors
@@ -140,10 +140,10 @@ export default function LabsClient({
                   key={f}
                   type="button"
                   onClick={() => setFloorFilter(f)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                  className={`px-3 py-2 min-h-11 rounded-lg text-xs font-semibold transition-colors ${
                     floorFilter === f
                       ? "bg-foreground text-background"
-                      : "bg-surface border border-border text-muted hover:text-foreground"
+                      : "bg-surface border border-border text-muted hover:text-foreground active:bg-surface-hover"
                   }`}
                 >
                   {f}
@@ -161,7 +161,7 @@ export default function LabsClient({
               {filtered.map((lab, idx) => (
                 <article
                   key={`${lab.labName}-${lab.roomNo}-${idx}`}
-                  className="rounded-xl border border-border bg-card p-5 flex flex-col gap-3"
+                  className="rounded-xl border border-border bg-card p-5 flex flex-col gap-3 active:bg-surface/50"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
@@ -173,7 +173,7 @@ export default function LabsClient({
                         {lab.floor ? ` · ${lab.floor}` : ""}
                       </p>
                     </div>
-                    <span className="shrink-0 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-surface border border-border text-muted">
+                    <span className="shrink-0 px-2 py-0.5 rounded-md text-xs font-bold uppercase tracking-wider bg-surface border border-border text-muted">
                       {String(lab.internet || "—") === "Yes"
                         ? "Online"
                         : String(lab.internet || "Net n/a")}
@@ -181,7 +181,7 @@ export default function LabsClient({
                   </div>
                   <dl className="grid grid-cols-2 gap-3 text-xs">
                     <div>
-                      <dt className="text-[10px] font-bold uppercase tracking-widest text-muted">
+                      <dt className="text-xs font-bold uppercase tracking-widest text-muted">
                         Systems
                       </dt>
                       <dd className="text-foreground font-medium mt-0.5">
@@ -189,7 +189,7 @@ export default function LabsClient({
                       </dd>
                     </div>
                     <div>
-                      <dt className="text-[10px] font-bold uppercase tracking-widest text-muted">
+                      <dt className="text-xs font-bold uppercase tracking-widest text-muted">
                         Capacity
                       </dt>
                       <dd className="text-foreground font-medium mt-0.5">
@@ -197,7 +197,7 @@ export default function LabsClient({
                       </dd>
                     </div>
                     <div className="col-span-2">
-                      <dt className="text-[10px] font-bold uppercase tracking-widest text-muted">
+                      <dt className="text-xs font-bold uppercase tracking-widest text-muted">
                         Assistant
                       </dt>
                       <dd className="text-foreground font-medium mt-0.5">
@@ -206,7 +206,7 @@ export default function LabsClient({
                     </div>
                     {lab.machineMake ? (
                       <div className="col-span-2">
-                        <dt className="text-[10px] font-bold uppercase tracking-widest text-muted">
+                        <dt className="text-xs font-bold uppercase tracking-widest text-muted">
                           Machines
                         </dt>
                         <dd className="text-foreground font-medium mt-0.5">

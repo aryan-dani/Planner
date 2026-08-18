@@ -435,7 +435,7 @@ export default function GPAClient() {
 
   if (showCoursePicker) {
     return (
-      <div className="flex-1 w-full max-w-7xl mx-auto px-6 py-8 min-h-[80vh]">
+      <div className="flex-1 w-full max-w-7xl mx-auto page-gutter py-8 min-h-[80vh]">
         <FadeIn>
           <div className="text-center mb-12">
             <h1 className="text-4xl font-black tracking-tight text-foreground mb-4 flex items-center justify-center gap-3">
@@ -466,7 +466,7 @@ export default function GPAClient() {
                   setShowCoursePicker(false);
                   setIsCalculated(false);
                 }}
-                className="group relative resource-card-hover rounded-2xl bg-card p-8 text-left w-full h-full border border-border transition-all duration-300 flex flex-col justify-between overflow-hidden"
+                className="group relative resource-card-hover rounded-2xl bg-card p-4 sm:p-8 text-left w-full h-full border border-border transition-all duration-300 flex flex-col justify-between overflow-hidden"
               >
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(var(--foreground),0.02),transparent_70%)] opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
                 <div>
@@ -489,7 +489,7 @@ export default function GPAClient() {
   }
 
   return (
-    <div className="flex-1 w-full max-w-7xl mx-auto px-6 py-8 min-h-[80vh]">
+    <div className="flex-1 w-full max-w-7xl mx-auto page-gutter py-8 min-h-[80vh]">
       {/* CSS Injection for beautiful printing */}
       <style dangerouslySetInnerHTML={{ __html: `
         @media print {
@@ -651,7 +651,7 @@ export default function GPAClient() {
                 <div id="strategy-results" className="space-y-12 pb-20">
                   {/* Best Case Summary */}
                   <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    <div className="lg:col-span-1 bg-foreground text-background p-8 rounded-2xl flex flex-col items-center justify-center text-center shadow-card relative overflow-hidden">
+                    <div className="lg:col-span-1 bg-foreground text-background p-4 sm:p-8 rounded-2xl flex flex-col items-center justify-center text-center shadow-card relative overflow-hidden">
                       <div className="absolute top-0 right-0 w-32 h-32 bg-background/10 rounded-none -mr-16 -mt-16 blur-2xl" />
                       <p className="text-background/60 text-[10px] font-black uppercase tracking-widest mb-2">Absolute Best-Case GPA</p>
                       <div className="text-8xl font-black tracking-tighter mb-4">{bestCaseGPA.toFixed(2)}</div>
@@ -686,7 +686,7 @@ export default function GPAClient() {
                   </div>
 
                   {/* Interactive Simulator */}
-                  <div className="bg-card border border-border p-8 rounded-2xl shadow-sm border-dashed">
+                  <div className="bg-card border border-border p-4 sm:p-8 rounded-2xl shadow-sm border-dashed">
                     <div className="flex flex-col md:flex-row items-center justify-between mb-10 gap-6">
                       <div>
                         <h2 className="text-2xl font-black text-foreground flex items-center gap-3">
@@ -695,7 +695,7 @@ export default function GPAClient() {
                         </h2>
                         <p className="text-muted text-sm mt-1 uppercase tracking-widest font-bold">Select realistic targets to see your projected GPA</p>
                       </div>
-                      <div className="bg-surface border border-border px-10 py-6 text-center min-w-[200px] rounded-xl shadow-xs">
+                      <div className="bg-surface border border-border px-4 sm:px-10 py-6 text-center min-w-0 sm:min-w-[200px] rounded-xl shadow-xs">
                         <p className="text-[10px] font-black uppercase tracking-widest text-muted mb-1">Projected GPA</p>
                         <div className="text-5xl font-black text-foreground tracking-tighter">{simulatedGPA.toFixed(2)}</div>
                       </div>
@@ -713,7 +713,7 @@ export default function GPAClient() {
                               <span className="text-sm font-black uppercase text-foreground min-w-[120px]">{sub.name}</span>
                               <div className="h-px flex-1 bg-border/50" />
                             </div>
-                            <div className="grid grid-cols-4 sm:grid-cols-7 gap-px bg-border/60 rounded-xl overflow-hidden border border-border/70 max-w-xl">
+                            <div className="grid grid-cols-2 sm:grid-cols-7 gap-px bg-border/60 rounded-xl overflow-hidden border border-border/70 max-w-xl">
                               {[10, 9, 8, 7, 6, 5, 0].map(gp => {
                                 const isDisabled = gp > bestGP;
                                 const isActive = simSelections[sub.id] === gp;
@@ -724,7 +724,7 @@ export default function GPAClient() {
                                     disabled={isDisabled}
                                     onClick={() => setSimSelections(prev => ({ ...prev, [sub.id]: gp }))}
                                     className={`
-                                      py-2.5 text-center text-xs font-bold transition-all
+                                      py-3 min-h-11 text-center text-xs font-bold transition-all
                                       ${isDisabled ? 'bg-card opacity-20 cursor-not-allowed' : ''}
                                       ${isActive ? 'bg-foreground text-background font-black' : 'bg-surface text-muted hover:text-foreground hover:bg-surface-hover'}
                                     `}
@@ -742,14 +742,14 @@ export default function GPAClient() {
 
                   {/* Advanced Analysis Accordion */}
                   <details className="group bg-surface/30 border border-border rounded-2xl overflow-hidden">
-                    <summary className="px-8 py-6 cursor-pointer flex items-center justify-between hover:bg-surface/50 transition-colors">
+                    <summary className="px-4 sm:px-8 py-6 cursor-pointer flex items-center justify-between hover:bg-surface/50 active:bg-surface/60 transition-colors">
                       <div className="flex items-center gap-3">
                         <Search className="w-5 h-5 text-muted" />
                         <span className="font-black text-sm uppercase tracking-widest text-foreground">Advanced Bracket Breakdown</span>
                       </div>
                       <ChevronLeft className="w-5 h-5 text-muted group-open:-rotate-90 transition-transform" />
                     </summary>
-                    <div className="p-8 pt-0 grid grid-cols-1 md:grid-cols-2 gap-px bg-border/60 rounded-xl overflow-hidden border border-border/70 shadow-sm bg-card">
+                    <div className="p-4 sm:p-8 pt-0 grid grid-cols-1 md:grid-cols-2 gap-px bg-border/60 rounded-xl overflow-hidden border border-border/70 shadow-sm bg-card">
                       {currentBranch?.finals.map(sub => {
                         const currentMarks = marks[sub.id] || 0;
                         const rawPassReq = 40 - currentMarks;
@@ -1013,7 +1013,7 @@ export default function GPAClient() {
                                 <button
                                   onClick={() => handleSemesterCompletedToggle(semNum, true)}
                                   disabled={isSyncedSem}
-                                  className={`flex-1 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${
+                                  className={`flex-1 py-2 min-h-11 rounded-lg text-xs font-black uppercase tracking-wider transition-all ${
                                     sem.completed 
                                       ? 'bg-card text-foreground shadow-sm' 
                                       : 'text-muted hover:text-foreground'
@@ -1024,7 +1024,7 @@ export default function GPAClient() {
                                 <button
                                   onClick={() => handleSemesterCompletedToggle(semNum, false)}
                                   disabled={isSyncedSem}
-                                  className={`flex-1 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${
+                                  className={`flex-1 py-2 min-h-11 rounded-lg text-xs font-black uppercase tracking-wider transition-all ${
                                     !sem.completed 
                                       ? 'bg-card text-foreground shadow-sm' 
                                       : 'text-muted hover:text-foreground'
@@ -1036,7 +1036,7 @@ export default function GPAClient() {
 
                               {/* Credits field */}
                               <div className="space-y-1">
-                                <label className="text-[9px] font-black uppercase tracking-widest text-muted block pl-0.5">
+                                <label className="text-xs font-black uppercase tracking-widest text-muted block pl-0.5">
                                   Credits
                                 </label>
                                 <input
@@ -1053,7 +1053,7 @@ export default function GPAClient() {
                               {/* SGPA or Target required display */}
                               {sem.completed ? (
                                 <div className="space-y-1">
-                                  <label className="text-[9px] font-black uppercase tracking-widest text-muted block pl-0.5">
+                                  <label className="text-xs font-black uppercase tracking-widest text-muted block pl-0.5">
                                     SGPA
                                   </label>
                                   <input
@@ -1092,7 +1092,7 @@ export default function GPAClient() {
 
                         {/* Sync Badge for calculator semester */}
                         {isSyncedSem && (
-                          <div className="mt-4 pt-2 border-t border-border/50 text-[9px] font-black text-foreground flex items-center gap-1 uppercase tracking-wider justify-center">
+                          <div className="mt-4 pt-2 border-t border-border/50 text-xs font-black text-foreground flex items-center gap-1 uppercase tracking-wider justify-center">
                             <Zap className="w-2.5 h-2.5 fill-current text-foreground" />
                             Synced from semester strategy
                           </div>

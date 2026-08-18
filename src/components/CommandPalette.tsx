@@ -447,7 +447,7 @@ export default function CommandPalette() {
   return (
     <AnimatePresence>
       {isCommandPaletteOpen && (
-        <div className="fixed inset-0 z-[200] flex items-start justify-center pt-16 sm:pt-24 px-4 pb-4">
+        <div className="fixed inset-0 z-[200] flex items-start justify-center pt-[calc(4rem+env(safe-area-inset-top))] sm:pt-24 px-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
           {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
@@ -525,10 +525,10 @@ export default function CommandPalette() {
                               setSelectedIndex(globalIdx);
                             }
                           }}
-                          className={`relative w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-left transition-all duration-150 text-sm group border focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 ${
+                          className={`relative w-full flex items-center gap-3 px-3.5 py-3 min-h-11 rounded-xl text-left transition-all duration-150 text-sm group border focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 ${
                             isSelected
                               ? 'bg-surface-hover border-border-strong text-foreground shadow-sm font-semibold'
-                              : 'border-transparent text-foreground-subtle hover:bg-surface/30 hover:text-foreground'
+                              : 'border-transparent text-foreground-subtle hover:bg-surface/30 hover:text-foreground active:bg-surface/50'
                           }`}
                         >
                           {/* Active Left Indicator Bar */}
@@ -588,8 +588,8 @@ export default function CommandPalette() {
               )}
             </div>
 
-            {/* Footer Navigation Hints */}
-            <div className="px-4 py-3 border-t border-border bg-surface/30 flex items-center justify-between text-[10px] font-medium text-muted select-none">
+            {/* Footer Navigation Hints — keyboard-only, hide on phones */}
+            <div className="hidden md:flex px-4 py-3 border-t border-border bg-surface/30 items-center justify-between text-xs font-medium text-muted select-none">
               <div className="flex items-center gap-4">
                 <span className="flex items-center gap-1.5">
                   <kbd className="px-1.5 py-0.5 bg-surface border border-border rounded shadow-sm font-bold text-foreground">↑</kbd>

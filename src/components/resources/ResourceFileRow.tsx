@@ -101,7 +101,7 @@ export default function ResourceFileRow({
     }
   };
 
-  const paddingLeft = 12 + depth * 16;
+  const paddingLeft = 12 + Math.min(depth, 3) * 12;
 
   return (
     <div
@@ -144,7 +144,7 @@ export default function ResourceFileRow({
             e.stopPropagation();
             handleOpen();
           }}
-          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-surface hover:bg-surface-hover border border-border text-[11px] font-medium text-foreground transition-colors"
+          className="inline-flex items-center gap-1 px-2.5 py-2 min-h-11 rounded-lg bg-surface hover:bg-surface-hover border border-border text-xs font-medium text-foreground transition-colors"
         >
           <ExternalLink className="w-3 h-3 text-muted" />
           Open
@@ -157,7 +157,7 @@ export default function ResourceFileRow({
               e.stopPropagation();
               onSummarize?.(item);
             }}
-            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-foreground text-background hover:opacity-90 text-[11px] font-medium transition-opacity"
+            className="inline-flex items-center gap-1 px-2.5 py-2 min-h-11 rounded-lg bg-foreground text-background hover:opacity-90 text-xs font-medium transition-opacity"
           >
             Summarize
           </button>
