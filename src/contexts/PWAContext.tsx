@@ -1,10 +1,15 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext } from 'react';
+
+interface BeforeInstallPromptEvent extends Event {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
+}
 
 interface PWAContextType {
-  deferredPrompt: any | null;
-  setDeferredPrompt: (prompt: any | null) => void;
+  deferredPrompt: BeforeInstallPromptEvent | null;
+  setDeferredPrompt: (prompt: BeforeInstallPromptEvent | null) => void;
   isInstallable: boolean;
 }
 
@@ -15,19 +20,18 @@ const PWAContext = createContext<PWAContextType>({
 });
 
 export function PWAProvider({ children }: { children: React.ReactNode }) {
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
-
-  useEffect(() => {
-    const handler = (e: Event) => {
-      e.preventDefault();
-      setDeferredPrompt(e);
-    };
-    window.addEventListener('beforeinstallprompt', handler);
-    return () => window.removeEventListener('beforeinstallprompt', handler);
-  }, []);
-
+  // Intentionally do not listen for `beforeinstallprompt` or call preventDefault().
+  // Cancelling that event without prompt() makes Chrome log
+  // "Banner not shown: beforeinstallpromptevent.preventDefault() called"
+  // on every navigation. Native install UI + /install remain available.
   return (
-    <PWAContext.Provider value={{ deferredPrompt, setDeferredPrompt, isInstallable: !!deferredPrompt }}>
+    <PWAContext.Provider
+      value={{
+        deferredPrompt: null,
+        setDeferredPrompt: () => {},
+        isInstallable: false,
+      }}
+    >
       {children}
     </PWAContext.Provider>
   );

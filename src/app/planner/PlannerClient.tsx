@@ -1293,12 +1293,12 @@ export default function PlannerClient() {
   if (!mounted) return null;
 
   return (
-    <div className="flex-1 w-full page-gutter py-8 max-w-7xl mx-auto min-h-[80vh]">
+    <div className="flex-1 w-full min-w-0 page-gutter py-8 max-w-7xl mx-auto min-h-[80vh]">
       {/* ── Header ── */}
-      <div className="flex flex-col gap-4 mb-6 pb-5 border-b border-border">
+      <div className="flex flex-col gap-4 mb-6 pb-5 border-b border-border min-w-0">
         {/* Title row */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-          <div className="flex items-center gap-3">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 min-w-0">
+          <div className="flex items-center gap-3 min-w-0 w-full sm:w-auto">
             {editingTitle ? (
               <input
                 autoFocus
@@ -1306,11 +1306,11 @@ export default function PlannerClient() {
                 onChange={(e) => setPlanMeta(prev => ({ ...prev, title: e.target.value }))}
                 onBlur={() => setEditingTitle(false)}
                 onKeyDown={(e) => e.key === 'Enter' && setEditingTitle(false)}
-                className="text-2xl font-bold tracking-tight text-foreground bg-transparent border-b-2 border-foreground outline-none"
+                className="text-2xl font-bold tracking-tight text-foreground bg-transparent border-b-2 border-foreground outline-none w-full min-w-0 max-w-full"
               />
             ) : (
               <h1
-                className="text-2xl font-bold tracking-tight text-foreground cursor-pointer hover:opacity-70 transition-opacity"
+                className="text-2xl font-bold tracking-tight text-foreground cursor-pointer hover:opacity-70 transition-opacity break-words min-w-0"
                 onClick={() => setEditingTitle(true)}
                 title="Click to rename"
               >
@@ -1319,7 +1319,7 @@ export default function PlannerClient() {
             )}
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 min-w-0 w-full sm:w-auto">
             {/* Cloud sync */}
             {user ? (
               <div className="flex items-center gap-1.5 text-xs text-muted">
@@ -1410,36 +1410,37 @@ export default function PlannerClient() {
         </div>
 
         {/* Month nav + progress */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
+        <div className="flex flex-col gap-3 min-w-0">
+          <div className="flex items-center gap-1.5 min-w-0">
             <button
               onClick={goPrevMonth}
-              className="tap-target rounded-lg bg-surface border border-border text-muted hover:text-foreground hover:bg-surface-hover transition-colors"
+              className="tap-target shrink-0 rounded-lg bg-surface border border-border text-muted hover:text-foreground hover:bg-surface-hover transition-colors"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
-            <div className="px-3 min-w-[180px] text-center">
-              <span className="text-lg font-bold text-foreground">{MONTH_NAMES[month - 1]}</span>
-              <span className="text-lg font-light text-muted ml-2">{year}</span>
+            <div className="flex-1 min-w-0 px-1 text-center">
+              <span className="text-base sm:text-lg font-bold text-foreground">{MONTH_NAMES[month - 1]}</span>
+              <span className="text-base sm:text-lg font-light text-muted ml-1.5">{year}</span>
             </div>
             <button
               onClick={goNextMonth}
-              className="tap-target rounded-lg bg-surface border border-border text-muted hover:text-foreground hover:bg-surface-hover transition-colors"
+              className="tap-target shrink-0 rounded-lg bg-surface border border-border text-muted hover:text-foreground hover:bg-surface-hover transition-colors"
             >
               <ChevronRight className="w-4 h-4" />
             </button>
             <button
               onClick={goToday}
-              className="ml-1 px-3 py-1.5 rounded-lg text-[11px] font-semibold text-muted hover:text-foreground bg-surface border border-border hover:bg-surface-hover transition-colors"
+              className="shrink-0 min-h-11 px-3 rounded-lg text-[11px] font-semibold text-muted hover:text-foreground bg-surface border border-border hover:bg-surface-hover transition-colors"
             >
               Today
             </button>
-            
-            {/* View Toggles */}
-            <div className="flex items-center bg-surface border border-border rounded-lg p-0.5 ml-2 shrink-0">
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-3 min-w-0">
+            <div className="flex items-center bg-surface border border-border rounded-lg p-0.5">
               <button
                 onClick={() => setPlannerView('calendar')}
-                className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all ${
+                className={`flex items-center justify-center gap-1 min-h-11 min-w-11 sm:min-w-0 px-2.5 rounded-md text-[11px] font-semibold transition-all ${
                   plannerView === 'calendar'
                     ? 'bg-foreground text-background shadow-xs'
                     : 'text-muted hover:text-foreground'
@@ -1450,7 +1451,7 @@ export default function PlannerClient() {
               </button>
               <button
                 onClick={() => setPlannerView('list')}
-                className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all ${
+                className={`flex items-center justify-center gap-1 min-h-11 min-w-11 sm:min-w-0 px-2.5 rounded-md text-[11px] font-semibold transition-all ${
                   plannerView === 'list'
                     ? 'bg-foreground text-background shadow-xs'
                     : 'text-muted hover:text-foreground'
@@ -1461,7 +1462,7 @@ export default function PlannerClient() {
               </button>
               <button
                 onClick={() => setPlannerView('kanban')}
-                className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all ${
+                className={`flex items-center justify-center gap-1 min-h-11 min-w-11 sm:min-w-0 px-2.5 rounded-md text-[11px] font-semibold transition-all ${
                   plannerView === 'kanban'
                     ? 'bg-foreground text-background shadow-xs'
                     : 'text-muted hover:text-foreground'
@@ -1471,19 +1472,18 @@ export default function PlannerClient() {
                 <span className="hidden sm:inline">Kanban</span>
               </button>
             </div>
-          </div>
 
-          {/* Progress */}
-          <div className="flex items-center gap-3 w-full sm:w-auto">
-            <div className="flex-1 sm:w-48 h-2 bg-surface rounded-full overflow-hidden border border-border">
-              <div
-                className="h-full bg-foreground rounded-full transition-all duration-500"
-                style={{ width: `${progressPct}%` }}
-              />
+            <div className="flex items-center gap-3 min-w-0 flex-1 sm:flex-initial sm:w-auto">
+              <div className="flex-1 sm:w-48 h-2 bg-surface rounded-full overflow-hidden border border-border">
+                <div
+                  className="h-full bg-foreground rounded-full transition-all duration-500"
+                  style={{ width: `${progressPct}%` }}
+                />
+              </div>
+              <span className="text-xs font-semibold text-muted whitespace-nowrap">
+                {doneTasks}/{totalTasks} tasks
+              </span>
             </div>
-            <span className="text-xs font-semibold text-muted whitespace-nowrap">
-              {doneTasks}/{totalTasks} tasks
-            </span>
           </div>
         </div>
       </div>

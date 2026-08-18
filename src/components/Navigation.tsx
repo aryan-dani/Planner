@@ -678,20 +678,20 @@ function NavigationInner() {
       </aside>
  
       {/* 2. Mobile Top Header */}
-      <header className="fixed top-0 left-0 right-0 h-[calc(3.5rem+env(safe-area-inset-top))] pt-[env(safe-area-inset-top)] border-b border-border bg-background z-30 flex items-center justify-between px-4 md:hidden transition-colors">
+      <header className="fixed top-0 inset-x-0 w-full max-w-[100vw] h-[calc(3.5rem+env(safe-area-inset-top))] pt-[env(safe-area-inset-top)] border-b border-border bg-background z-50 flex items-center justify-between gap-3 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] md:hidden transition-colors">
         <Link
           href="/"
           onClick={() => setSearchQuery("")}
-          className="text-sm font-bold tracking-tight text-foreground flex items-center gap-2 min-h-11"
+          className="text-sm font-bold tracking-tight text-foreground flex items-center gap-2 min-h-11 min-w-0"
         >
-          <div className="w-6 h-6 rounded bg-foreground flex items-center justify-center text-background">
+          <div className="w-6 h-6 rounded bg-foreground flex items-center justify-center text-background shrink-0">
             <Layers className="w-3.5 h-3.5" />
           </div>
-          <span className="font-extrabold">Utility OS</span>
+          <span className="font-extrabold truncate">Utility OS</span>
         </Link>
  
         <button
-          className="tap-target rounded-lg text-muted hover:text-foreground hover:bg-surface/50 active:bg-surface border border-transparent transition-colors"
+          className="tap-target shrink-0 rounded-lg text-muted hover:text-foreground hover:bg-surface/50 active:bg-surface border border-transparent transition-colors"
           onClick={() => setMobileOpen(true)}
           aria-label="Open navigation menu"
         >

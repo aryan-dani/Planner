@@ -13,6 +13,13 @@ import AuthButtons from "./AuthButtons";
 import HomeHeatmap from "./HomeHeatmap";
 import HomeStats from "./HomeStats";
 
+const FLOW = [
+  { href: "/syllabus", title: "Syllabus", hint: "Units & topics" },
+  { href: "/resources", title: "Vault", hint: "Notes & files" },
+  { href: "/ask", title: "Ask AI", hint: "Grounded answers" },
+  { href: "/planner", title: "Planner", hint: "Deadlines" },
+] as const;
+
 const FEATURES = [
   {
     href: "/planner",
@@ -74,20 +81,20 @@ const FEATURES = [
 
 export default function Home() {
   return (
-    <div className="flex-1 w-full flex flex-col relative overflow-hidden page-fade-in">
+    <div className="flex-1 w-full flex flex-col relative overflow-x-clip page-fade-in">
       {/* Hero grid overlay */}
       <div className="absolute inset-0 bg-[linear-gradient(to_right,rgb(var(--foreground)/0.06)_1px,transparent_1px),linear-gradient(to_bottom,rgb(var(--foreground)/0.06)_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_50%,#000_70%,transparent_100%)] pointer-events-none -z-20" />
 
       {/* Hero */}
-      <section className="w-full max-w-7xl mx-auto page-gutter pt-28 pb-28 flex flex-col items-center justify-center text-center relative min-h-[78vh]">
-        <p className="font-display text-6xl sm:text-7xl md:text-8xl text-foreground tracking-tight mb-5">
+      <section className="w-full max-w-7xl mx-auto page-gutter pt-16 pb-12 sm:pt-24 sm:pb-20 md:pt-28 md:pb-24 flex flex-col items-center justify-center text-center relative md:min-h-[70vh]">
+        <p className="font-display text-5xl sm:text-7xl md:text-8xl text-foreground tracking-tight mb-4 sm:mb-5">
           Utility
         </p>
-        <h1 className="text-2xl sm:text-3xl md:text-4xl font-semibold tracking-tight leading-snug mb-5 text-foreground max-w-2xl mx-auto">
+        <h1 className="text-xl sm:text-3xl md:text-4xl font-semibold tracking-tight leading-snug mb-4 sm:mb-5 text-foreground max-w-2xl mx-auto">
           Everything for your semester.{" "}
           <span className="text-foreground-subtle font-medium">One place.</span>
         </h1>
-        <p className="text-base md:text-lg text-foreground-subtle mb-10 max-w-xl mx-auto leading-relaxed">
+        <p className="text-sm sm:text-base md:text-lg text-foreground-subtle mb-8 sm:mb-10 max-w-xl mx-auto leading-relaxed">
           A structured workspace for syllabi, course materials, planning, and AI
           study help — built for MIT-WPU branches.
         </p>
@@ -99,45 +106,34 @@ export default function Home() {
       <div className="w-full border-t border-border" />
 
       {/* How it connects */}
-      <section className="w-full max-w-7xl mx-auto page-gutter py-10">
-        <p className="text-center text-sm text-foreground-subtle mb-4 font-medium">
+      <section className="w-full max-w-7xl mx-auto page-gutter py-8 sm:py-10">
+        <p className="text-center text-xs sm:text-sm text-foreground-subtle mb-4 font-medium tracking-wide uppercase">
           How everything links
         </p>
-        <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3 text-xs sm:text-sm font-semibold text-foreground">
-          <Link
-            href="/syllabus"
-            className="px-3 py-2 min-h-11 rounded-lg bg-surface border border-border hover:border-border-strong active:bg-surface-hover transition-colors"
-          >
-            Syllabus
-            <span className="text-muted font-medium"> · units</span>
-          </Link>
-          <ArrowRight className="w-3.5 h-3.5 text-muted" />
-          <Link
-            href="/resources"
-            className="px-3 py-2 min-h-11 rounded-lg bg-surface border border-border hover:border-border-strong active:bg-surface-hover transition-colors"
-          >
-            Vault
-            <span className="text-muted font-medium"> · files</span>
-          </Link>
-          <ArrowRight className="w-3.5 h-3.5 text-muted" />
-          <Link
-            href="/ask"
-            className="px-3 py-2 min-h-11 rounded-lg bg-surface border border-border hover:border-border-strong active:bg-surface-hover transition-colors"
-          >
-            Ask AI
-          </Link>
-          <ArrowRight className="w-3.5 h-3.5 text-muted" />
-          <Link
-            href="/planner"
-            className="px-3 py-2 min-h-11 rounded-lg bg-surface border border-border hover:border-border-strong active:bg-surface-hover transition-colors"
-          >
-            Planner
-          </Link>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-px rounded-xl overflow-hidden border border-border bg-border shadow-sm">
+          {FLOW.map(({ href, title, hint }, index) => (
+            <Link
+              key={href}
+              href={href}
+              className="group bg-card hover:bg-surface active:bg-surface-hover p-4 sm:p-5 min-h-[5.5rem] flex flex-col justify-between gap-3 transition-colors"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-mono text-muted">
+                  {String(index + 1).padStart(2, "0")}
+                </span>
+                <ArrowRight className="w-3.5 h-3.5 text-muted group-hover:text-foreground group-hover:translate-x-0.5 transition-all" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-foreground">{title}</p>
+                <p className="text-xs text-muted mt-0.5">{hint}</p>
+              </div>
+            </Link>
+          ))}
         </div>
       </section>
 
       {/* Feature cards */}
-      <section className="w-full max-w-7xl mx-auto page-gutter pb-20">
+      <section className="w-full max-w-7xl mx-auto page-gutter pb-12 sm:pb-20">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-px bg-border rounded-xl overflow-hidden border border-border shadow-sm">
           {FEATURES.map(({ href, label, number, Icon, description }) => (
             <Link
@@ -177,7 +173,7 @@ export default function Home() {
       </section>
 
       {/* Full-width heatmap */}
-      <section className="w-full max-w-7xl mx-auto page-gutter py-10">
+      <section className="w-full max-w-7xl mx-auto page-gutter py-4 sm:py-10 min-w-0">
         <HomeHeatmap />
       </section>
 

@@ -34,9 +34,9 @@ export default function AuthButtons() {
   const qs = workspaceQuery(branch, semester);
 
   const primary =
-    "inline-flex items-center gap-2 px-5 py-2.5 bg-foreground text-background rounded-lg text-sm font-medium hover:opacity-90";
+    "inline-flex items-center justify-center min-h-11 gap-2 px-5 py-2.5 bg-foreground text-background rounded-lg text-sm font-medium hover:opacity-90";
   const secondary =
-    "inline-flex items-center gap-2 px-5 py-2.5 border border-border text-foreground rounded-lg text-sm font-medium hover:bg-surface";
+    "inline-flex items-center justify-center min-h-11 gap-2 px-5 py-2.5 border border-border text-foreground rounded-lg text-sm font-medium hover:bg-surface";
 
   return isLoggedIn ? (
     <div className="flex flex-wrap gap-3">

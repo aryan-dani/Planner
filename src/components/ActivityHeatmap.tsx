@@ -1,60 +1,79 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { auth } from '@/lib/firebase';
 import { Flame, Trophy, Calendar, Zap, Info } from 'lucide-react';
-import { ACTIVITY_STORAGE_KEY } from '@/lib/activity';
+import { ACTIVITY_STORAGE_KEY, localDateKey } from '@/lib/activity';
 
 interface ActivityLog {
-  logged_date: string; // YYYY-MM-DD
+  logged_date: string;
   count: number;
 }
 
 const STORAGE_KEY = ACTIVITY_STORAGE_KEY;
+const WEEK_COUNT = 20;
+const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const;
+
+function startOfDay(date: Date) {
+  const next = new Date(date);
+  next.setHours(0, 0, 0, 0);
+  return next;
+}
+
+function addDays(date: Date, days: number) {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
+function mondayOnOrBefore(date: Date) {
+  const next = startOfDay(date);
+  const day = next.getDay(); // 0 Sun … 6 Sat
+  const offset = day === 0 ? 6 : day - 1;
+  return addDays(next, -offset);
+}
+
+type HeatCell = {
+  date: Date;
+  key: string;
+  count: number;
+  inRange: boolean;
+  label: string;
+};
 
 export default function ActivityHeatmap() {
   const [activityMap, setActivityMap] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
-  const [hoveredCell, setHoveredCell] = useState<{ date: string; count: number; top?: number; left?: number } | null>(null);
-  const [weekCount, setWeekCount] = useState(18);
+  const [selected, setSelected] = useState<{ key: string; label: string; count: number } | null>(null);
+  const scrollerRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    const mq = window.matchMedia('(min-width: 768px)');
-    const apply = () => setWeekCount(mq.matches ? 18 : 8);
-    apply();
-    mq.addEventListener('change', apply);
-    return () => mq.removeEventListener('change', apply);
-  }, []);
- 
   const fetchActivity = async () => {
-    // Load local storage first
     try {
       const local = localStorage.getItem(STORAGE_KEY);
       if (local) {
         setActivityMap(JSON.parse(local));
       }
     } catch {}
- 
-    // Try cloud fetch
+
     const user = auth.currentUser;
     if (user) {
       try {
         const idToken = await user.getIdToken();
         const res = await fetch('/api/activity', {
           headers: {
-            'Authorization': `Bearer ${idToken}`
-          }
+            Authorization: `Bearer ${idToken}`,
+          },
         });
         if (!res.ok) throw new Error(await res.text());
         const data = await res.json();
         const cloudMap: Record<string, number> = {};
-        
-        (data.logs || []).forEach((item: any) => {
+
+        (data.logs || []).forEach((item: ActivityLog) => {
           if (item.logged_date && item.count) {
             cloudMap[item.logged_date] = (cloudMap[item.logged_date] || 0) + Number(item.count);
           }
         });
- 
+
         setActivityMap((prev) => {
           const merged = { ...prev };
           Object.keys(cloudMap).forEach((date) => {
@@ -64,7 +83,7 @@ export default function ActivityHeatmap() {
           return merged;
         });
       } catch (err) {
-        console.error("API fetchActivity error:", err);
+        console.error('API fetchActivity error:', err);
       }
     }
     setLoading(false);
@@ -88,45 +107,56 @@ export default function ActivityHeatmap() {
     };
   }, []);
 
-  // Generate last N weeks of dates
-  const today = new Date();
-  const daySpan = weekCount * 7;
-  const startDate = new Date();
-  startDate.setDate(today.getDate() - (daySpan - 1));
+  const todayKey = localDateKey();
 
-  const days: { date: string; count: number; label: string }[] = [];
-  let curr = new Date(startDate);
+  const weeks = useMemo(() => {
+    const today = startOfDay(new Date());
+    const rangeStart = addDays(today, -(WEEK_COUNT * 7 - 1));
+    const gridStart = mondayOnOrBefore(rangeStart);
+    const cols: HeatCell[][] = [];
+    let cursor = new Date(gridStart);
 
-  while (curr <= today) {
-    const dateStr = curr.toISOString().split('T')[0];
-    const count = activityMap[dateStr] || 0;
-    days.push({
-      date: dateStr,
-      count,
-      label: curr.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-    });
-    curr.setDate(curr.getDate() + 1);
-  }
+    for (let w = 0; w < WEEK_COUNT; w++) {
+      const week: HeatCell[] = [];
+      for (let d = 0; d < 7; d++) {
+        const key = localDateKey(cursor);
+        const inRange = cursor >= rangeStart && cursor <= today;
+        week.push({
+          date: new Date(cursor),
+          key,
+          count: inRange ? activityMap[key] || 0 : 0,
+          inRange,
+          label: cursor.toLocaleDateString('en-US', {
+            weekday: 'short',
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric',
+          }),
+        });
+        cursor = addDays(cursor, 1);
+      }
+      cols.push(week);
+    }
+    return cols;
+  }, [activityMap, todayKey]);
 
-  // Calculate Stats
+  const daysInRange = weeks.flat().filter((d) => d.inRange);
   const totalContributions = Object.values(activityMap).reduce((a, b) => a + b, 0);
 
-  // Calculate Current Streak
   let currentStreak = 0;
-  let tempDate = new Date(today);
+  let tempDate = startOfDay(new Date());
   while (true) {
-    const dStr = tempDate.toISOString().split('T')[0];
+    const dStr = localDateKey(tempDate);
     if (activityMap[dStr] && activityMap[dStr] > 0) {
       currentStreak++;
-      tempDate.setDate(tempDate.getDate() - 1);
+      tempDate = addDays(tempDate, -1);
     } else {
-      // Check if today has 0 but yesterday had some
-      if (currentStreak === 0 && tempDate.toDateString() === today.toDateString()) {
-        tempDate.setDate(tempDate.getDate() - 1);
-        const yStr = tempDate.toISOString().split('T')[0];
+      if (currentStreak === 0 && localDateKey(tempDate) === todayKey) {
+        tempDate = addDays(tempDate, -1);
+        const yStr = localDateKey(tempDate);
         if (activityMap[yStr] && activityMap[yStr] > 0) {
           currentStreak++;
-          tempDate.setDate(tempDate.getDate() - 1);
+          tempDate = addDays(tempDate, -1);
           continue;
         }
       }
@@ -134,10 +164,9 @@ export default function ActivityHeatmap() {
     }
   }
 
-  // Calculate Best Streak
   let bestStreak = 0;
   let tempStreak = 0;
-  days.forEach((d) => {
+  daysInRange.forEach((d) => {
     if (d.count > 0) {
       tempStreak++;
       if (tempStreak > bestStreak) bestStreak = tempStreak;
@@ -146,30 +175,50 @@ export default function ActivityHeatmap() {
     }
   });
 
-  // Helper for cell color based on count
-  const getCellColor = (count: number) => {
+  const getCellColor = (count: number, inRange: boolean) => {
+    if (!inRange) return 'bg-transparent border-transparent pointer-events-none';
     if (count === 0) return 'bg-surface border-border-strong/40 hover:border-border-strong';
-    if (count <= 2) return 'bg-foreground/20 border-border text-foreground';
-    if (count <= 5) return 'bg-foreground/40 border-border text-foreground';
-    if (count <= 8) return 'bg-foreground/65 border-border text-foreground';
-    return 'bg-foreground border-foreground text-background';
+    if (count <= 2) return 'bg-foreground/20 border-border';
+    if (count <= 5) return 'bg-foreground/40 border-border';
+    if (count <= 8) return 'bg-foreground/65 border-border';
+    return 'bg-foreground border-foreground';
   };
 
+  useEffect(() => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    const frame = requestAnimationFrame(() => {
+      el.scrollLeft = el.scrollWidth;
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [loading, weeks.length]);
+
+  const monthLabels = weeks.map((week, idx) => {
+    const first = week[0];
+    const prev = idx > 0 ? weeks[idx - 1][0] : null;
+    if (!prev || first.date.getMonth() !== prev.date.getMonth()) {
+      return first.date.toLocaleDateString('en-US', { month: 'short' });
+    }
+    return '';
+  });
+
+  const active = selected ?? daysInRange.find((d) => d.key === todayKey) ?? null;
+
   return (
-    <div className="w-full bg-card border border-border p-4 sm:p-8 rounded-2xl shadow-sm my-12">
-      {/* Header & Stats */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-8 pb-6 border-b border-border">
-        <div>
+    <div className="w-full min-w-0 bg-card border border-border p-4 sm:p-8 rounded-2xl shadow-sm my-6 sm:my-12">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-6 sm:mb-8 pb-6 border-b border-border">
+        <div className="min-w-0">
           <div className="flex items-center gap-2 mb-1">
-            <Calendar className="w-5 h-5 text-primary" />
-            <h2 className="text-xl font-bold text-foreground tracking-tight">Academic Activity Heatmap</h2>
+            <Calendar className="w-5 h-5 text-primary shrink-0" />
+            <h2 className="text-lg sm:text-xl font-bold text-foreground tracking-tight">
+              Academic Activity Heatmap
+            </h2>
           </div>
           <p className="text-sm text-muted">
             Track your daily study consistency, flashcard reviews, AI prompts, and planner tasks completed.
           </p>
         </div>
 
-        {/* Stats strip */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 bg-surface border border-border p-4 rounded-xl shadow-xs w-full lg:w-auto">
           <div className="flex flex-col items-center text-center px-3 border-r border-border">
             <span className="text-xs text-muted mb-1 flex items-center gap-1 font-medium">
@@ -197,104 +246,76 @@ export default function ActivityHeatmap() {
               <Info className="w-3.5 h-3.5 text-foreground" /> Daily Avg
             </span>
             <span className="text-lg font-bold text-foreground">
-              {(totalContributions / Math.max(days.length, 1)).toFixed(1)}
+              {(totalContributions / Math.max(daysInRange.length, 1)).toFixed(1)}
             </span>
           </div>
         </div>
       </div>
 
-      {/* Grid container */}
-      <div className="relative">
-        <div className="relative overflow-x-auto pb-4 custom-scrollbar">
-          <div className={`flex gap-2 items-start ${weekCount >= 18 ? 'min-w-[700px] justify-center' : 'min-w-0 justify-start'}`}>
-            {/* Day labels (Mon, Wed, Fri) */}
-            <div className="flex flex-col gap-2 pr-2 text-[10px] font-semibold text-muted uppercase tracking-wider py-1 select-none">
-              <span className="h-5 md:h-4 flex items-center">Mon</span>
-              <span className="h-5 md:h-4 flex items-center">Tue</span>
-              <span className="h-5 md:h-4 flex items-center">Wed</span>
-              <span className="h-5 md:h-4 flex items-center">Thu</span>
-              <span className="h-5 md:h-4 flex items-center">Fri</span>
-              <span className="h-5 md:h-4 flex items-center">Sat</span>
-              <span className="h-5 md:h-4 flex items-center">Sun</span>
+      <div className="min-w-0">
+        <div
+          ref={scrollerRef}
+          className="heatmap-scroll max-w-full pb-2"
+          aria-label="Activity heatmap. Swipe sideways to see earlier weeks."
+        >
+          <div className="flex gap-2 w-max pr-1">
+            <div className="sticky left-0 z-10 flex flex-col gap-1 pt-5 bg-card pr-2 shrink-0">
+              {WEEKDAYS.map((day) => (
+                <span
+                  key={day}
+                  className="h-4 text-[10px] font-semibold text-muted uppercase tracking-wider leading-4"
+                >
+                  {day}
+                </span>
+              ))}
             </div>
 
-            {/* 18 Columns of 7 days */}
-            <div className="flex gap-1.5 flex-1 justify-between relative">
-              {Array.from({ length: Math.ceil(days.length / 7) }).map((_, colIdx) => {
-                const weekDays = days.slice(colIdx * 7, (colIdx + 1) * 7);
-                return (
-                  <div key={colIdx} className="flex flex-col gap-1.5">
-                    {weekDays.map((day) => (
-                      <div
-                        key={day.date}
-                        role="gridcell"
-                        aria-label={`${day.count} activities on ${day.label}`}
-                        onClick={(e) => {
-                          const rect = e.currentTarget.getBoundingClientRect();
-                          const parentRect = e.currentTarget.parentElement?.parentElement?.parentElement?.getBoundingClientRect();
-                          if (parentRect) {
-                            const top = rect.top - parentRect.top - 34;
-                            const left = rect.left - parentRect.left + (rect.width / 2);
-                            setHoveredCell({
-                              date: day.label,
-                              count: day.count,
-                              top,
-                              left
-                            });
-                          }
-                        }}
-                        onMouseEnter={(e) => {
-                          const rect = e.currentTarget.getBoundingClientRect();
-                          const parentRect = e.currentTarget.parentElement?.parentElement?.parentElement?.getBoundingClientRect();
-                          if (parentRect) {
-                            const top = rect.top - parentRect.top - 34;
-                            const left = rect.left - parentRect.left + (rect.width / 2);
-                            setHoveredCell({
-                              date: day.label,
-                              count: day.count,
-                              top,
-                              left
-                            });
-                          }
-                        }}
-                        onMouseLeave={() => setHoveredCell(null)}
-                        className={`w-5 h-5 md:w-4 md:h-4 rounded-sm border transition-all cursor-pointer ${getCellColor(
-                          day.count
-                        )}`}
-                      />
-                    ))}
-                  </div>
-                );
-              })}
-
-              {/* Floating Tooltip positioned dynamically near hovered cell */}
-              {hoveredCell && hoveredCell.top !== undefined && hoveredCell.left !== undefined && (
-                <div 
-                  style={{ 
-                    top: `${hoveredCell.top}px`, 
-                    left: `${hoveredCell.left}px`,
-                    transform: 'translateX(-50%)'
-                  }}
-                  className="absolute z-30 pointer-events-none text-[10px] font-bold text-foreground bg-card border border-border px-2.5 py-1 rounded-lg shadow-popover whitespace-nowrap animate-fade-in"
-                >
-                  {hoveredCell.date} · <span className="text-primary font-black">{hoveredCell.count} logs</span>
+            <div className="flex gap-1">
+              {weeks.map((week, colIdx) => (
+                <div key={colIdx} className="flex flex-col gap-1">
+                  <span className="h-4 text-[10px] font-medium text-muted leading-4">
+                    {monthLabels[colIdx]}
+                  </span>
+                  {week.map((day) => (
+                    <button
+                      key={day.key}
+                      type="button"
+                      disabled={!day.inRange}
+                      aria-label={`${day.count} activities on ${day.label}`}
+                      onClick={() => {
+                        if (!day.inRange) return;
+                        setSelected({ key: day.key, label: day.label, count: day.count });
+                      }}
+                      className={`w-4 h-4 rounded-sm border shrink-0 transition-colors ${getCellColor(
+                        day.count,
+                        day.inRange,
+                      )} ${
+                        selected?.key === day.key
+                          ? 'ring-1 ring-foreground ring-offset-1 ring-offset-card'
+                          : ''
+                      }`}
+                    />
+                  ))}
                 </div>
-              )}
+              ))}
             </div>
           </div>
         </div>
-        
-        {/* Touch scroll indicator gradient for mobile */}
-        <div className="absolute right-0 top-0 bottom-4 w-12 bg-gradient-to-l from-card to-transparent pointer-events-none md:hidden" />
       </div>
 
-      {/* Footer Legend */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 pt-4 border-t border-border">
-        <div className="h-6 flex items-center">
-          <p className="text-xs text-muted italic">Hover over any cell to view daily activity logs.</p>
-        </div>
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mt-5 pt-4 border-t border-border">
+        <p className="text-xs text-muted">
+          {active ? (
+            <>
+              <span className="text-foreground font-medium">{active.label}</span>
+              {' · '}
+              {active.count} {active.count === 1 ? 'log' : 'logs'}
+            </>
+          ) : (
+            <>Tap a cell for that day’s logs. Swipe the grid for earlier weeks.</>
+          )}
+        </p>
 
-        {/* Legend */}
         <div className="flex items-center gap-2 text-xs text-muted select-none">
           <span>Less</span>
           <div className="flex gap-1.5">

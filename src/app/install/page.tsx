@@ -1,21 +1,9 @@
 'use client';
 
 import { Download } from 'lucide-react';
-import { usePWA } from '@/contexts/PWAContext';
 import Link from 'next/link';
 
 export default function InstallPage() {
-  const { isInstallable, deferredPrompt, setDeferredPrompt } = usePWA();
-
-  const handleInstall = async () => {
-    if (!deferredPrompt) return;
-    deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    if (outcome === 'accepted') {
-      setDeferredPrompt(null);
-    }
-  };
-
   return (
     <div className="flex-1 flex flex-col items-center max-w-xl mx-auto px-6 py-20 page-fade-in text-center">
       <p className="font-display text-4xl text-foreground tracking-tight mb-3">
@@ -31,33 +19,25 @@ export default function InstallPage() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-px w-full mb-10 rounded-xl overflow-hidden border border-border bg-border shadow-sm text-left">
         <div className="bg-card p-5">
-          <h3 className="text-sm font-semibold text-foreground mb-1">Mobile</h3>
+          <h3 className="text-sm font-semibold text-foreground mb-1">Phone</h3>
           <p className="text-sm text-muted leading-relaxed">
-            Add to your home screen for quick access on the go.
+            Chrome on Android shows an install banner. On iPhone, open the Share sheet and tap Add to Home Screen.
           </p>
         </div>
         <div className="bg-card p-5">
           <h3 className="text-sm font-semibold text-foreground mb-1">Desktop</h3>
           <p className="text-sm text-muted leading-relaxed">
-            Install as a standalone window on Chromium browsers.
+            In Chrome or Edge, use the install icon in the address bar, or Install App in the browser menu.
           </p>
         </div>
       </div>
 
-      {isInstallable ? (
-        <button
-          onClick={handleInstall}
-          className="inline-flex items-center justify-center gap-2 px-8 py-3 bg-foreground text-background rounded-xl text-sm font-semibold hover:opacity-90 shadow-sm"
-        >
-          <Download className="w-4 h-4" />
-          Install
-        </button>
-      ) : (
-        <div className="w-full border border-border bg-card rounded-xl px-6 py-5 text-sm text-muted leading-relaxed">
-          Already installed, or this browser does not expose an install prompt.
-          You can still use “Add to Home Screen” from the browser menu.
-        </div>
-      )}
+      <div className="w-full border border-border bg-card rounded-xl px-6 py-5 text-sm text-muted leading-relaxed flex items-start gap-3 text-left">
+        <Download className="w-4 h-4 shrink-0 mt-0.5 text-foreground" />
+        <span>
+          Already installed, or use the browser’s install control above. This page does not block Chrome’s native install banner.
+        </span>
+      </div>
 
       <Link
         href="/"

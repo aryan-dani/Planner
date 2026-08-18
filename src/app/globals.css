@@ -386,6 +386,28 @@ h1, h2, h3, h4, h5, h6 {
   }
 }
 
+/* Heatmap: inner horizontal pan on phones (body overflow-x-hidden would clip otherwise) */
+.heatmap-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  touch-action: pan-x pan-y;
+  scrollbar-width: thin;
+  scrollbar-color: rgb(var(--border-strong) / 0.7) transparent;
+}
+.heatmap-scroll::-webkit-scrollbar {
+  height: 6px;
+}
+.heatmap-scroll::-webkit-scrollbar-track {
+  background: rgb(var(--surface));
+  border-radius: 9999px;
+}
+.heatmap-scroll::-webkit-scrollbar-thumb {
+  background: rgb(var(--border-strong) / 0.55);
+  border-radius: 9999px;
+}
+
 /* custom-scrollbar — used in Navigation and ResourcesClient */
 .custom-scrollbar::-webkit-scrollbar {
   width: 4px;
