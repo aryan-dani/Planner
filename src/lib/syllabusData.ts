@@ -206,7 +206,7 @@ export const AIDS_SEM_5_SUBJECTS: SyllabusOfficialSubject[] = [
     id: 'aid20090',
     code: 'AID20090',
     name: 'Operating Systems Laboratory',
-    type: 'PM',
+    type: 'PR',
     credits: 1,
     modules: [
       { title: 'Linux Commands & Shell Scripting', desc: 'Linux command practice and shell scripting including arithmetic operations.' },
