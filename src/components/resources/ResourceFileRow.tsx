@@ -1,6 +1,6 @@
 "use client";
 
-import type { MouseEvent } from "react";
+import { useEffect, useRef, type MouseEvent } from "react";
 import {
   Code2,
   ExternalLink,
@@ -27,6 +27,7 @@ interface ResourceFileRowProps {
   onSummarize?: (item: ResourceItem) => void;
   depth?: number;
   highlight?: boolean;
+  scrollTarget?: boolean;
 }
 
 function roleLabel(item: ResourceItem): string {
@@ -59,7 +60,9 @@ export default function ResourceFileRow({
   onSummarize,
   depth = 0,
   highlight = false,
+  scrollTarget = false,
 }: ResourceFileRowProps) {
+  const rowRef = useRef<HTMLDivElement>(null);
   const extension = getFileExtension(item.title, item.file_url);
   const isDrivePreview = item.file_url.includes("drive.google.com/file/d/");
   const isPdf = extension === "pdf" || (isDrivePreview && !extension);
@@ -103,8 +106,15 @@ export default function ResourceFileRow({
 
   const paddingLeft = 12 + Math.min(depth, 3) * 12;
 
+  useEffect(() => {
+    if (scrollTarget && rowRef.current) {
+      rowRef.current.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+  }, [scrollTarget]);
+
   return (
     <div
+      ref={rowRef}
       className={`group flex items-center gap-3 py-2.5 pr-3 border-b border-border/50 last:border-b-0 hover:bg-surface/60 transition-colors cursor-pointer ${
         highlight ? "bg-surface/80" : "bg-card"
       }`}

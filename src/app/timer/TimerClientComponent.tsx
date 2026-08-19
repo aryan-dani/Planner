@@ -325,7 +325,7 @@ export default function TimerClient() {
       if ("Notification" in window && Notification.permission === "granted") {
         new Notification("Focus Session Complete", {
           body: mode === 'work' ? "Time for a break!" : "Break is over, back to work!",
-          icon: "/favicon.ico"
+          icon: "/utility-logo.png"
         });
       }
     }

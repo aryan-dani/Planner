@@ -1,15 +1,20 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { ChevronDown } from "lucide-react";
 import { ResourceItem } from "@/lib/dataFetcher";
 import {
   ResourceFolderNode,
   countFolderFiles,
+  isSingletonFolder,
+  singletonFile,
+  allTopLevelSingletons,
+  collectSingletonFiles,
 } from "@/lib/resourceGroups";
 import { motion, AnimatePresence } from "framer-motion";
 import ResourceCard from "./ResourceCard";
 import ResourceFolder from "./ResourceFolder";
+import ResourceFileRow from "./ResourceFileRow";
 import { NotesDisclaimer } from "../NotesDisclaimer";
 
 interface ResourceSectionProps {
@@ -35,9 +40,10 @@ function collectExpandDefaults(
   activeFolderId: string | null | undefined,
 ): Set<string> {
   const ids = new Set<string>();
-  // Expand first folder by default when nothing is active
+  // Expand first multi-file folder by default when nothing is active
   if (!activeFolderId && folders.length > 0) {
-    ids.add(folders[0].id);
+    const firstBundle = folders.find((f) => !isSingletonFolder(f));
+    if (firstBundle) ids.add(firstBundle.id);
   }
   const walk = (nodes: ResourceFolderNode[]) => {
     for (const node of nodes) {
@@ -74,13 +80,26 @@ export default function ResourceSection({
 }: ResourceSectionProps) {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
   const useFolders = folders && folders.length > 0;
+  const flattenAllSingles =
+    useFolders && allTopLevelSingletons(folders!);
   const totalCount = useFolders
     ? folders.reduce((sum, f) => sum + countFolderFiles(f), 0)
     : items.length;
 
+  const singletonCardItems = flattenAllSingles
+    ? collectSingletonFiles(folders!)
+    : [];
+
   const [expandedIds, setExpandedIds] = useState<Set<string>>(() =>
     useFolders ? collectExpandDefaults(folders!, activeFolderId) : new Set(),
   );
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!flattenAllSingles || !activeFolderId || !scrollRef.current) return;
+    const el = scrollRef.current.querySelector(`#folder-${activeFolderId}`);
+    el?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [flattenAllSingles, activeFolderId, singletonCardItems.length]);
 
   useEffect(() => {
     if (!useFolders || !folders) return;
@@ -171,21 +190,85 @@ export default function ResourceSection({
             )}
 
             {useFolders ? (
-              <div className="rounded-xl border border-border/70 overflow-hidden shadow-sm bg-card">
-                {folders!.map((folder) => (
-                  <ResourceFolder
-                    key={folder.id}
-                    folder={folder}
-                    expanded={expandedIds.has(folder.id)}
-                    onToggle={toggleFolder}
-                    expandedIds={expandedIds}
-                    onOpenResource={onOpenResource}
-                    onSummarize={onSummarize}
-                    highlightFileId={highlightFileId}
-                    scrollToId={activeFolderId}
-                  />
-                ))}
-              </div>
+              flattenAllSingles ? (
+                <div
+                  ref={scrollRef}
+                  className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-px bg-border/60 rounded-xl overflow-hidden border border-border/70 shadow-sm"
+                >
+                  {singletonCardItems.map((item, index) => {
+                    const folderMatch = folders!.find(
+                      (f) => singletonFile(f)?.id === item.id,
+                    );
+                    const highlighted =
+                      highlightFileId === item.id ||
+                      (!!activeFolderId && folderMatch?.id === activeFolderId);
+                    return (
+                      <motion.div
+                        key={item.id}
+                        id={
+                          folderMatch && activeFolderId === folderMatch.id
+                            ? `folder-${folderMatch.id}`
+                            : undefined
+                        }
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{
+                          duration: 0.22,
+                          delay: Math.min(index * 0.03, 0.15),
+                          ease: "easeOut",
+                        }}
+                        className={`h-full bg-card ${
+                          highlighted ? "ring-2 ring-inset ring-foreground/20" : ""
+                        }`}
+                        style={{ willChange: "transform, opacity" }}
+                      >
+                        <ResourceCard
+                          item={item}
+                          onOpenResource={onOpenResource}
+                          onSummarize={onSummarize}
+                          relatedCodes={relatedCodesById[item.id]}
+                        />
+                      </motion.div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="rounded-xl border border-border/70 overflow-hidden shadow-sm bg-card">
+                  {folders!.map((folder) => {
+                    if (isSingletonFolder(folder)) {
+                      const item = singletonFile(folder);
+                      if (!item) return null;
+                      return (
+                        <ResourceFileRow
+                          key={folder.id}
+                          item={item}
+                          onOpenResource={onOpenResource}
+                          onSummarize={onSummarize}
+                          highlight={
+                            highlightFileId === item.id ||
+                            activeFolderId === folder.id
+                          }
+                          scrollTarget={activeFolderId === folder.id}
+                        />
+                      );
+                    }
+                    return (
+                      <ResourceFolder
+                        key={folder.id}
+                        folder={folder}
+                        expanded={expandedIds.has(folder.id)}
+                        onToggle={toggleFolder}
+                        expandedIds={expandedIds}
+                        onOpenResource={onOpenResource}
+                        onSummarize={onSummarize}
+                        highlightFileId={highlightFileId}
+                        activeFolderId={activeFolderId}
+                        scrollToId={activeFolderId}
+                      />
+                    );
+                  })}
+                </div>
+              )
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-px bg-border/60 rounded-xl overflow-hidden border border-border/70 shadow-sm">
                 {items.map((item, index) => (

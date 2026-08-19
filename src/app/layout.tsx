@@ -34,11 +34,20 @@ export const metadata: Metadata = {
   },
   description: 'A premium academic workspace. Access your syllabus, resources, AI assistant, and planner in one place.',
   keywords: ['academic', 'syllabus', 'resources', 'planner', 'university', 'student', 'AI'],
+  icons: {
+    icon: [
+      { url: '/favicon.ico', sizes: 'any' },
+      { url: '/utility-logo.svg', type: 'image/svg+xml' },
+      { url: '/utility-logo.png', type: 'image/png', sizes: '512x512' },
+    ],
+    apple: [{ url: '/utility-logo.png', sizes: '180x180', type: 'image/png' }],
+  },
   openGraph: {
     title: 'Utility',
     description: 'A premium academic workspace. Access your syllabus, resources, AI assistant, and planner in one place.',
     type: 'website',
-    url: 'https://utility.vercel.app', // placeholder
+    url: 'https://utilityos.tech',
+    images: [{ url: '/utility-logo.png', width: 512, height: 512, alt: 'Utility' }],
   },
   appleWebApp: {
     capable: true,

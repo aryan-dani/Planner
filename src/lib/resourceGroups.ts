@@ -332,6 +332,37 @@ export function countFolderFiles(folder: ResourceFolderNode): number {
   );
 }
 
+/** True when the folder (including nested children) contains exactly one file. */
+export function isSingletonFolder(folder: ResourceFolderNode): boolean {
+  return countFolderFiles(folder) === 1;
+}
+
+/** Return the sole file in a singleton folder tree, or null. */
+export function singletonFile(folder: ResourceFolderNode): ResourceItem | null {
+  if (!isSingletonFolder(folder)) return null;
+  if (folder.files.length === 1) return folder.files[0];
+  for (const child of folder.children) {
+    const file = singletonFile(child);
+    if (file) return file;
+  }
+  return null;
+}
+
+/** Collect one file per top-level singleton folder (preserves folder order). */
+export function collectSingletonFiles(
+  folders: ResourceFolderNode[],
+): ResourceItem[] {
+  return folders
+    .filter(isSingletonFolder)
+    .map(singletonFile)
+    .filter((item): item is ResourceItem => item !== null);
+}
+
+/** True when every top-level folder holds only one file. */
+export function allTopLevelSingletons(folders: ResourceFolderNode[]): boolean {
+  return folders.length > 0 && folders.every(isSingletonFolder);
+}
+
 /** Find a folder by id in a tree (including nested children). */
 export function findFolderById(
   folders: ResourceFolderNode[],

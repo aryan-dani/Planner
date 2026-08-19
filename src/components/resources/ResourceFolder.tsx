@@ -7,6 +7,8 @@ import { ResourceItem } from "@/lib/dataFetcher";
 import {
   ResourceFolderNode,
   countFolderFiles,
+  isSingletonFolder,
+  singletonFile,
 } from "@/lib/resourceGroups";
 import ResourceFileRow from "./ResourceFileRow";
 
@@ -19,6 +21,7 @@ interface ResourceFolderProps {
   onSummarize?: (item: ResourceItem) => void;
   depth?: number;
   highlightFileId?: string | null;
+  activeFolderId?: string | null;
   scrollToId?: string | null;
 }
 
@@ -31,6 +34,7 @@ export default function ResourceFolder({
   onSummarize,
   depth = 0,
   highlightFileId = null,
+  activeFolderId = null,
   scrollToId = null,
 }: ResourceFolderProps) {
   const ref = useRef<HTMLDivElement>(null);
@@ -96,20 +100,43 @@ export default function ResourceFolder({
                   highlight={highlightFileId === item.id}
                 />
               ))}
-              {folder.children.map((child) => (
-                <ResourceFolder
-                  key={child.id}
-                  folder={child}
-                  expanded={expandedIds.has(child.id)}
-                  onToggle={onToggle}
-                  expandedIds={expandedIds}
-                  onOpenResource={onOpenResource}
-                  onSummarize={onSummarize}
-                  depth={depth + 1}
-                  highlightFileId={highlightFileId}
-                  scrollToId={scrollToId}
-                />
-              ))}
+              {folder.children.map((child) => {
+                if (isSingletonFolder(child)) {
+                  const item = singletonFile(child);
+                  if (!item) return null;
+                  return (
+                    <ResourceFileRow
+                      key={child.id}
+                      item={item}
+                      onOpenResource={onOpenResource}
+                      onSummarize={onSummarize}
+                      depth={depth + 1}
+                      highlight={
+                        highlightFileId === item.id ||
+                        activeFolderId === child.id
+                      }
+                      scrollTarget={
+                        scrollToId === child.id || activeFolderId === child.id
+                      }
+                    />
+                  );
+                }
+                return (
+                  <ResourceFolder
+                    key={child.id}
+                    folder={child}
+                    expanded={expandedIds.has(child.id)}
+                    onToggle={onToggle}
+                    expandedIds={expandedIds}
+                    onOpenResource={onOpenResource}
+                    onSummarize={onSummarize}
+                    depth={depth + 1}
+                    highlightFileId={highlightFileId}
+                    activeFolderId={activeFolderId}
+                    scrollToId={scrollToId}
+                  />
+                );
+              })}
               {folder.files.length === 0 && folder.children.length === 0 && (
                 <p className="px-4 py-3 text-xs text-muted" style={{ paddingLeft: paddingLeft + 40 }}>
                   Empty folder
