@@ -316,38 +316,34 @@ export default function ResourceViewer({
         initial={{ y: -20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ delay: 0.1, duration: 0.3 }}
-        className="absolute top-4 left-4 z-10 flex items-center gap-3 bg-card border border-border rounded-2xl p-2 pr-4 shadow-popover max-w-[min(70vw,28rem)]"
+        className="absolute top-3 left-3 z-10 flex items-center gap-2 bg-card border border-border rounded-xl pl-1.5 pr-2.5 py-1.5 shadow-popover max-w-[min(58vw,20rem)]"
       >
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border bg-surface shadow-xs">
-          <FileIcon className="h-5 w-5 text-foreground" />
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border bg-surface">
+          <FileIcon className="h-4 w-4 text-foreground" />
         </div>
-        <div className="min-w-0">
-          <p className="text-[10px] text-muted truncate mb-0.5" title={trailParts.join(" / ")}>
-            {trailParts.slice(0, -1).map((part, i) => (
-              <span key={`${part}-${i}`}>
-                {i > 0 && <span className="mx-1 opacity-50">/</span>}
-                {part}
-              </span>
-            ))}
-          </p>
+        <div className="min-w-0 leading-tight">
           <h2
             id="viewer-title"
-            className="truncate text-sm font-bold text-foreground"
-            title={resource.title}
+            className="truncate text-sm font-semibold text-foreground"
+            title={
+              resource.category === "notes" || /notes?/i.test(resource.title)
+                ? `${resource.title} — Reference only. Not a guarantee of exam content.`
+                : resource.title
+            }
           >
             {cleanResourceTitle(resource.title)}
           </h2>
-          <div className="flex items-center gap-2 mt-0.5">
-            <p className="text-[10px] uppercase font-semibold tracking-wide text-muted">
-              {viewerKindLabel} viewer
-            </p>
-          </div>
-          {(resource.category === "notes" ||
-            /notes?/i.test(resource.title)) && (
-            <p className="text-[10px] text-muted mt-1 max-w-[280px] leading-snug">
-              Reference only. Not a guarantee of exam content.
-            </p>
-          )}
+          <p
+            className="text-[10px] text-muted truncate"
+            title={trailParts.join(" / ")}
+          >
+            {trailParts.slice(0, -1).join(" / ") || viewerKindLabel}
+            {trailParts.length > 1 && (
+              <span className="ml-1.5 uppercase tracking-wide">
+                · {viewerKindLabel}
+              </span>
+            )}
+          </p>
         </div>
       </motion.div>
 
@@ -355,20 +351,20 @@ export default function ResourceViewer({
         initial={{ y: -20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ delay: 0.1, duration: 0.3 }}
-        className="absolute top-4 right-4 z-10 flex items-center gap-1.5 bg-card border border-border rounded-2xl p-1.5 shadow-popover"
+        className="absolute top-3 right-3 z-10 flex items-center gap-1 bg-card border border-border rounded-xl p-1 shadow-popover"
       >
-        <div className="hidden sm:flex items-center gap-2 px-3 border-r border-border/50 mr-1 text-[10px] font-bold tracking-wide text-muted uppercase">
-          <span>O: Open</span>
-          <span>F: Full</span>
-          <span>D: DL</span>
-          <span>Esc: Close</span>
+        <div className="hidden sm:flex items-center gap-1.5 px-2 border-r border-border/50 mr-0.5 text-[10px] font-semibold tracking-wide text-muted uppercase">
+          <span>O</span>
+          <span>F</span>
+          <span>D</span>
+          <span>Esc</span>
         </div>
         {isNotebook && colabUrl && (
           <a
             href={colabUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="hidden sm:inline-flex items-center gap-1.5 h-9 px-3 rounded-xl text-xs font-semibold text-foreground bg-surface hover:bg-surface-hover border border-border transition-colors"
+            className="hidden sm:inline-flex items-center gap-1.5 h-8 px-2.5 rounded-lg text-xs font-semibold text-foreground bg-surface hover:bg-surface-hover border border-border transition-colors"
             title="Open in Google Colab"
           >
             <Play className="h-3.5 w-3.5" />
@@ -380,7 +376,7 @@ export default function ResourceViewer({
           href={resource.file_url}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex h-9 w-9 items-center justify-center rounded-xl text-muted transition-colors hover:bg-surface hover:text-foreground"
+          className="flex h-8 w-8 items-center justify-center rounded-lg text-muted transition-colors hover:bg-surface hover:text-foreground"
           title="Open in new tab (O)"
           aria-label="Open in new tab"
         >
@@ -394,7 +390,7 @@ export default function ResourceViewer({
               document.exitFullscreen().catch(() => {});
             }
           }}
-          className="hidden sm:flex h-9 w-9 items-center justify-center rounded-xl text-muted transition-colors hover:bg-surface hover:text-foreground"
+          className="hidden sm:flex h-8 w-8 items-center justify-center rounded-lg text-muted transition-colors hover:bg-surface hover:text-foreground"
           title="Fullscreen (F)"
           aria-label="Fullscreen"
         >
@@ -404,7 +400,7 @@ export default function ResourceViewer({
           ref={downloadRef}
           href={downloadUrl}
           download
-          className="flex h-9 w-9 items-center justify-center rounded-xl text-muted transition-colors hover:bg-surface hover:text-foreground"
+          className="flex h-8 w-8 items-center justify-center rounded-lg text-muted transition-colors hover:bg-surface hover:text-foreground"
           title="Download (D)"
           aria-label="Download"
         >
@@ -413,16 +409,16 @@ export default function ResourceViewer({
         <button
           type="button"
           onClick={onClose}
-          className="flex h-9 w-9 items-center justify-center rounded-xl bg-surface/50 text-foreground transition-colors hover:bg-destructive/10 hover:text-destructive border border-transparent hover:border-destructive/20 ml-1"
+          className="flex h-8 w-8 items-center justify-center rounded-lg bg-surface/50 text-foreground transition-colors hover:bg-destructive/10 hover:text-destructive border border-transparent hover:border-destructive/20"
           title="Close viewer (Esc)"
           aria-label="Close viewer"
         >
-          <X className="h-5 w-5" />
+          <X className="h-4 w-4" />
         </button>
       </motion.div>
 
       <div
-        className={`flex-1 w-full h-full p-2 sm:p-4 pt-20 sm:pt-24 relative ${
+        className={`flex-1 w-full h-full p-2 sm:p-3 pt-14 sm:pt-16 relative ${
           hasRelatedBar ? "pb-20 sm:pb-24" : ""
         }`}
       >

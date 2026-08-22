@@ -2,10 +2,12 @@ import withPWAInit from '@ducanh2912/next-pwa';
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Bundle optimization
   bundlePagesRouterDependencies: true,
   reactCompiler: true,
-  optimizePackageImports: ["lucide-react", "framer-motion"],
+  experimental: {
+    // lucide-react is already optimized by default
+    optimizePackageImports: ["framer-motion"],
+  },
   // Keep heavy Node-only libs out of the serverless bundle where possible.
   serverExternalPackages: [
     "googleapis",

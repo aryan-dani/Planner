@@ -53,5 +53,12 @@
   "overrides": {
     "uuid": "^11.0.3",
     "node-domexception": "file:./scripts/domexception-shim"
+  },
+  "allowScripts": {
+    "@firebase/util@1.15.1": true,
+    "protobufjs@7.6.2": true,
+    "sharp@0.34.5": true,
+    "tesseract.js@7.0.0": true,
+    "unrs-resolver@1.11.1": true
   }
 }
