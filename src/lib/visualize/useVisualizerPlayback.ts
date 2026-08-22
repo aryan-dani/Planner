@@ -6,6 +6,7 @@ import {
   logTelemetryEvent,
   markAlgorithmComplete,
 } from "@/lib/visualize/client";
+import { PLAYBACK_SPEED_DEFAULT_MS } from "@/lib/visualize/playbackSpeed";
 
 export interface PlaybackControls<TState> {
   currentStep: AlgorithmStep<TState> | null;
@@ -29,7 +30,7 @@ export function useVisualizerPlayback<TState>(
 ): PlaybackControls<TState> {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [speedMs, setSpeedMs] = useState(250);
+  const [speedMs, setSpeedMs] = useState(PLAYBACK_SPEED_DEFAULT_MS);
   const sessionIdRef = useRef(
     typeof crypto !== "undefined" && crypto.randomUUID
       ? crypto.randomUUID()

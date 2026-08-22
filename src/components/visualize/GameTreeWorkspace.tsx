@@ -15,6 +15,7 @@ import { useVisualizerPlayback } from "@/lib/visualize/useVisualizerPlayback";
 import {
   generateDefaultTree,
   generateMinimaxSteps,
+  generateRandomTree,
 } from "@/lib/visualize/engines/minimax";
 import { generateAlphaBetaSteps } from "@/lib/visualize/engines/alphaBeta";
 import { TreeNode, TreeState } from "@/lib/visualize/tree";
@@ -71,7 +72,7 @@ export function GameTreeWorkspace({ algorithmId }: GameTreeWorkspaceProps) {
   }, [pendingPlay, steps.length, play]);
 
   const handleWatch = () => {
-    const tree = generateDefaultTree(depth);
+    const tree = generateRandomTree(depth);
     setInitialTree(tree);
     const newSteps =
       algorithmId === "alpha-beta"
@@ -152,11 +153,11 @@ export function GameTreeWorkspace({ algorithmId }: GameTreeWorkspaceProps) {
         dock={
           <div className="flex flex-col items-center gap-3 min-h-[12.5rem]">
             {!hasGenerated ? (
-              <PrimaryAction onClick={handleWatch}>Watch it run</PrimaryAction>
+              <PrimaryAction flat onClick={handleWatch}>Watch it run</PrimaryAction>
             ) : (
               <>
                 <PlaybackToolbar playback={playback} />
-                <GhostAction onClick={handleWatch}>New random tree</GhostAction>
+                <GhostAction flat onClick={handleWatch}>New random tree</GhostAction>
               </>
             )}
             <HappeningNow

@@ -200,7 +200,7 @@ export function SearchTreeWorkspace({ algorithmId }: SearchTreeWorkspaceProps) {
           <div className="flex flex-col items-center gap-3 min-h-[12.5rem]">
             {!hasGenerated ? (
               <div className="flex flex-wrap items-center justify-center gap-1">
-                <PrimaryAction onClick={handleWatch}>Watch it run</PrimaryAction>
+                <PrimaryAction flat onClick={handleWatch}>Watch it run</PrimaryAction>
                 <GhostAction onClick={handleNewTree}>New tree</GhostAction>
                 <GhostAction onClick={handleResetCourseTree}>
                   Course tree

@@ -749,20 +749,35 @@ input[type="range"].accent-slider::-moz-range-thumb:hover {
   height: 3px;
   background: transparent;
 }
+.viz-range--raised {
+  height: 32px;
+  margin: 0;
+}
+.viz-range::-webkit-slider-runnable-track {
+  height: 6px;
+  background: transparent;
+  border: none;
+}
+.viz-range::-moz-range-track {
+  height: 6px;
+  background: transparent;
+  border: none;
+}
 .viz-range::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 14px;
-  height: 14px;
+  width: 16px;
+  height: 16px;
+  margin-top: -5px;
   border-radius: 9999px;
+  border: 2px solid rgb(var(--background));
   background: rgb(var(--foreground));
   cursor: pointer;
-  box-shadow: 0 0 0 4px rgb(var(--background));
 }
 .viz-range::-moz-range-thumb {
-  width: 14px;
-  height: 14px;
-  border: none;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgb(var(--background));
   border-radius: 9999px;
   background: rgb(var(--foreground));
   cursor: pointer;

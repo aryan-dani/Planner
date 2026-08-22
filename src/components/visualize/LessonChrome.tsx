@@ -37,7 +37,7 @@ export function HappeningNow({
 }) {
   const shown = text ?? idle;
   return (
-    <div className="relative mx-auto w-full max-w-2xl h-12">
+    <div className="relative mx-auto w-full max-w-xl h-12 rounded-lg border border-border bg-card px-4">
       <AnimatePresence mode="wait">
         <motion.p
           key={shown}
@@ -84,21 +84,25 @@ export function PrimaryAction({
   onClick,
   disabled,
   type = "button",
+  flat = false,
 }: {
   children: ReactNode;
   onClick?: () => void;
   disabled?: boolean;
   type?: "button" | "submit";
+  flat?: boolean;
 }) {
   return (
     <motion.button
       type={type}
       onClick={onClick}
       disabled={disabled}
-      whileHover={disabled ? undefined : { y: -1 }}
+      whileHover={disabled || flat ? undefined : { y: -1 }}
       whileTap={disabled ? undefined : { scale: 0.98 }}
       transition={{ duration: 0.18, ease: easeOut }}
-      className="min-h-11 px-5 bg-foreground text-background text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed shadow-[0_10px_24px_-12px_rgb(var(--foreground)/0.55)]"
+      className={`min-h-11 px-5 bg-foreground text-background text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed rounded-md ${
+        flat ? "" : "shadow-[0_10px_24px_-12px_rgb(var(--foreground)/0.55)]"
+      }`}
     >
       {children}
     </motion.button>
@@ -109,17 +113,19 @@ export function GhostAction({
   children,
   onClick,
   disabled,
+  flat = false,
 }: {
   children: ReactNode;
   onClick?: () => void;
   disabled?: boolean;
+  flat?: boolean;
 }) {
   return (
     <motion.button
       type="button"
       onClick={onClick}
       disabled={disabled}
-      whileHover={disabled ? undefined : { y: -1 }}
+      whileHover={disabled || flat ? undefined : { y: -1 }}
       whileTap={disabled ? undefined : { scale: 0.98 }}
       className="min-h-11 px-4 text-sm text-muted hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed"
     >
@@ -144,7 +150,7 @@ export function Stage({
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.55, ease: easeOut }}
-      className="border border-border bg-card/60 rounded-xl overflow-hidden shadow-[0_24px_60px_-36px_rgb(var(--foreground)/0.35)]"
+      className="border border-border bg-card/60 rounded-xl overflow-hidden"
     >
       <div className="flex items-center justify-between gap-3 px-4 sm:px-5 h-11 border-b border-border bg-surface/40">
         <span className="text-[10px] font-mono uppercase tracking-[0.18em] text-muted">
@@ -161,7 +167,7 @@ export function Stage({
         {children}
       </div>
       {dock ? (
-        <div className="border-t border-border bg-surface/30 px-4 sm:px-6 py-4">
+        <div className="border-t border-border bg-card px-4 sm:px-6 py-4">
           {dock}
         </div>
       ) : null}

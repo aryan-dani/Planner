@@ -164,7 +164,7 @@ export function OptimizationWorkspace({
         dock={
           <div className="flex flex-col items-center gap-3 min-h-[12.5rem]">
             {!hasGenerated ? (
-              <PrimaryAction onClick={handleWatch}>Watch it run</PrimaryAction>
+              <PrimaryAction flat onClick={handleWatch}>Watch it run</PrimaryAction>
             ) : (
               <>
                 <PlaybackToolbar playback={playback} />

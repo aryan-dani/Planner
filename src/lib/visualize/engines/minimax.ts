@@ -1,16 +1,26 @@
 import { TreeNode, TreeState } from "@/lib/visualize/tree";
 import { AlgorithmStep } from "@/lib/visualize/types";
 
-export function generateDefaultTree(
+/** Stable leaf score from node id — safe for SSR and hydration. */
+function leafValueFromId(id: string): number {
+  let hash = 0;
+  for (let i = 0; i < id.length; i += 1) {
+    hash = (hash * 31 + id.charCodeAt(i)) | 0;
+  }
+  return (Math.abs(hash) % 20) - 9;
+}
+
+function buildTree(
   depth: number,
-  isMax: boolean = true,
-  idPrefix: string = "root",
+  isMax: boolean,
+  idPrefix: string,
+  leafValue: (id: string) => number,
 ): TreeNode {
   if (depth === 0) {
     return {
       id: idPrefix,
       isMaxNode: isMax,
-      value: Math.floor(Math.random() * 20) - 9,
+      value: leafValue(idPrefix),
       children: [],
     };
   }
@@ -19,10 +29,33 @@ export function generateDefaultTree(
     isMaxNode: isMax,
     value: null,
     children: [
-      generateDefaultTree(depth - 1, !isMax, `${idPrefix}-L`),
-      generateDefaultTree(depth - 1, !isMax, `${idPrefix}-R`),
+      buildTree(depth - 1, !isMax, `${idPrefix}-L`, leafValue),
+      buildTree(depth - 1, !isMax, `${idPrefix}-R`, leafValue),
     ],
   };
+}
+
+/** Deterministic demo tree — same output on server and client. */
+export function generateDefaultTree(
+  depth: number,
+  isMax: boolean = true,
+  idPrefix: string = "root",
+): TreeNode {
+  return buildTree(depth, isMax, idPrefix, leafValueFromId);
+}
+
+/** Random tree for replay — call only after hydration (e.g. button click). */
+export function generateRandomTree(
+  depth: number,
+  isMax: boolean = true,
+  idPrefix: string = "root",
+): TreeNode {
+  return buildTree(
+    depth,
+    isMax,
+    idPrefix,
+    () => Math.floor(Math.random() * 20) - 9,
+  );
 }
 
 export function generateMinimaxSteps(root: TreeNode): AlgorithmStep<TreeState>[] {
