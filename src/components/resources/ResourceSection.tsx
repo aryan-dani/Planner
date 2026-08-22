@@ -102,21 +102,23 @@ export default function ResourceSection({
   }, [flattenAllSingles, activeFolderId, singletonCardItems.length]);
 
   useEffect(() => {
-    if (!useFolders || !folders) return;
+    if (!useFolders || !folders || !activeFolderId) return;
     setExpandedIds((prev) => {
       const next = new Set(prev);
-      if (activeFolderId) {
-        const ensure = (nodes: ResourceFolderNode[]) => {
-          for (const node of nodes) {
-            if (node.id === activeFolderId || hasDescendant(node, activeFolderId)) {
+      let changed = false;
+      const ensure = (nodes: ResourceFolderNode[]) => {
+        for (const node of nodes) {
+          if (node.id === activeFolderId || hasDescendant(node, activeFolderId)) {
+            if (!next.has(node.id)) {
               next.add(node.id);
+              changed = true;
             }
-            ensure(node.children);
           }
-        };
-        ensure(folders);
-      }
-      return next;
+          ensure(node.children);
+        }
+      };
+      ensure(folders);
+      return changed ? next : prev;
     });
   }, [activeFolderId, folders, useFolders]);
 
@@ -125,7 +127,7 @@ export default function ResourceSection({
       const wasExpanded = expandedIds.has(folderId);
       setExpandedIds((prev) => {
         const next = new Set(prev);
-        if (wasExpanded) next.delete(folderId);
+        if (prev.has(folderId)) next.delete(folderId);
         else next.add(folderId);
         return next;
       });

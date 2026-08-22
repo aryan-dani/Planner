@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { auth } from '@/lib/firebase';
 import { Flame, Trophy, Calendar, Zap, Info } from 'lucide-react';
 import { ACTIVITY_STORAGE_KEY, localDateKey } from '@/lib/activity';
@@ -11,7 +11,7 @@ interface ActivityLog {
 }
 
 const STORAGE_KEY = ACTIVITY_STORAGE_KEY;
-const WEEK_COUNT = 20;
+const WEEK_COUNT = 53;
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const;
 
 function startOfDay(date: Date) {
@@ -111,8 +111,8 @@ export default function ActivityHeatmap() {
 
   const weeks = useMemo(() => {
     const today = startOfDay(new Date());
-    const rangeStart = addDays(today, -(WEEK_COUNT * 7 - 1));
-    const gridStart = mondayOnOrBefore(rangeStart);
+    const thisMonday = mondayOnOrBefore(today);
+    const gridStart = addDays(thisMonday, -(WEEK_COUNT - 1) * 7);
     const cols: HeatCell[][] = [];
     let cursor = new Date(gridStart);
 
@@ -120,7 +120,7 @@ export default function ActivityHeatmap() {
       const week: HeatCell[] = [];
       for (let d = 0; d < 7; d++) {
         const key = localDateKey(cursor);
-        const inRange = cursor >= rangeStart && cursor <= today;
+        const inRange = cursor <= today;
         week.push({
           date: new Date(cursor),
           key,
@@ -194,10 +194,12 @@ export default function ActivityHeatmap() {
   }, [loading, weeks.length]);
 
   const monthLabels = weeks.map((week, idx) => {
-    const first = week[0];
-    const prev = idx > 0 ? weeks[idx - 1][0] : null;
-    if (!prev || first.date.getMonth() !== prev.date.getMonth()) {
-      return first.date.toLocaleDateString('en-US', { month: 'short' });
+    const monthStart = week.find((d) => d.date.getDate() === 1);
+    if (monthStart) {
+      return monthStart.date.toLocaleDateString('en-US', { month: 'short' });
+    }
+    if (idx === 0) {
+      return week[0].date.toLocaleDateString('en-US', { month: 'short' });
     }
     return '';
   });
@@ -258,25 +260,31 @@ export default function ActivityHeatmap() {
           className="heatmap-scroll max-w-full pb-2"
           aria-label="Activity heatmap. Swipe sideways to see earlier weeks."
         >
-          <div className="flex gap-2 w-max pr-1">
-            <div className="sticky left-0 z-10 flex flex-col gap-1 pt-5 bg-card pr-2 shrink-0">
-              {WEEKDAYS.map((day) => (
-                <span
-                  key={day}
-                  className="h-4 text-[10px] font-semibold text-muted uppercase tracking-wider leading-4"
-                >
-                  {day}
-                </span>
-              ))}
-            </div>
-
-            <div className="flex gap-1">
-              {weeks.map((week, colIdx) => (
-                <div key={colIdx} className="flex flex-col gap-1">
-                  <span className="h-4 text-[10px] font-medium text-muted leading-4">
+          <div
+            className="heatmap-grid"
+            style={{
+              gridTemplateColumns: `2.25rem repeat(${weeks.length}, minmax(0, 1fr))`,
+            }}
+          >
+            <div className="sticky left-0 z-10 bg-card" />
+            {weeks.map((_, colIdx) => (
+              <div key={`month-${colIdx}`} className="relative h-4 min-w-0">
+                {monthLabels[colIdx] ? (
+                  <span className="absolute left-0 top-0 z-[1] whitespace-nowrap text-[11px] font-medium text-muted leading-none">
                     {monthLabels[colIdx]}
                   </span>
-                  {week.map((day) => (
+                ) : null}
+              </div>
+            ))}
+
+            {WEEKDAYS.map((dayName, rowIdx) => (
+              <Fragment key={dayName}>
+                <span className="sticky left-0 z-10 flex items-center justify-end bg-card pr-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted">
+                  {dayName}
+                </span>
+                {weeks.map((week) => {
+                  const day = week[rowIdx];
+                  return (
                     <button
                       key={day.key}
                       type="button"
@@ -286,19 +294,19 @@ export default function ActivityHeatmap() {
                         if (!day.inRange) return;
                         setSelected({ key: day.key, label: day.label, count: day.count });
                       }}
-                      className={`w-4 h-4 rounded-sm border shrink-0 transition-colors ${getCellColor(
+                      className={`aspect-square w-full min-w-0 self-start rounded-sm border transition-colors ${getCellColor(
                         day.count,
                         day.inRange,
                       )} ${
                         selected?.key === day.key
-                          ? 'ring-1 ring-foreground ring-offset-1 ring-offset-card'
+                          ? 'z-[1] ring-1 ring-foreground ring-offset-1 ring-offset-card'
                           : ''
                       }`}
                     />
-                  ))}
-                </div>
-              ))}
-            </div>
+                  );
+                })}
+              </Fragment>
+            ))}
           </div>
         </div>
       </div>

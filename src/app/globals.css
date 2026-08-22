@@ -407,6 +407,12 @@ h1, h2, h3, h4, h5, h6 {
   background: rgb(var(--border-strong) / 0.55);
   border-radius: 9999px;
 }
+.heatmap-grid {
+  display: grid;
+  width: 100%;
+  min-width: max(100%, 52rem);
+  gap: 3px;
+}
 
 /* custom-scrollbar — used in Navigation and ResourcesClient */
 .custom-scrollbar::-webkit-scrollbar {

@@ -110,6 +110,7 @@ export default function ResourcesClient({
   const [isSearchingContent, setIsSearchingContent] = useState(false);
   const didOpenInitialView = useRef(false);
   const didHydrateFromUrl = useRef(false);
+  const skipFolderUrlHydrate = useRef(true);
   const lastUserSubjectRef = useRef<string | null>(null);
   const [isSubjectPending, setIsSubjectPending] = useState(false);
   const [isScopeLoading, setIsScopeLoading] = useState(false);
@@ -298,8 +299,6 @@ export default function ResourcesClient({
         const urlFilter = parseResourceFilter(searchParams.get("filter"));
         setSelectedFilter(urlFilter);
       }
-      const urlFolder = parseResourceFolder(searchParams.get("folder"));
-      if (urlFolder !== activeFolderId) setActiveFolderId(urlFolder);
       return;
     }
 
@@ -317,8 +316,20 @@ export default function ResourcesClient({
     initialFilter,
     initialFolder,
     searchParams,
-    activeFolderId,
   ]);
+
+  // Mirror ?folder= only when that query value changes (back/forward, shared link).
+  // Do not re-apply a stale param just because local activeFolderId changed — that
+  // re-opens a unit the user just collapsed.
+  const urlFolderParam = searchParams.get("folder");
+  useEffect(() => {
+    if (skipFolderUrlHydrate.current) {
+      skipFolderUrlHydrate.current = false;
+      return;
+    }
+    const urlFolder = parseResourceFolder(urlFolderParam);
+    setActiveFolderId((prev) => (prev === urlFolder ? prev : urlFolder));
+  }, [urlFolderParam]);
 
   useEffect(() => {
     if (!selectedSubject || selectedFilter === "all") return;
