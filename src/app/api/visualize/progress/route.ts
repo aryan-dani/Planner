@@ -1,0 +1,79 @@
+import { NextResponse } from "next/server";
+import { FieldValue } from "firebase-admin/firestore";
+import { adminDb } from "@/lib/firebaseAdmin";
+import { isAuthFailure, requireUser } from "@/lib/apiAuth";
+import { getAlgorithm } from "@/lib/visualize/catalog";
+
+export const dynamic = "force-dynamic";
+
+export async function GET(request: Request) {
+  try {
+    const auth = await requireUser(request);
+    if (isAuthFailure(auth)) return auth;
+
+    const db = adminDb();
+    const snapshot = await db
+      .collection("visualize_progress")
+      .where("owner_id", "==", auth.uid)
+      .get();
+
+    const progress = snapshot.docs.map((docSnap) => {
+      const data = docSnap.data();
+      return {
+        algorithmId: data.algorithmId as string,
+        completed: Boolean(data.completed),
+        timeSpentSeconds: Number(data.timeSpentSeconds) || 0,
+        updated_at: data.updated_at?.toDate?.()?.toISOString?.() ?? null,
+      };
+    });
+
+    return NextResponse.json({ progress });
+  } catch (error) {
+    console.error("visualize progress GET", error);
+    return NextResponse.json(
+      { error: "Failed to load progress" },
+      { status: 500 },
+    );
+  }
+}
+
+export async function POST(request: Request) {
+  try {
+    const auth = await requireUser(request);
+    if (isAuthFailure(auth)) return auth;
+
+    const body = await request.json();
+    const algorithmId =
+      typeof body.algorithmId === "string" ? body.algorithmId : "";
+    if (!getAlgorithm(algorithmId)) {
+      return NextResponse.json({ error: "Unknown algorithm" }, { status: 400 });
+    }
+
+    const timeSpentSeconds = Math.max(
+      0,
+      Math.min(Number(body.timeSpentSeconds) || 0, 86_400),
+    );
+    const completed = Boolean(body.completed);
+
+    const db = adminDb();
+    const docId = `${auth.uid}_${algorithmId}`;
+    await db.collection("visualize_progress").doc(docId).set(
+      {
+        owner_id: auth.uid,
+        algorithmId,
+        completed,
+        timeSpentSeconds,
+        updated_at: FieldValue.serverTimestamp(),
+      },
+      { merge: true },
+    );
+
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    console.error("visualize progress POST", error);
+    return NextResponse.json(
+      { error: "Failed to save progress" },
+      { status: 500 },
+    );
+  }
+}

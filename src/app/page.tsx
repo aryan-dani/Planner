@@ -8,6 +8,7 @@ import {
   ShieldCheck,
   Layers,
   Building2,
+  Waypoints,
 } from "lucide-react";
 import AuthButtons from "./AuthButtons";
 import HomeHeatmap from "./HomeHeatmap";
@@ -54,9 +55,17 @@ const FEATURES = [
       "Browse by subject → assignment folders (notebooks, datasets, writeups together). Notes are reference-only.",
   },
   {
+    href: "/visualize",
+    label: "Visualize",
+    number: "05",
+    Icon: Waypoints,
+    description:
+      "Watch BFS, A*, Minimax, and N-Queens decide one step at a time.",
+  },
+  {
     href: "/gpa",
     label: "GPA Calc",
-    number: "05",
+    number: "06",
     Icon: ShieldCheck,
     description:
       "Calculate your SGPA and CGPA with auto-populated subjects from the database.",
@@ -64,7 +73,7 @@ const FEATURES = [
   {
     href: "/srs",
     label: "SRS Cards",
-    number: "06",
+    number: "07",
     Icon: Layers,
     description:
       "Active Leitner spacing system. Review cards to lock them in long-term memory.",
@@ -72,7 +81,7 @@ const FEATURES = [
   {
     href: "/campus",
     label: "Campus",
-    number: "07",
+    number: "08",
     Icon: Building2,
     description:
       "Faculty seating, staff directory, and lab registry — live from campus data.",

@@ -27,6 +27,7 @@ import {
   GraduationCap,
   Heart,
   Building2,
+  Waypoints,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import dynamic from "next/dynamic";
@@ -61,6 +62,7 @@ const ACADEMIC_LINKS: NavLinkItem[] = [
   { href: "/resources", label: "Resources", Icon: FileText, featured: true, desc: "Subject files — notes are reference-only" },
   { href: "/ask", label: "Ask AI", Icon: Brain, desc: "RAG-powered academic assistant" },
   { href: "/syllabus", label: "Syllabus", Icon: BookOpen, desc: "Course syllabus tracker" },
+  { href: "/visualize", label: "Visualize", Icon: Waypoints, desc: "AI algorithm visualizers" },
 ];
 
 const CAMPUS_LINKS: NavLinkItem[] = [

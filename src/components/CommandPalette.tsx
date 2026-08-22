@@ -24,6 +24,7 @@ import {
   MapPin,
   BookUser,
   FlaskConical,
+  Waypoints,
 } from 'lucide-react';
 import { useAcademicStore } from '../store/academicStore';
 import { db } from '../lib/firebase';
@@ -341,6 +342,17 @@ export default function CommandPalette() {
         icon: CalendarCheck,
         action: () => {
           navigate('/planner');
+          setCommandPaletteOpen(false);
+        },
+      },
+      {
+        id: 'nav-visualize',
+        title: 'Open Algorithm Visualizers',
+        category: 'Navigation',
+        icon: Waypoints,
+        badge: 'AI',
+        action: () => {
+          navigate('/visualize');
           setCommandPaletteOpen(false);
         },
       },
