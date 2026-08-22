@@ -36,7 +36,7 @@ const FEATURES = [
     number: "02",
     Icon: Brain,
     description:
-      "Get instant explanations, flashcards, and study help powered by Llama 3.3.",
+      "Get instant explanations, flashcards, and study help powered by Groq.",
   },
   {
     href: "/syllabus",

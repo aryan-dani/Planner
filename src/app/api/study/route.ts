@@ -1,4 +1,5 @@
 import { groq } from '@ai-sdk/groq';
+import { GROQ_CHAT_MODEL } from '@/lib/groqModels';
 import { generateText } from 'ai';
 import { adminDb } from '@/lib/firebaseAdmin';
 import { performRAGSearch } from '@/lib/ragSearch';
@@ -144,7 +145,7 @@ CRITICAL INSTRUCTION: You MUST output ONLY a block of valid JSON matching the ex
 }`;
 
     const { text } = await generateText({
-      model: groq('llama-3.3-70b-versatile'),
+      model: groq(GROQ_CHAT_MODEL),
       prompt: prompt,
     });
 

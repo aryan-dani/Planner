@@ -107,6 +107,91 @@ export async function ishaniGet<T>(
   }
 }
 
+function asciiLetters(value: string): string {
+  return value
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z]/g, "");
+}
+
+function emailLocalPart(email: string | undefined): string {
+  return asciiLetters(String(email || "").split("@")[0] || "");
+}
+
+function staffNameTokens(name: string | undefined): string[] {
+  return String(name || "")
+    .replace(/\([^)]*\)/g, " ")
+    .split(/[\s.]+/)
+    .map(asciiLetters)
+    .filter(
+      (token) =>
+        token.length >= 3 &&
+        !["dr", "mrs", "mr", "ms", "prof", "smt", "miss"].includes(token),
+    );
+}
+
+/** True when the email local-part contains this person's first name. */
+function emailHasFirstName(
+  name: string | undefined,
+  email: string | undefined,
+): boolean {
+  const tokens = staffNameTokens(name);
+  const local = emailLocalPart(email);
+  const first = tokens[0];
+  return Boolean(first && first.length >= 4 && local.includes(first));
+}
+
+function withStaffEmail(member: StaffMember, email: string): StaffMember {
+  if (member.email === email) return member;
+  const details = member.details
+    ? { ...member.details, "Mail Id": email }
+    : member.details;
+  return { ...member, email, details };
+}
+
+/**
+ * Ishani's staff dump sometimes rotates emails by one inside a contiguous
+ * block (person N has person N-1's address; the first row holds the last).
+ * Rotate that block back so names and emails line up.
+ */
+export function realignStaffEmails(staff: StaffMember[]): StaffMember[] {
+  if (staff.length < 2) return staff;
+
+  const next = staff.slice();
+  let i = 0;
+
+  while (i < next.length) {
+    if (emailHasFirstName(next[i].name, next[i].email)) {
+      i += 1;
+      continue;
+    }
+
+    let end = i;
+    while (
+      end + 1 < next.length &&
+      emailHasFirstName(next[end].name, next[end + 1].email)
+    ) {
+      end += 1;
+    }
+
+    const wraps = emailHasFirstName(next[end].name, next[i].email);
+    if (end > i && wraps) {
+      const emails = next.slice(i, end + 1).map((member) => member.email || "");
+      for (let offset = 0; offset <= end - i; offset += 1) {
+        const source = (offset + 1) % emails.length;
+        next[i + offset] = withStaffEmail(next[i + offset], emails[source]);
+      }
+      i = end + 1;
+      continue;
+    }
+
+    i += 1;
+  }
+
+  return next;
+}
+
 export async function getFacultySeating(): Promise<FacultySeat[]> {
   const result = await ishaniGet<{ faculty_seating?: FacultySeat[] }>(
     "/faculty-seating",
@@ -126,7 +211,9 @@ export async function getHomeCampusData(): Promise<HomeCampusData> {
     return { staff: [], infrastructure: [] };
   }
   return {
-    staff: Array.isArray(result.data.staff) ? result.data.staff : [],
+    staff: realignStaffEmails(
+      Array.isArray(result.data.staff) ? result.data.staff : [],
+    ),
     infrastructure: Array.isArray(result.data.infrastructure)
       ? result.data.infrastructure
       : [],

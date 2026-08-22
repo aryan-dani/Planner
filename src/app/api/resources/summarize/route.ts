@@ -1,4 +1,5 @@
 import { groq } from '@ai-sdk/groq';
+import { GROQ_FAST_MODEL } from '@/lib/groqModels';
 import { generateText } from 'ai';
 import { adminDb } from '@/lib/firebaseAdmin';
 import { isAuthFailure, requireUser } from '@/lib/apiAuth';
@@ -53,7 +54,7 @@ export async function GET(request: Request) {
 
     // 3. Generate summary
     const { text } = await generateText({
-      model: groq('llama-3.1-8b-instant'),
+      model: groq(GROQ_FAST_MODEL),
       maxOutputTokens: 1024,
       system: `You are an elite academic summarizer. Your goal is to help students quickly grasp the core concepts of their study materials.`,
       prompt: `Summarize the following study material titled "${title}".

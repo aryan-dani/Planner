@@ -1,4 +1,5 @@
 import { groq } from '@ai-sdk/groq';
+import { GROQ_CHAT_MODEL } from '@/lib/groqModels';
 import {
   createUIMessageStream,
   createUIMessageStreamResponse,
@@ -185,7 +186,7 @@ MODERN TUTOR GUIDELINES:
 4. Accuracy: If snippets are present, prioritize them over your general knowledge. Mention resource titles if helpful.`;
 
   const result = streamText({
-    model: groq('llama-3.3-70b-versatile'),
+    model: groq(GROQ_CHAT_MODEL),
     system: systemPrompt,
     messages: finalMessages,
     maxOutputTokens: 2048,

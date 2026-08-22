@@ -1,4 +1,5 @@
 import { groq } from '@ai-sdk/groq';
+import { GROQ_CHAT_MODEL } from '@/lib/groqModels';
 import { generateText } from 'ai';
 import { isAuthFailure, requireUser } from '@/lib/apiAuth';
 import { z } from 'zod';
@@ -76,7 +77,7 @@ Example JSON output format:
 ]`;
 
     const response = await generateText({
-      model: groq('llama-3.3-70b-versatile'),
+      model: groq(GROQ_CHAT_MODEL),
       prompt: `${systemInstructions}\n\nUser Input to Parse:\n"${prompt}"`,
     });
 
