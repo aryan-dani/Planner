@@ -20,25 +20,28 @@ export function StructureToggle({ algorithmId }: { algorithmId: string }) {
 
   const base = pathname;
 
+  const segmentClass = (active: boolean) =>
+    `inline-flex h-6 items-center justify-center px-2.5 text-[10px] font-mono uppercase tracking-widest transition-colors ${
+      active
+        ? "bg-foreground text-background"
+        : "text-muted hover:text-foreground"
+    }`;
+
   return (
-    <div className="inline-flex items-center rounded-xl border border-border bg-surface/40 p-1">
+    <div
+      className="inline-flex overflow-hidden rounded-md border border-border bg-surface/40"
+      role="group"
+      aria-label="Graph or tree view"
+    >
       <Link
         href={base}
-        className={`min-h-9 px-4 rounded-lg text-xs font-medium transition-colors ${
-          structure === "graph"
-            ? "bg-foreground text-background"
-            : "text-muted hover:text-foreground"
-        }`}
+        className={`${segmentClass(structure === "graph")} border-r border-border`}
       >
         Graph
       </Link>
       <Link
         href={`${base}?structure=tree`}
-        className={`min-h-9 px-4 rounded-lg text-xs font-medium transition-colors ${
-          structure === "tree"
-            ? "bg-foreground text-background"
-            : "text-muted hover:text-foreground"
-        }`}
+        className={segmentClass(structure === "tree")}
       >
         Tree
       </Link>

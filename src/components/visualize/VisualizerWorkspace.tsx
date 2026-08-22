@@ -97,10 +97,10 @@ function VisualizerWorkspaceInner({
           variants={fadeUp}
           className="flex flex-wrap items-center gap-2 mt-4"
         >
-          <span className="text-[10px] font-mono uppercase tracking-widest text-muted px-2 py-1 border border-border rounded-md">
+          <span className="inline-flex h-6 items-center text-[10px] font-mono uppercase tracking-widest text-muted px-2 border border-border rounded-md">
             {algorithm.category}
           </span>
-          <span className="text-[10px] font-mono uppercase tracking-widest text-muted px-2 py-1 border border-border rounded-md">
+          <span className="inline-flex h-6 items-center text-[10px] font-mono uppercase tracking-widest text-muted px-2 border border-border rounded-md">
             {algorithm.difficulty}
           </span>
           {isPathAlgorithm && <StructureToggle algorithmId={algorithm.id} />}
