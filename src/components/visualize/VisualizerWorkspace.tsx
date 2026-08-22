@@ -7,10 +7,8 @@ import { SearchTreeWorkspace } from "@/components/visualize/SearchTreeWorkspace"
 import { GameTreeWorkspace } from "@/components/visualize/GameTreeWorkspace";
 import { OptimizationWorkspace } from "@/components/visualize/OptimizationWorkspace";
 import { CspWorkspace } from "@/components/visualize/CspWorkspace";
-import {
-  StructureToggle,
-  VisualizeStructure,
-} from "@/components/visualize/StructureToggle";
+import { StructureToggle } from "@/components/visualize/StructureToggle";
+import { VisualizeStructure } from "@/lib/visualize/structure";
 import { HowToUse } from "@/components/visualize/LessonChrome";
 import { fadeUp, stagger } from "@/components/visualize/motion";
 import { motion } from "framer-motion";

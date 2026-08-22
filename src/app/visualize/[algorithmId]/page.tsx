@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { getAlgorithm } from "@/lib/visualize/catalog";
 import { VisualizerWorkspace } from "@/components/visualize/VisualizerWorkspace";
-import { structureFromParam } from "@/components/visualize/StructureToggle";
+import { structureFromParam } from "@/lib/visualize/structure";
 
 export function generateStaticParams() {
   return [

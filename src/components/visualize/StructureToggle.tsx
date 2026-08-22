@@ -2,20 +2,17 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-
-export type VisualizeStructure = "graph" | "tree";
-
-const PATH_IDS = new Set(["bfs", "dfs", "ucs", "greedy-bfs", "a-star"]);
-
-export function supportsStructureToggle(algorithmId: string): boolean {
-  return PATH_IDS.has(algorithmId);
-}
+import {
+  structureFromParam,
+  supportsStructureToggle,
+} from "@/lib/visualize/structure";
 
 export function StructureToggle({ algorithmId }: { algorithmId: string }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const structure: VisualizeStructure =
-    searchParams.get("structure") === "tree" ? "tree" : "graph";
+  const structure = structureFromParam(
+    searchParams.get("structure") ?? undefined,
+  );
 
   if (!supportsStructureToggle(algorithmId)) {
     return null;
@@ -47,10 +44,4 @@ export function StructureToggle({ algorithmId }: { algorithmId: string }) {
       </Link>
     </div>
   );
-}
-
-export function structureFromParam(
-  param: string | undefined,
-): VisualizeStructure {
-  return param === "tree" ? "tree" : "graph";
 }
