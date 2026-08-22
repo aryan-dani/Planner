@@ -274,7 +274,7 @@ export default function CommandPalette() {
       },
       {
         id: 'nav-campus',
-        title: 'Campus Hub — Seating, Directory, Labs',
+        title: 'Campus Hub: Seating, Directory, Labs',
         category: 'Navigation',
         icon: Building2,
         badge: 'Campus',

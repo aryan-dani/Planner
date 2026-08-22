@@ -10,7 +10,7 @@ export function HowToUse({ steps }: { steps: readonly [string, string, string] }
       variants={stagger}
       initial="hidden"
       animate="show"
-      className="grid grid-cols-1 sm:grid-cols-3 gap-px bg-border border border-border overflow-hidden"
+      className="grid grid-cols-1 sm:grid-cols-3 gap-px bg-border border border-border rounded-xl overflow-hidden shadow-sm"
     >
       {steps.map((step, index) => (
         <motion.li
@@ -37,18 +37,23 @@ export function HappeningNow({
 }) {
   const shown = text ?? idle;
   return (
-    <div className="relative min-h-[3.25rem] pl-4">
-      <span className="absolute left-0 top-1 bottom-1 w-px bg-foreground/70" />
+    <div className="relative mx-auto w-full max-w-2xl h-12">
       <AnimatePresence mode="wait">
         <motion.p
           key={shown}
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -6 }}
-          transition={{ duration: 0.28, ease: easeOut }}
-          className={`text-sm leading-relaxed ${text ? "text-foreground" : "text-muted"}`}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.2, ease: easeOut }}
+          className="absolute inset-0 flex items-center justify-center px-1"
         >
-          {shown}
+          <span
+            className={`text-sm leading-snug text-center line-clamp-2 ${
+              text ? "text-foreground" : "text-muted"
+            }`}
+          >
+            {shown}
+          </span>
         </motion.p>
       </AnimatePresence>
     </div>
@@ -127,17 +132,19 @@ export function Stage({
   label,
   live = false,
   children,
+  dock,
 }: {
   label: string;
   live?: boolean;
   children: ReactNode;
+  dock?: ReactNode;
 }) {
   return (
     <motion.section
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.55, ease: easeOut }}
-      className="border border-border bg-card/60 overflow-hidden shadow-[0_24px_60px_-36px_rgb(var(--foreground)/0.35)]"
+      className="border border-border bg-card/60 rounded-xl overflow-hidden shadow-[0_24px_60px_-36px_rgb(var(--foreground)/0.35)]"
     >
       <div className="flex items-center justify-between gap-3 px-4 sm:px-5 h-11 border-b border-border bg-surface/40">
         <span className="text-[10px] font-mono uppercase tracking-[0.18em] text-muted">
@@ -150,9 +157,14 @@ export function Stage({
           </span>
         )}
       </div>
-      <div className="p-4 sm:p-6 bg-[linear-gradient(to_bottom,rgb(var(--surface)/0.35),transparent_42%)]">
+      <div className="p-4 sm:p-6 overflow-hidden bg-[linear-gradient(to_bottom,rgb(var(--surface)/0.35),transparent_42%)]">
         {children}
       </div>
+      {dock ? (
+        <div className="border-t border-border bg-surface/30 px-4 sm:px-6 py-4">
+          {dock}
+        </div>
+      ) : null}
     </motion.section>
   );
 }

@@ -91,9 +91,28 @@ export function CspWorkspace({ algorithmId }: CspWorkspaceProps) {
         </label>
       )}
 
-      <Stage label="Board" live={hasGenerated && playback.isPlaying}>
+      <Stage
+        label="Board"
+        live={hasGenerated && playback.isPlaying}
+        dock={
+          <div className="flex flex-col items-center gap-3 min-h-[12.5rem]">
+            {!hasGenerated ? (
+              <PrimaryAction onClick={handleWatch}>Watch it run</PrimaryAction>
+            ) : (
+              <>
+                <PlaybackToolbar playback={playback} />
+                <GhostAction onClick={handleReset}>Change board size</GhostAction>
+              </>
+            )}
+            <HappeningNow
+              text={playback.currentStep?.description ?? null}
+              idle="Each step is a try, a place, or an undo."
+            />
+          </div>
+        }
+      >
         <div
-          className="grid gap-px bg-border border border-border w-max mx-auto"
+          className="grid gap-px bg-border border border-border w-max max-w-full mx-auto overflow-hidden"
           style={{ gridTemplateColumns: `repeat(${boardN}, minmax(0, 1fr))` }}
           role="grid"
           aria-label={`${boardN} by ${boardN} queens board`}
@@ -132,50 +151,39 @@ export function CspWorkspace({ algorithmId }: CspWorkspaceProps) {
         </div>
       </Stage>
 
-      {!hasGenerated ? (
-        <PrimaryAction onClick={handleWatch}>Watch it run</PrimaryAction>
-      ) : (
-        <div className="space-y-6">
-          <PlaybackToolbar playback={playback} />
-          <HappeningNow
-            text={playback.currentStep?.description ?? null}
-            idle="Each step is a try, a place, or an undo."
-          />
-          <GhostAction onClick={handleReset}>Change board size</GhostAction>
-        </div>
-      )}
-
-      {hasGenerated && (
-        <div>
-          <StudyFold summary="Counts from this step">
+      <div>
+        <StudyFold summary="Counts from this step">
+          {hasGenerated ? (
             <MetricsPanel
               metrics={playback.currentStep?.metrics ?? null}
               frontierLabel="Rows still empty"
               pathLabel="Queens placed"
             />
-          </StudyFold>
-          <StudyFold summary="Plain-language steps">
-            <StepExplanation
-              step={playback.currentStep}
-              emptyMessage="Run the solver to highlight a line."
-              extra={
-                activeState ? (
-                  <p className="text-sm text-muted mb-3">
-                    {activeState.status === "conflict"
-                      ? "This square is illegal."
-                      : activeState.status === "backtrack"
-                        ? "That try failed, so the last queen comes off."
-                        : activeState.status === "solution"
-                          ? "Every row has a safe queen."
-                          : "Still searching."}
-                  </p>
-                ) : null
-              }
-              pseudocode={NQUEENS_PSEUDOCODE}
-            />
-          </StudyFold>
-        </div>
-      )}
+          ) : (
+            <p className="text-sm text-muted">Watch it run to see counts.</p>
+          )}
+        </StudyFold>
+        <StudyFold summary="Plain-language steps">
+          <StepExplanation
+            step={playback.currentStep}
+            emptyMessage="Run the solver to highlight a line."
+            extra={
+              activeState ? (
+                <p className="text-sm text-muted mb-3">
+                  {activeState.status === "conflict"
+                    ? "This square is illegal."
+                    : activeState.status === "backtrack"
+                      ? "That try failed, so the last queen comes off."
+                      : activeState.status === "solution"
+                        ? "Every row has a safe queen."
+                        : "Still searching."}
+                </p>
+              ) : null
+            }
+            pseudocode={NQUEENS_PSEUDOCODE}
+          />
+        </StudyFold>
+      </div>
     </div>
   );
 }

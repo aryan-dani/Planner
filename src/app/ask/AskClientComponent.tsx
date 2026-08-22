@@ -1209,7 +1209,7 @@ export default function AskClient() {
               </form>
 
               <p className="text-[10px] text-muted mt-2 text-center flex items-center justify-center gap-1.5 flex-wrap">
-                <span>Powered by Groq · Llama 3.3 70B — Responses may not always be accurate</span>
+                <span>Powered by Groq · Llama 3.3 70B. Responses may not always be accurate</span>
                 <span className="text-muted/40">•</span>
                 <span>Crafted by <a href="https://www.aryandani.com" target="_blank" rel="noopener noreferrer" className="font-semibold text-muted hover:text-foreground hover:underline transition-all">Aryan Dani</a></span>
               </p>

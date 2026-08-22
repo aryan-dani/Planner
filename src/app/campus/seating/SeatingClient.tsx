@@ -98,7 +98,7 @@ export default function SeatingClient({
         <p className="text-sm text-muted mt-1">
           {configured
             ? `${filtered.length} of ${seating.length} entries${refreshing ? " · refreshing…" : ""}`
-            : "Campus data unavailable — set ISHANI_API_URL to enable live seating."}
+            : "Campus data unavailable. Set ISHANI_API_URL to enable live seating."}
         </p>
       </div>
 
@@ -168,21 +168,21 @@ export default function SeatingClient({
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <h2 className="text-sm font-bold text-foreground">
-                        {String(row.Name_of_Faculty || "—")}
+                        {String(row.Name_of_Faculty || "-")}
                       </h2>
                       <p className="text-xs text-muted mt-1">
-                        {String(row.Designation || "—")}
+                        {String(row.Designation || "-")}
                       </p>
                       <p className="text-xs text-muted mt-0.5">
-                        {String(row.Department || "—")}
+                        {String(row.Department || "-")}
                       </p>
                     </div>
                     <span className="shrink-0 px-2 py-1 rounded-md text-xs font-bold uppercase tracking-wider bg-surface border border-border text-muted">
-                      {String(row.Type || "—")}
+                      {String(row.Type || "-")}
                     </span>
                   </div>
                   <p className="mt-3 font-mono text-sm text-foreground">
-                    {String(row.Seating_ID || "—")}
+                    {String(row.Seating_ID || "-")}
                   </p>
                 </article>
               ))}
@@ -215,20 +215,20 @@ export default function SeatingClient({
                       className="bg-card hover:bg-surface/40 transition-colors"
                     >
                       <td className="px-4 py-3 font-medium text-foreground whitespace-nowrap">
-                        {String(row.Name_of_Faculty || "—")}
+                        {String(row.Name_of_Faculty || "-")}
                       </td>
                       <td className="px-4 py-3 text-muted">
-                        {String(row.Designation || "—")}
+                        {String(row.Designation || "-")}
                       </td>
                       <td className="px-4 py-3 text-muted">
-                        {String(row.Department || "—")}
+                        {String(row.Department || "-")}
                       </td>
                       <td className="px-4 py-3 font-mono text-xs text-foreground">
-                        {String(row.Seating_ID || "—")}
+                        {String(row.Seating_ID || "-")}
                       </td>
                       <td className="px-4 py-3">
                         <span className="inline-flex px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-surface border border-border text-muted">
-                          {String(row.Type || "—")}
+                          {String(row.Type || "-")}
                         </span>
                       </td>
                     </tr>

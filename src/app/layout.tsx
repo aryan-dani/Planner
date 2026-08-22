@@ -30,7 +30,7 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   title: {
     default: 'Utility',
-    template: '%s — Utility',
+    template: '%s | Utility',
   },
   description: 'A premium academic workspace. Access your syllabus, resources, AI assistant, and planner in one place.',
   keywords: ['academic', 'syllabus', 'resources', 'planner', 'university', 'student', 'AI'],

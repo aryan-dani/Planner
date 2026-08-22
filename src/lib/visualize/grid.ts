@@ -43,23 +43,6 @@ export function cloneGrid(grid: GridNode[][]): GridNode[][] {
   );
 }
 
-/** A simple wall so first-time runs show a path going around something. */
-export const STARTER_WALLS: Position[] = [
-  { row: 1, col: 10 },
-  { row: 2, col: 10 },
-  { row: 3, col: 10 },
-  { row: 4, col: 10 },
-  { row: 5, col: 10 },
-  { row: 6, col: 10 },
-  { row: 7, col: 10 },
-  { row: 8, col: 10 },
-  { row: 9, col: 10 },
-  { row: 9, col: 11 },
-  { row: 9, col: 12 },
-  { row: 1, col: 11 },
-  { row: 1, col: 12 },
-];
-
 export const DEFAULT_START: Position = { row: 5, col: 3 };
 export const DEFAULT_GOAL: Position = { row: 5, col: 18 };
 

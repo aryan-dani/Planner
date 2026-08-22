@@ -1,110 +1,205 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Waypoints } from "lucide-react";
 import { motion } from "framer-motion";
 import {
   ALGORITHMS,
   START_HERE_IDS,
   TOPIC_GROUPS,
 } from "@/lib/visualize/catalog";
-import { VisualizerCredits } from "@/components/visualize/VisualizerCredits";
 import {
-  LivingGrid,
+  HeroMaze,
   QueenMark,
   RippleMark,
   StarMark,
 } from "@/components/visualize/TopicMarks";
 import { fadeUp, stagger } from "@/components/visualize/motion";
+import type { AlgorithmMeta, VisualizerType } from "@/lib/visualize/types";
 
 const START_MARKS = [RippleMark, StarMark, QueenMark];
 
-export function AlgorithmExplorer() {
-  const startHere = START_HERE_IDS.map((id) =>
-    ALGORITHMS.find((algo) => algo.id === id),
-  ).filter((algo): algo is NonNullable<typeof algo> => Boolean(algo));
+const TYPE_LABEL: Record<VisualizerType, string> = {
+  grid: "Grid",
+  "game-tree": "Game tree",
+  optimization: "Curve",
+  csp: "Board",
+};
+
+const BY_ID = new Map(ALGORITHMS.map((algo) => [algo.id, algo]));
+
+function FeaturedCard({
+  algo,
+  index,
+}: {
+  algo: AlgorithmMeta;
+  index: number;
+}) {
+  const Mark = START_MARKS[index] ?? RippleMark;
+  return (
+    <Link
+      href={`/visualize/${algo.id}`}
+      className="group relative bg-card hover:bg-surface p-6 sm:p-7 flex flex-col min-h-[15.5rem] transition-colors duration-300"
+    >
+      <div className="absolute left-0 top-4 bottom-4 w-[2px] bg-foreground scale-y-0 group-hover:scale-y-100 transition-transform duration-300 origin-center" />
+      <div className="flex items-start justify-between mb-8">
+        <span className="font-mono text-[10px] text-muted">
+          {String(index + 1).padStart(2, "0")}
+        </span>
+        <Mark />
+      </div>
+      <div className="mt-auto">
+        <div className="flex items-center gap-2 mb-2">
+          <h2 className="text-xl font-semibold text-foreground">{algo.shortName}</h2>
+          <span className="text-[10px] font-mono uppercase tracking-widest text-muted">
+            {algo.difficulty}
+          </span>
+        </div>
+        <p className="text-sm text-muted leading-relaxed mb-4">
+          {algo.inOneSentence}
+        </p>
+        <span className="inline-flex items-center gap-1.5 text-xs font-medium text-foreground">
+          Watch it run
+          <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform duration-300" />
+        </span>
+      </div>
+    </Link>
+  );
+}
+
+function CatalogCard({
+  algo,
+  structure,
+}: {
+  algo: AlgorithmMeta;
+  structure?: "graph" | "tree";
+}) {
+  const href =
+    structure === "tree"
+      ? `/visualize/${algo.id}?structure=tree`
+      : `/visualize/${algo.id}`;
+  const typeLabel =
+    structure === "tree" ? "Tree" : TYPE_LABEL[algo.visualizerType];
 
   return (
-    <div className="flex-1 w-full max-w-7xl mx-auto page-gutter py-8 sm:py-14 min-h-[80vh] relative">
+    <Link
+      href={href}
+      className="group relative bg-card hover:bg-surface p-5 sm:p-6 flex flex-col min-h-[11.5rem] transition-colors duration-300"
+    >
+      <div className="absolute left-0 top-3 bottom-3 w-[2px] bg-foreground scale-y-0 group-hover:scale-y-100 transition-transform duration-300 origin-center" />
+      <div className="flex items-start justify-between gap-3">
+        <span className="text-[10px] font-mono uppercase tracking-widest text-muted">
+          {typeLabel}
+        </span>
+        <span className="text-[10px] font-mono uppercase tracking-widest text-muted">
+          {algo.difficulty}
+        </span>
+      </div>
+      <div className="mt-auto pt-8">
+        <h3 className="text-lg font-semibold text-foreground">{algo.shortName}</h3>
+        <p className="text-sm text-muted mt-1.5 leading-relaxed">
+          {algo.inOneSentence}
+        </p>
+        <span className="inline-flex items-center gap-1.5 mt-4 text-xs font-medium text-foreground-subtle group-hover:text-foreground transition-colors">
+          Open
+          <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform duration-300" />
+        </span>
+      </div>
+    </Link>
+  );
+}
+
+export function AlgorithmExplorer() {
+  const startHere = START_HERE_IDS.map((id) => BY_ID.get(id)).filter(
+    (algo): algo is AlgorithmMeta => Boolean(algo),
+  );
+
+  return (
+    <div className="flex-1 w-full max-w-7xl mx-auto page-gutter py-8 sm:py-12 min-h-[80vh]">
       <motion.header
         variants={stagger}
         initial="hidden"
         animate="show"
-        className="relative mb-14 sm:mb-16"
+        className="mb-12 sm:mb-14 pb-8 border-b border-border"
       >
-        <div className="absolute right-0 top-0 hidden lg:block pointer-events-none">
-          <LivingGrid />
+        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_20rem] gap-8 lg:gap-12 items-end">
+          <div>
+            <motion.div variants={fadeUp} className="flex items-center gap-2 mb-3">
+              <Waypoints className="w-4 h-4 text-foreground shrink-0" />
+              <p className="text-xs font-bold uppercase tracking-widest text-muted">
+                Visualize
+              </p>
+            </motion.div>
+            <motion.h1
+              variants={fadeUp}
+              className="font-display text-4xl sm:text-5xl md:text-6xl text-foreground tracking-tight mb-4 max-w-xl"
+            >
+              Watch it decide
+            </motion.h1>
+            <motion.p
+              variants={fadeUp}
+              className="text-sm sm:text-base text-foreground-subtle leading-relaxed max-w-xl"
+            >
+              Pathfinding, game trees, and N-Queens, one step at a time. Press
+              Watch it run. You do not need the theory first.
+            </motion.p>
+            <motion.div
+              variants={fadeUp}
+              className="mt-6 flex flex-wrap items-center gap-2"
+            >
+              <Link
+                href="/visualize/bfs"
+                className="inline-flex items-center justify-center min-h-11 px-5 rounded-xl bg-foreground text-background text-sm font-medium hover:opacity-90 transition-opacity"
+              >
+                Start with BFS
+              </Link>
+              <Link
+                href="/visualize/progress"
+                className="inline-flex items-center justify-center min-h-11 px-4 rounded-xl text-sm text-muted hover:text-foreground hover:bg-surface transition-colors"
+              >
+                Your runs
+              </Link>
+            </motion.div>
+          </div>
+
+          <motion.div variants={fadeUp} className="hidden lg:block">
+            <div className="rounded-xl border border-border bg-card overflow-hidden shadow-sm">
+              <div className="flex items-center justify-between px-4 h-10 border-b border-border bg-surface/40">
+                <span className="text-[10px] font-mono uppercase tracking-[0.18em] text-muted">
+                  Preview
+                </span>
+                <span className="text-[10px] font-mono uppercase tracking-widest text-muted">
+                  BFS
+                </span>
+              </div>
+              <div className="p-4">
+                <HeroMaze />
+              </div>
+            </div>
+          </motion.div>
         </div>
-        <motion.p
-          variants={fadeUp}
-          className="text-xs font-bold uppercase tracking-widest text-muted mb-4"
-        >
-          Academic
-        </motion.p>
-        <motion.h1
-          variants={fadeUp}
-          className="font-display text-5xl sm:text-6xl md:text-7xl text-foreground tracking-tight mb-5 max-w-xl"
-        >
-          Visualize
-        </motion.h1>
-        <motion.p
-          variants={fadeUp}
-          className="text-base sm:text-lg text-foreground-subtle leading-relaxed max-w-xl"
-        >
-          Watch an algorithm decide, one step at a time. Press Watch it run —
-          you do not need the theory first.
-        </motion.p>
-        <motion.p variants={fadeUp} className="mt-5">
-          <Link
-            href="/visualize/progress"
-            className="text-sm text-muted hover:text-foreground animated-underline"
-          >
-            Saved mazes and completions
-          </Link>
-        </motion.p>
       </motion.header>
 
-      <section className="mb-16">
-        <p className="text-xs font-medium tracking-wide uppercase text-muted mb-4">
-          Start here
-        </p>
+      <section className="mb-14 sm:mb-16">
+        <div className="flex items-end justify-between gap-3 mb-4">
+          <p className="text-xs font-medium tracking-wide uppercase text-muted">
+            Start here
+          </p>
+          <p className="text-[10px] font-mono text-muted">
+            {ALGORITHMS.length} algorithms
+          </p>
+        </div>
         <motion.div
           variants={stagger}
           initial="hidden"
           animate="show"
-          className="grid grid-cols-1 md:grid-cols-3 gap-px bg-border border border-border"
+          className="grid grid-cols-1 md:grid-cols-3 gap-px bg-border border border-border rounded-xl overflow-hidden shadow-sm"
         >
-          {startHere.map((algo, index) => {
-            const Mark = START_MARKS[index] ?? RippleMark;
-            return (
-              <motion.div key={algo.id} variants={fadeUp}>
-                <Link
-                  href={`/visualize/${algo.id}`}
-                  className="group relative bg-card hover:bg-surface p-6 sm:p-7 flex flex-col min-h-[15rem] transition-colors duration-300"
-                >
-                  <div className="absolute left-0 top-4 bottom-4 w-[2px] bg-foreground scale-y-0 group-hover:scale-y-100 transition-transform duration-300 origin-center" />
-                  <div className="flex items-start justify-between mb-8">
-                    <span className="font-mono text-[10px] text-muted">
-                      {String(index + 1).padStart(2, "0")}
-                    </span>
-                    <Mark />
-                  </div>
-                  <div className="mt-auto">
-                    <h2 className="text-xl font-semibold text-foreground mb-2">
-                      {algo.shortName}
-                    </h2>
-                    <p className="text-sm text-muted leading-relaxed mb-4">
-                      {algo.inOneSentence}
-                    </p>
-                    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-foreground">
-                      Open
-                      <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform duration-300" />
-                    </span>
-                  </div>
-                </Link>
-              </motion.div>
-            );
-          })}
+          {startHere.map((algo, index) => (
+            <motion.div key={algo.id} variants={fadeUp}>
+              <FeaturedCard algo={algo} index={index} />
+            </motion.div>
+          ))}
         </motion.div>
       </section>
 
@@ -113,51 +208,38 @@ export function AlgorithmExplorer() {
         whileInView="show"
         viewport={{ once: true, margin: "-80px" }}
         variants={stagger}
-        className="space-y-12"
+        className="space-y-10"
       >
         {TOPIC_GROUPS.map((group) => {
           const items = group.ids
-            .map((id) => ALGORITHMS.find((algo) => algo.id === id))
-            .filter((algo): algo is NonNullable<typeof algo> => Boolean(algo));
+            .map((id) => BY_ID.get(id))
+            .filter((algo): algo is AlgorithmMeta => Boolean(algo));
           return (
             <motion.div key={group.id} variants={fadeUp}>
-              <div className="mb-3">
-                <h2 className="text-sm font-semibold text-foreground">
-                  {group.title}
-                </h2>
-                <p className="text-sm text-muted mt-0.5">{group.blurb}</p>
+              <div className="flex items-end justify-between gap-3 mb-3">
+                <div>
+                  <h2 className="text-sm font-semibold text-foreground">
+                    {group.title}
+                  </h2>
+                  <p className="text-sm text-muted mt-0.5">{group.blurb}</p>
+                </div>
+                <span className="text-[10px] font-mono text-muted shrink-0">
+                  {items.length}
+                </span>
               </div>
-              <ul className="divide-y divide-border border-y border-border">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-px bg-border border border-border rounded-xl overflow-hidden shadow-sm">
                 {items.map((algo) => (
-                  <li key={algo.id}>
-                    <Link
-                      href={`/visualize/${algo.id}`}
-                      className="group flex items-baseline justify-between gap-4 py-4 hover:bg-surface/60 -mx-2 px-2 transition-colors duration-200"
-                    >
-                      <span className="min-w-0">
-                        <span className="text-sm font-medium text-foreground">
-                          {algo.name}
-                        </span>
-                        <span className="block sm:inline sm:before:content-['—'] sm:before:mx-2 text-sm text-muted">
-                          {algo.description}
-                        </span>
-                      </span>
-                      <span className="shrink-0 inline-flex items-center gap-1 text-xs text-muted group-hover:text-foreground transition-colors">
-                        Open
-                        <ArrowRight className="w-3 h-3 opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300" />
-                      </span>
-                    </Link>
-                  </li>
+                  <CatalogCard
+                    key={`${group.id}-${algo.id}`}
+                    algo={algo}
+                    structure={group.structure}
+                  />
                 ))}
-              </ul>
+              </div>
             </motion.div>
           );
         })}
       </motion.section>
-
-      <footer className="mt-20 pt-6 border-t border-border">
-        <VisualizerCredits />
-      </footer>
     </div>
   );
 }

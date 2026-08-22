@@ -56,7 +56,7 @@ export async function generateMetadata({
       monthIndex >= 0 && monthIndex < 12 ? MONTHS[monthIndex] : "";
 
     return {
-      title: `${plan.title} — ${monthLabel} ${plan.year}`,
+      title: `${plan.title} | ${monthLabel} ${plan.year}`,
       description: `Shared study plan by ${String(plan.owner_email || "").split("@")[0] || "a student"}`,
     };
   } catch {

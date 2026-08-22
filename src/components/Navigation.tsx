@@ -59,7 +59,7 @@ export interface NavLinkItem {
 }
 
 const ACADEMIC_LINKS: NavLinkItem[] = [
-  { href: "/resources", label: "Resources", Icon: FileText, featured: true, desc: "Subject files — notes are reference-only" },
+  { href: "/resources", label: "Resources", Icon: FileText, featured: true, desc: "Subject files. Notes are reference-only" },
   { href: "/ask", label: "Ask AI", Icon: Brain, desc: "RAG-powered academic assistant" },
   { href: "/syllabus", label: "Syllabus", Icon: BookOpen, desc: "Course syllabus tracker" },
   { href: "/visualize", label: "Visualize", Icon: Waypoints, desc: "AI algorithm visualizers" },

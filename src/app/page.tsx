@@ -84,7 +84,7 @@ const FEATURES = [
     number: "08",
     Icon: Building2,
     description:
-      "Faculty seating, staff directory, and lab registry — live from campus data.",
+      "Faculty seating, staff directory, and lab registry. Live from campus data.",
   },
 ];
 
@@ -105,7 +105,7 @@ export default function Home() {
         </h1>
         <p className="text-sm sm:text-base md:text-lg text-foreground-subtle mb-8 sm:mb-10 max-w-xl mx-auto leading-relaxed">
           A structured workspace for syllabi, course materials, planning, and AI
-          study help — built for MIT-WPU branches.
+          study help. Built for MIT-WPU branches.
         </p>
         <div className="flex justify-center">
           <AuthButtons />

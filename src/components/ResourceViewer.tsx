@@ -345,7 +345,7 @@ export default function ResourceViewer({
           {(resource.category === "notes" ||
             /notes?/i.test(resource.title)) && (
             <p className="text-[10px] text-muted mt-1 max-w-[280px] leading-snug">
-              Reference only — not a guarantee of exam content.
+              Reference only. Not a guarantee of exam content.
             </p>
           )}
         </div>

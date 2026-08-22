@@ -97,7 +97,7 @@ export default function LabsClient({
         <p className="text-sm text-muted mt-1">
           {configured
             ? `${filtered.length} of ${labs.length} labs${refreshing ? " · refreshing…" : ""}`
-            : "Campus data unavailable — set ISHANI_API_URL to enable the lab registry."}
+            : "Campus data unavailable. Set ISHANI_API_URL to enable the lab registry."}
         </p>
       </div>
 
@@ -169,12 +169,12 @@ export default function LabsClient({
                         {String(lab.labName || "Untitled lab")}
                       </h2>
                       <p className="text-xs text-muted mt-1">
-                        {String(lab.roomNo || "—")}
+                        {String(lab.roomNo || "-")}
                         {lab.floor ? ` · ${lab.floor}` : ""}
                       </p>
                     </div>
                     <span className="shrink-0 px-2 py-0.5 rounded-md text-xs font-bold uppercase tracking-wider bg-surface border border-border text-muted">
-                      {String(lab.internet || "—") === "Yes"
+                      {String(lab.internet || "-") === "Yes"
                         ? "Online"
                         : String(lab.internet || "Net n/a")}
                     </span>
@@ -185,7 +185,7 @@ export default function LabsClient({
                         Systems
                       </dt>
                       <dd className="text-foreground font-medium mt-0.5">
-                        {lab.systems ?? "—"}
+                        {lab.systems ?? "-"}
                       </dd>
                     </div>
                     <div>
@@ -193,7 +193,7 @@ export default function LabsClient({
                         Capacity
                       </dt>
                       <dd className="text-foreground font-medium mt-0.5">
-                        {lab.capacity ?? "—"}
+                        {lab.capacity ?? "-"}
                       </dd>
                     </div>
                     <div className="col-span-2">
@@ -201,7 +201,7 @@ export default function LabsClient({
                         Assistant
                       </dt>
                       <dd className="text-foreground font-medium mt-0.5">
-                        {String(lab.labAssistant || "—")}
+                        {String(lab.labAssistant || "-")}
                       </dd>
                     </div>
                     {lab.machineMake ? (

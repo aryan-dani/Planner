@@ -133,7 +133,7 @@ async function handleSync(request: Request) {
       }
 
       console.error(
-        "❌ Storage sync unavailable — missing env:",
+        "❌ Storage sync unavailable. Missing env:",
         missing.join(", "),
       );
       return NextResponse.json(
@@ -159,7 +159,7 @@ async function handleSync(request: Request) {
           success: true,
           mode: "github-actions",
           message:
-            "GitHub Actions sync+index queued. Drive sync and content indexing will run in CI — check the Actions tab in a few minutes.",
+            "GitHub Actions sync+index queued. Drive sync and content indexing will run in CI. Check the Actions tab in a few minutes.",
         });
       } catch (err) {
         const actionsError =

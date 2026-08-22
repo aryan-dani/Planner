@@ -13,7 +13,6 @@ import {
 } from "@/lib/visualize/client";
 import { ALGORITHMS } from "@/lib/visualize/catalog";
 import { GhostAction } from "@/components/visualize/LessonChrome";
-import { VisualizerCredits } from "@/components/visualize/VisualizerCredits";
 import { fadeUp, stagger } from "@/components/visualize/motion";
 import { motion } from "framer-motion";
 
@@ -87,12 +86,20 @@ export function ProgressClient() {
       </motion.header>
 
       {signedIn === false && (
-        <p className="text-sm text-muted">
-          <Link href="/login" className="underline text-foreground">
+        <div className="rounded-xl border border-border bg-card p-5 max-w-xl">
+          <p className="text-sm font-semibold text-foreground">
+            Sign in to keep your runs
+          </p>
+          <p className="text-sm text-muted mt-1 leading-relaxed">
+            Completions and saved mazes stay on your account across devices.
+          </p>
+          <Link
+            href="/login"
+            className="inline-flex items-center justify-center min-h-11 px-5 mt-4 rounded-xl bg-foreground text-background text-sm font-medium hover:opacity-90 transition-opacity"
+          >
             Sign in
-          </Link>{" "}
-          to keep completions and mazes across devices.
-        </p>
+          </Link>
+        </div>
       )}
 
       {error && <p className="text-sm text-muted mb-4">{error}</p>}
@@ -100,10 +107,20 @@ export function ProgressClient() {
       {signedIn && (
         <div className="space-y-12">
           <section>
-            <p className="text-xs text-muted mb-3">
-              {doneCount} of {ALGORITHMS.length} finished
-            </p>
-            <ul className="divide-y divide-border border-y border-border">
+            <div className="flex items-end justify-between gap-3 mb-3">
+              <p className="text-xs text-muted">
+                {doneCount} of {ALGORITHMS.length} finished
+              </p>
+            </div>
+            <div className="h-1 bg-border rounded-full overflow-hidden mb-4">
+              <div
+                className="h-full bg-foreground transition-[width] duration-500"
+                style={{
+                  width: `${(doneCount / ALGORITHMS.length) * 100}%`,
+                }}
+              />
+            </div>
+            <ul className="divide-y divide-border border border-border rounded-xl overflow-hidden bg-card">
               {ALGORITHMS.map((algo) => {
                 const done = completedIds.has(algo.id);
                 const record = progress.find((p) => p.algorithmId === algo.id);
@@ -111,7 +128,7 @@ export function ProgressClient() {
                   <li key={algo.id}>
                     <Link
                       href={`/visualize/${algo.id}`}
-                      className="flex items-baseline justify-between gap-4 py-3.5 hover:bg-surface/50 -mx-2 px-2"
+                      className="flex items-baseline justify-between gap-4 py-3.5 px-4 hover:bg-surface/60"
                     >
                       <span>
                         <span className="text-sm font-medium text-foreground">
@@ -143,11 +160,11 @@ export function ProgressClient() {
                 like the walls.
               </p>
             ) : (
-              <ul className="divide-y divide-border border-y border-border">
+              <ul className="divide-y divide-border border border-border rounded-xl overflow-hidden bg-card">
                 {grids.map((grid) => (
                   <li
                     key={grid.id}
-                    className="flex flex-wrap items-center justify-between gap-3 py-3.5"
+                    className="flex flex-wrap items-center justify-between gap-3 py-3.5 px-4"
                   >
                     <div>
                       <p className="text-sm font-medium text-foreground">
@@ -175,10 +192,6 @@ export function ProgressClient() {
           </section>
         </div>
       )}
-
-      <footer className="mt-16 pt-6 border-t border-border">
-        <VisualizerCredits />
-      </footer>
     </div>
   );
 }

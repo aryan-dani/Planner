@@ -43,12 +43,21 @@ export const TOPIC_GROUPS: {
   title: string;
   blurb: string;
   ids: string[];
+  structure?: "graph" | "tree";
 }[] = [
   {
     id: "path",
     title: "Find a path",
     blurb: "S is the start, G is the goal. Watch the search fill the grid.",
     ids: ["bfs", "dfs", "ucs", "greedy-bfs", "a-star"],
+    structure: "graph" as const,
+  },
+  {
+    id: "tree-search",
+    title: "Search a tree",
+    blurb: "Same algorithms on a parent-child tree with edge costs and h(n).",
+    ids: ["bfs", "dfs", "ucs", "greedy-bfs", "a-star"],
+    structure: "tree" as const,
   },
   {
     id: "landscape",
@@ -77,15 +86,15 @@ export const ALGORITHMS: AlgorithmMeta[] = [
     shortName: "BFS",
     category: "Uninformed Search",
     description:
-      "Checks every nearby cell before going farther — like a ripple from S.",
+      "Checks every nearby cell before going farther, like a ripple from S.",
     longDescription:
       "BFS looks at all cells one step away, then two steps, and so on. On this grid it finds a shortest path.",
     inOneSentence:
       "It spreads out evenly from Start until it touches Goal.",
     howTo: [
-      "Optional: drag on empty cells to draw walls, or leave the starter maze.",
+      "Pick Graph or Tree at the top. Graph is a maze; Tree is a parent-child diagram.",
       "Press Watch it run. You do not need to set anything else.",
-      "Pause or tap Next if you want to see one cell at a time.",
+      "Pause or tap Next if you want to see one step at a time.",
     ],
     timeComplexity: "O(V + E)",
     spaceComplexity: "O(V)",
@@ -106,9 +115,9 @@ export const ALGORITHMS: AlgorithmMeta[] = [
     inOneSentence:
       "It dives down one path first, then backs up when it hits a dead end.",
     howTo: [
-      "Optional: draw walls to make corridors.",
-      "Press Watch it run and notice how it prefers one direction.",
-      "Compare this with BFS on the same maze — the path is often worse.",
+      "Pick Graph or Tree. On Graph you can draw walls; on Tree click a node to set Goal.",
+      "Press Watch it run and notice how it prefers one branch.",
+      "Compare this with BFS. The path is often worse.",
     ],
     timeComplexity: "O(V + E)",
     spaceComplexity: "O(V)",
@@ -129,9 +138,9 @@ export const ALGORITHMS: AlgorithmMeta[] = [
     inOneSentence:
       "It always continues from the cheapest path it has found so far.",
     howTo: [
-      "Draw walls if you want a harder maze.",
+      "Pick Graph or Tree. Tree mode shows g(n) as edge costs add up.",
       "Press Watch it run.",
-      "The filled path at the end is a cheapest route from S to G.",
+      "The path at the end is a cheapest route from S to G.",
     ],
     timeComplexity: "O(E + V log V)",
     spaceComplexity: "O(V)",
@@ -152,9 +161,9 @@ export const ALGORITHMS: AlgorithmMeta[] = [
     inOneSentence:
       "It always moves toward Goal and ignores how long the walk already is.",
     howTo: [
-      "Leave the starter wall — greedy often hugs it.",
+      "Pick Graph or Tree. Try different heuristics on A* or Greedy.",
       "Press Watch it run.",
-      "Then try A* on the same maze to see a smarter mix of cost and guess.",
+      "Then try A* to see a smarter mix of cost and guess.",
     ],
     timeComplexity: "O(b^m)",
     spaceComplexity: "O(b^m)",
@@ -175,9 +184,9 @@ export const ALGORITHMS: AlgorithmMeta[] = [
     inOneSentence:
       "It prefers cells that look both cheap so far and close to Goal.",
     howTo: [
-      "You can run it on the starter maze as-is.",
-      "Press Watch it run and notice it aims toward G more than BFS does.",
-      "Use Next if you want to read each cell’s g, h, and f scores.",
+      "Pick Graph or Tree. On Tree, switch h(n) to see admissible vs not.",
+      "Press Watch it run and read g, h, and f on each node.",
+      "Use Next if you want to read each score one step at a time.",
     ],
     timeComplexity: "O(E log V)",
     spaceComplexity: "O(V)",
@@ -200,7 +209,7 @@ export const ALGORITHMS: AlgorithmMeta[] = [
     howTo: [
       "Drag Start to pick where the climber begins.",
       "Press Watch it run.",
-      "Try a start on the left vs the right — it may stop on different peaks.",
+      "Try a start on the left vs the right. It may stop on different peaks.",
     ],
     timeComplexity: "O(∞) / State-dependent",
     spaceComplexity: "O(1)",
@@ -221,7 +230,7 @@ export const ALGORITHMS: AlgorithmMeta[] = [
     inOneSentence:
       "Many dots compete; the better ones mix to make the next generation.",
     howTo: [
-      "Press Watch it run — no setup needed.",
+      "Press Watch it run. No setup needed.",
       "The ring marks the current best dot.",
       "Let it play through a few generations, then reset and run again (it is random).",
     ],
@@ -245,7 +254,7 @@ export const ALGORITHMS: AlgorithmMeta[] = [
       "MAX picks the largest child; MIN picks the smallest.",
     howTo: [
       "Press Watch it run to grow a random tree and play it through.",
-      "Follow the highlighted node — it is the one being decided.",
+      "Follow the highlighted node. It is the one being decided.",
       "When it finishes, the root number is the optimal score.",
     ],
     timeComplexity: "O(b^m)",
@@ -268,7 +277,7 @@ export const ALGORITHMS: AlgorithmMeta[] = [
       "It gets Minimax’s answer while skipping hopeless branches (the X nodes).",
     howTo: [
       "Press Watch it run.",
-      "Faded X nodes were skipped — they cannot change the root score.",
+      "Faded X nodes were skipped. They cannot change the root score.",
       "Run it twice to see different trees prune in different places.",
     ],
     timeComplexity: "O(b^(m/2))",
@@ -290,7 +299,7 @@ export const ALGORITHMS: AlgorithmMeta[] = [
     inOneSentence:
       "It places a queen, and if two attack it takes the last one back.",
     howTo: [
-      "Leave N at 4 the first time — it is short and easy to follow.",
+      "Leave N at 4 the first time. It is short and easy to follow.",
       "Press Watch it run.",
       "× means that square is illegal. The board fills when a full solution is found.",
     ],

@@ -18,7 +18,6 @@ import {
   GridState,
   SavedGridData,
   createInitialGrid,
-  STARTER_WALLS,
   DEFAULT_START,
   DEFAULT_GOAL,
 } from "@/lib/visualize/grid";
@@ -27,6 +26,12 @@ import { generateBfsSteps } from "@/lib/visualize/engines/bfs";
 import { generateDfsSteps } from "@/lib/visualize/engines/dfs";
 import { generateUcsSteps } from "@/lib/visualize/engines/ucs";
 import { generateGreedyBfsSteps } from "@/lib/visualize/engines/greedyBfs";
+import {
+  chebyshevDistance,
+  euclideanDistance,
+  HeuristicFunction,
+  manhattanDistance,
+} from "@/lib/visualize/heuristics";
 import { useVisualizerPlayback } from "@/lib/visualize/useVisualizerPlayback";
 import { AlgorithmStep } from "@/lib/visualize/types";
 import { saveGrid } from "@/lib/visualize/client";
@@ -37,7 +42,7 @@ const GRID_PSEUDOCODE = {
   bfs: [
     { line: 1, code: "1. Put Start in a queue" },
     { line: 2, code: "2. Take the oldest cell from the queue" },
-    { line: 3, code: "3. If it is Goal, walk back along parents — done" },
+    { line: 3, code: "3. If it is Goal, walk back along parents. Done." },
     { line: 4, code: "4. Else add its unseen neighbors to the queue" },
     { line: 5, code: "5. Repeat until the queue is empty" },
     { line: 6, code: "6. Empty queue and no Goal means no path" },
@@ -91,6 +96,20 @@ interface GridWorkspaceProps {
   initialGridData?: SavedGridData | null;
 }
 
+export type GridHeuristicId = "manhattan" | "euclidean" | "chebyshev";
+
+const GRID_HEURISTICS: Record<GridHeuristicId, HeuristicFunction> = {
+  manhattan: manhattanDistance,
+  euclidean: euclideanDistance,
+  chebyshev: chebyshevDistance,
+};
+
+const GRID_HEURISTIC_OPTIONS: { value: GridHeuristicId; label: string }[] = [
+  { value: "manhattan", label: "Manhattan" },
+  { value: "euclidean", label: "Euclidean" },
+  { value: "chebyshev", label: "Chebyshev" },
+];
+
 export function GridWorkspace({
   algorithmId,
   initialGridData,
@@ -105,7 +124,7 @@ export function GridWorkspace({
     initialGridData?.goalPos || DEFAULT_GOAL,
   );
   const [walls, setWalls] = useState<Position[]>(
-    initialGridData?.walls || STARTER_WALLS,
+    initialGridData?.walls ?? [],
   );
   const [steps, setSteps] = useState<AlgorithmStep<GridState>[]>([]);
   const [hasGenerated, setHasGenerated] = useState(false);
@@ -113,6 +132,10 @@ export function GridWorkspace({
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [signedIn, setSignedIn] = useState(false);
+  const [gridHeuristic, setGridHeuristic] = useState<GridHeuristicId>("manhattan");
+
+  const showGridHeuristicPicker =
+    algorithmId === "a-star" || algorithmId === "greedy-bfs";
 
   const playback = useVisualizerPlayback(steps, algorithmId);
 
@@ -155,6 +178,7 @@ export function GridWorkspace({
 
   const generateSteps = () => {
     const initialGrid = createInitialGrid(rows, cols, startPos, goalPos, walls);
+    const h = GRID_HEURISTICS[gridHeuristic];
     if (algorithmId === "bfs") {
       return generateBfsSteps(initialGrid, startPos, goalPos);
     }
@@ -165,9 +189,9 @@ export function GridWorkspace({
       return generateUcsSteps(initialGrid, startPos, goalPos);
     }
     if (algorithmId === "greedy-bfs") {
-      return generateGreedyBfsSteps(initialGrid, startPos, goalPos);
+      return generateGreedyBfsSteps(initialGrid, startPos, goalPos, h);
     }
-    return generateAStarSteps(initialGrid, startPos, goalPos);
+    return generateAStarSteps(initialGrid, startPos, goalPos, h);
   };
 
   const handleWatch = () => {
@@ -194,7 +218,7 @@ export function GridWorkspace({
     playback.reset();
     setStartPos(DEFAULT_START);
     setGoalPos(DEFAULT_GOAL);
-    setWalls(STARTER_WALLS);
+    setWalls([]);
     setSteps([]);
     setHasGenerated(false);
   };
@@ -261,8 +285,74 @@ export function GridWorkspace({
     GRID_PSEUDOCODE["a-star"];
 
   return (
-    <div className="w-full space-y-8">
-      <Stage label="Grid" live={hasGenerated && playback.isPlaying}>
+    <div className="w-full space-y-6">
+      {!hasGenerated && showGridHeuristicPicker && (
+        <div className="flex flex-wrap items-center justify-center gap-3 text-sm text-muted">
+          <label className="flex items-center gap-2">
+            Heuristic
+            <select
+              value={gridHeuristic}
+              onChange={(e) =>
+                setGridHeuristic(e.target.value as GridHeuristicId)
+              }
+              className="min-h-11 bg-transparent border border-border rounded-lg text-foreground text-sm px-2"
+            >
+              {GRID_HEURISTIC_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+      )}
+
+      <Stage
+        label="Grid"
+        live={hasGenerated && playback.isPlaying}
+        dock={
+          <div className="flex flex-col items-center gap-3 min-h-[12.5rem]">
+            {!hasGenerated ? (
+              <div className="flex flex-wrap items-center justify-center gap-1">
+                <PrimaryAction onClick={handleWatch}>Watch it run</PrimaryAction>
+                <GhostAction
+                  onClick={handleClearWalls}
+                  disabled={walls.length === 0}
+                >
+                  Clear walls
+                </GhostAction>
+                <GhostAction onClick={handleResetEntireGrid}>
+                  Reset grid
+                </GhostAction>
+                <GhostAction onClick={handleSaveMaze} disabled={isSaving}>
+                  {isSaving ? "Saving…" : "Save maze"}
+                </GhostAction>
+              </div>
+            ) : (
+              <>
+                <PlaybackToolbar playback={playback} />
+                <HappeningNow
+                  text={playback.currentStep?.description ?? null}
+                  idle="The run will narrate each move here."
+                />
+                <GhostAction onClick={handleResetSearch}>
+                  Edit the maze
+                </GhostAction>
+              </>
+            )}
+            {saveMessage ? (
+              <p className="text-sm text-muted text-center">
+                {saveMessage}{" "}
+                {!signedIn && (
+                  <Link href="/login" className="underline text-foreground">
+                    Sign in
+                  </Link>
+                )}
+              </p>
+            ) : null}
+          </div>
+        }
+      >
         <GridCanvas
           gridState={activeGridState}
           onToggleWall={handleToggleWall}
@@ -273,72 +363,41 @@ export function GridWorkspace({
         />
       </Stage>
 
-      {!hasGenerated ? (
-        <div className="flex flex-wrap items-center gap-2">
-          <PrimaryAction onClick={handleWatch}>Watch it run</PrimaryAction>
-          <GhostAction onClick={handleClearWalls} disabled={walls.length === 0}>
-            Clear walls
-          </GhostAction>
-          <GhostAction onClick={handleResetEntireGrid}>
-            Reset maze
-          </GhostAction>
-          <GhostAction onClick={handleSaveMaze} disabled={isSaving}>
-            {isSaving ? "Saving…" : "Save maze"}
-          </GhostAction>
-        </div>
-      ) : (
-        <div className="space-y-6">
-          <PlaybackToolbar playback={playback} />
-          <HappeningNow
-            text={playback.currentStep?.description ?? null}
-            idle="The run will narrate each move here."
-          />
-          <GhostAction onClick={handleResetSearch}>Edit the maze</GhostAction>
-        </div>
-      )}
-
-      {saveMessage && (
-        <p className="text-sm text-muted">
-          {saveMessage}{" "}
-          {!signedIn && (
-            <Link href="/login" className="underline text-foreground">
-              Sign in
-            </Link>
+      <div>
+        <StudyFold summary="Numbers from this step">
+          {hasGenerated ? (
+            <>
+              <MetricsPanel
+                metrics={playback.currentStep?.metrics ?? null}
+                frontierLabel="Waiting to check"
+                pathLabel="Steps on path"
+              />
+              {hasActiveNode && activeNode ? (
+                <p className="text-sm text-muted mt-4 font-mono">
+                  This cell ({activeNode.row}, {activeNode.col}): walked{" "}
+                  {activeNode.gCost}
+                  {activeNode.hCost !== Infinity
+                    ? ` · guess ${activeNode.hCost.toFixed(1)} · total ${
+                        activeNode.fCost === Infinity
+                          ? "∞"
+                          : activeNode.fCost.toFixed(1)
+                      }`
+                    : ""}
+                </p>
+              ) : null}
+            </>
+          ) : (
+            <p className="text-sm text-muted">Watch it run to see counts.</p>
           )}
-        </p>
-      )}
-
-      {hasGenerated && (
-        <div className="space-y-0">
-          <StudyFold summary="Numbers from this step">
-            <MetricsPanel
-              metrics={playback.currentStep?.metrics ?? null}
-              frontierLabel="Waiting to check"
-              pathLabel="Steps on path"
-            />
-            {hasActiveNode && activeNode && (
-              <p className="text-sm text-muted mt-4 font-mono">
-                This cell ({activeNode.row}, {activeNode.col}): walked{" "}
-                {activeNode.gCost}
-                {activeNode.hCost !== Infinity
-                  ? ` · guess ${activeNode.hCost.toFixed(1)} · total ${
-                      activeNode.fCost === Infinity
-                        ? "∞"
-                        : activeNode.fCost.toFixed(1)
-                    }`
-                  : ""}
-              </p>
-            )}
-          </StudyFold>
-          <StudyFold summary="Plain-language steps">
-            <StepExplanation
-              step={playback.currentStep}
-              emptyMessage="Run the search to highlight a line."
-              pseudocode={pseudocode}
-            />
-          </StudyFold>
-        </div>
-      )}
+        </StudyFold>
+        <StudyFold summary="Plain-language steps">
+          <StepExplanation
+            step={playback.currentStep}
+            emptyMessage="Run the search to highlight a line."
+            pseudocode={pseudocode}
+          />
+        </StudyFold>
+      </div>
     </div>
   );
 }

@@ -107,10 +107,10 @@ export function GameTreeWorkspace({ algorithmId }: GameTreeWorkspaceProps) {
           <div
             className={`viz-cell flex items-center justify-center w-12 h-12 mb-6 text-sm font-semibold
               ${node.isMaxNode ? "bg-foreground text-background" : "bg-background text-foreground border border-foreground"}
-              ${isCurrent ? "viz-cell-current outline outline-2 outline-offset-4 outline-foreground" : ""}
+              ${isCurrent ? "viz-cell-current" : ""}
               ${isPruned ? "line-through" : ""}
             `}
-            title={node.isMaxNode ? "MAX — wants a high number" : "MIN — wants a low number"}
+            title={node.isMaxNode ? "MAX: wants a high number" : "MIN: wants a low number"}
           >
             {displayValue}
           </div>
@@ -146,45 +146,53 @@ export function GameTreeWorkspace({ algorithmId }: GameTreeWorkspaceProps) {
           : "Numbers on leaves are the score if the game ends there."}
       </p>
 
-      <Stage label="Game tree" live={hasGenerated && playback.isPlaying}>
-        <div className="overflow-x-auto py-2">
+      <Stage
+        label="Game tree"
+        live={hasGenerated && playback.isPlaying}
+        dock={
+          <div className="flex flex-col items-center gap-3 min-h-[12.5rem]">
+            {!hasGenerated ? (
+              <PrimaryAction onClick={handleWatch}>Watch it run</PrimaryAction>
+            ) : (
+              <>
+                <PlaybackToolbar playback={playback} />
+                <GhostAction onClick={handleWatch}>New random tree</GhostAction>
+              </>
+            )}
+            <HappeningNow
+              text={playback.currentStep?.description ?? null}
+              idle="Each highlight is one decision in the tree."
+            />
+          </div>
+        }
+      >
+        <div className="overflow-x-auto overflow-y-hidden py-2">
           <div className="min-w-max flex justify-center px-2">
             <TreeNodeComponent node={shownTree} />
           </div>
         </div>
       </Stage>
 
-      {!hasGenerated ? (
-        <PrimaryAction onClick={handleWatch}>Watch it run</PrimaryAction>
-      ) : (
-        <div className="space-y-6">
-          <PlaybackToolbar playback={playback} />
-          <HappeningNow
-            text={playback.currentStep?.description ?? null}
-            idle="Each highlight is one decision in the tree."
-          />
-          <GhostAction onClick={handleWatch}>New random tree</GhostAction>
-        </div>
-      )}
-
-      {hasGenerated && (
-        <div>
-          <StudyFold summary="Counts from this step">
+      <div>
+        <StudyFold summary="Counts from this step">
+          {hasGenerated ? (
             <MetricsPanel
               metrics={playback.currentStep?.metrics ?? null}
               frontierLabel={isAlphaBeta ? "Skipped nodes" : "Open work"}
               pathLabel="Best score so far"
             />
-          </StudyFold>
-          <StudyFold summary="Plain-language steps">
-            <StepExplanation
-              step={playback.currentStep}
-              emptyMessage="Run the tree to highlight a line."
-              pseudocode={isAlphaBeta ? ALPHA_BETA_PSEUDOCODE : MINIMAX_PSEUDOCODE}
-            />
-          </StudyFold>
-        </div>
-      )}
+          ) : (
+            <p className="text-sm text-muted">Watch it run to see counts.</p>
+          )}
+        </StudyFold>
+        <StudyFold summary="Plain-language steps">
+          <StepExplanation
+            step={playback.currentStep}
+            emptyMessage="Run the tree to highlight a line."
+            pseudocode={isAlphaBeta ? ALPHA_BETA_PSEUDOCODE : MINIMAX_PSEUDOCODE}
+          />
+        </StudyFold>
+      </div>
     </div>
   );
 }

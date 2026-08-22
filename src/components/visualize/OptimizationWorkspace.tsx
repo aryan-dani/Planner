@@ -27,7 +27,7 @@ import { easeOut } from "@/components/visualize/motion";
 const HILL_PSEUDOCODE = [
   { line: 1, code: "1. Stand at the current x" },
   { line: 2, code: "2. Look at the neighbor just left and just right" },
-  { line: 3, code: "3. If neither is higher, stop — this is a peak" },
+  { line: 3, code: "3. If neither is higher, stop. This is a peak." },
   { line: 4, code: "4. Else step to the higher neighbor and repeat" },
 ];
 
@@ -158,7 +158,28 @@ export function OptimizationWorkspace({
         </label>
       )}
 
-      <Stage label="Landscape" live={hasGenerated && playback.isPlaying}>
+      <Stage
+        label="Landscape"
+        live={hasGenerated && playback.isPlaying}
+        dock={
+          <div className="flex flex-col items-center gap-3 min-h-[12.5rem]">
+            {!hasGenerated ? (
+              <PrimaryAction onClick={handleWatch}>Watch it run</PrimaryAction>
+            ) : (
+              <>
+                <PlaybackToolbar playback={playback} />
+                <GhostAction onClick={handleReset}>
+                  {isGenetic ? "Run again" : "Choose a new start"}
+                </GhostAction>
+              </>
+            )}
+            <HappeningNow
+              text={playback.currentStep?.description ?? null}
+              idle="The narration follows the moving mark on the curve."
+            />
+          </div>
+        }
+      >
         <svg
           viewBox={`0 0 ${svgWidth} ${svgHeight}`}
           className="w-full h-auto"
@@ -245,39 +266,26 @@ export function OptimizationWorkspace({
         </svg>
       </Stage>
 
-      {!hasGenerated ? (
-        <PrimaryAction onClick={handleWatch}>Watch it run</PrimaryAction>
-      ) : (
-        <div className="space-y-6">
-          <PlaybackToolbar playback={playback} />
-          <HappeningNow
-            text={playback.currentStep?.description ?? null}
-            idle="The narration follows the moving mark on the curve."
-          />
-          <GhostAction onClick={handleReset}>
-            {isGenetic ? "Run again" : "Choose a new start"}
-          </GhostAction>
-        </div>
-      )}
-
-      {hasGenerated && (
-        <div>
-          <StudyFold summary="Counts from this step">
+      <div>
+        <StudyFold summary="Counts from this step">
+          {hasGenerated ? (
             <MetricsPanel
               metrics={playback.currentStep?.metrics ?? null}
               frontierLabel={isGenetic ? "Swarm size" : "Neighbors checked"}
               pathLabel="Best height"
             />
-          </StudyFold>
-          <StudyFold summary="Plain-language steps">
-            <StepExplanation
-              step={playback.currentStep}
-              emptyMessage="Run the search to highlight a line."
-              pseudocode={isGenetic ? GA_PSEUDOCODE : HILL_PSEUDOCODE}
-            />
-          </StudyFold>
-        </div>
-      )}
+          ) : (
+            <p className="text-sm text-muted">Watch it run to see counts.</p>
+          )}
+        </StudyFold>
+        <StudyFold summary="Plain-language steps">
+          <StepExplanation
+            step={playback.currentStep}
+            emptyMessage="Run the search to highlight a line."
+            pseudocode={isGenetic ? GA_PSEUDOCODE : HILL_PSEUDOCODE}
+          />
+        </StudyFold>
+      </div>
     </div>
   );
 }

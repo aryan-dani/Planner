@@ -318,14 +318,14 @@ export function gpaDataFromSyllabus(
 export function getAidsGpaData(semester: number): GpaBranchData | null {
   if (semester === 5) {
     return gpaDataFromSyllabus(
-      "AI & Data Science (AIDS) — Sem 5",
+      "AI & Data Science (AIDS), Sem 5",
       5,
       AIDS_SEM_5_SUBJECTS,
     );
   }
   if (semester === 4) {
     return gpaDataFromSyllabus(
-      "AI & Data Science (AIDS) — Sem 4",
+      "AI & Data Science (AIDS), Sem 4",
       4,
       AIDS_SEM_4_SUBJECTS,
     );

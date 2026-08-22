@@ -3,7 +3,7 @@ import SupportClient from "./SupportClient";
 
 export const metadata: Metadata = {
   title: "Support",
-  description: "Optional support for Utility — UPI contribution to keep the workspace running.",
+  description: "Optional support for Utility. UPI contribution to keep the workspace running.",
 };
 
 export default function SupportPage() {

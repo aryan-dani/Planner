@@ -38,7 +38,7 @@ interface BranchData {
 
 const COURSE_DATA: Record<string, BranchData> = {
   'CORE': { 
-    name: 'Computer Engineering (CORE) — CSE workspace', 
+    name: 'Computer Engineering (CORE), CSE workspace', 
     totalCredits: 23,
     semester: 4,
     completed: [
@@ -77,7 +77,7 @@ const COURSE_DATA: Record<string, BranchData> = {
     ]
   },
   'AIDS': { 
-    name: 'AI & Data Science (AIDS) — Sem 4', 
+    name: 'AI & Data Science (AIDS), Sem 4', 
     totalCredits: 21,
     semester: 4,
     completed: [

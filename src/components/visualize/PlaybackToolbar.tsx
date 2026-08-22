@@ -35,13 +35,8 @@ export function PlaybackToolbar<TState>({
     totalSteps <= 1 ? 0 : (currentStepIndex / (totalSteps - 1)) * 100;
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, ease: easeOut }}
-      className="w-full flex flex-col gap-4 select-none"
-    >
-      <div className="flex flex-wrap items-center gap-2">
+    <div className="w-full flex flex-col items-center gap-3 select-none">
+      <div className="flex flex-wrap items-center justify-center gap-1">
         <PrimaryAction onClick={togglePlay} disabled={locked}>
           <span className="inline-flex items-center gap-2">
             {isPlaying ? (
@@ -70,17 +65,16 @@ export function PlaybackToolbar<TState>({
             Start
           </span>
         </GhostAction>
-        <span className="ml-auto font-mono text-xs text-muted tabular-nums">
+        <span className="font-mono text-xs text-muted tabular-nums min-w-[4.75rem] text-center">
           {totalSteps > 0 ? currentStepIndex + 1 : 0} / {totalSteps}
         </span>
       </div>
 
-      <div className="relative h-7 flex items-center">
+      <div className="relative h-6 w-full max-w-md flex items-center">
         <div className="absolute inset-x-0 h-[3px] bg-border" />
-        <motion.div
+        <div
           className="absolute left-0 h-[3px] bg-foreground"
-          animate={{ width: `${progress}%` }}
-          transition={{ duration: 0.22, ease: easeOut }}
+          style={{ width: `${progress}%` }}
         />
         <input
           type="range"
@@ -94,8 +88,8 @@ export function PlaybackToolbar<TState>({
         />
       </div>
 
-      <div className="flex items-center gap-1 text-xs text-muted">
-        <span className="mr-2">Speed</span>
+      <div className="flex items-center justify-center gap-1 text-xs text-muted">
+        <span className="mr-1">Speed</span>
         {(
           [
             { label: "Slow", ms: 500 },
@@ -123,6 +117,6 @@ export function PlaybackToolbar<TState>({
           </button>
         ))}
       </div>
-    </motion.div>
+    </div>
   );
 }

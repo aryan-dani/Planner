@@ -465,7 +465,7 @@ function PromptModal({
             <div className="mt-6 border-t border-border pt-4">
               <div className="flex items-center gap-2 mb-3">
                 <CheckCircle2 className="w-3.5 h-3.5 text-foreground" />
-                <span className="text-xs font-bold text-foreground">Preview — {parsed.reduce((s, e) => s + e.tasks.length, 0)} tasks across {parsed.length} days</span>
+                <span className="text-xs font-bold text-foreground">Preview: {parsed.reduce((s, e) => s + e.tasks.length, 0)} tasks across {parsed.length} days</span>
               </div>
               <div className="grid gap-2 max-h-[240px] overflow-y-auto pr-1">
                 {parsed.map((entry) => {

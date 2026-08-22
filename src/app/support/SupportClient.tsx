@@ -88,7 +88,7 @@ export default function SupportClient() {
         createdAt: serverTimestamp(),
       });
       setIsSubmitted(true);
-      toast.success("Thanks — message saved");
+      toast.success("Thanks. Message saved.");
       setFormTxnId("");
       setFormMessage("");
     } catch (error) {
@@ -166,7 +166,7 @@ export default function SupportClient() {
               />
             </div>
             <p className="mt-3 text-center sm:text-left text-2xl font-semibold text-foreground tracking-tight">
-              ₹{amount || "—"}
+              ₹{amount || "-"}
             </p>
           </div>
 

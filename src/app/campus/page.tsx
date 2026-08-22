@@ -19,7 +19,7 @@ const CAMPUS_LINKS = [
     href: "/campus/directory",
     label: "Faculty Directory",
     description:
-      "Browse staff by program track — designation, contact, and specialization.",
+      "Browse staff by program track: designation, contact, and specialization.",
     Icon: BookUser,
   },
   {
@@ -45,7 +45,7 @@ export default function CampusHubPage() {
           MIT-WPU campus data
         </h1>
         <p className="text-sm text-muted mt-2 max-w-2xl leading-relaxed">
-          Faculty seating, directory, and lab registry — live from the same
+          Faculty seating, directory, and lab registry. Live from the same
           campus backend. Updates there show up here without a Utility redeploy.
         </p>
       </div>

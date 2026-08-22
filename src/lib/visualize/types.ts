@@ -47,6 +47,3 @@ export interface CategoryInfo {
   description: string;
   algorithmCount: number;
 }
-
-export const VISUALIZE_AUTHORS =
-  "Algorithm engines originally by Parth Doshi, Arya Inamdar, and Param Gadiya (MIT-WPU).";

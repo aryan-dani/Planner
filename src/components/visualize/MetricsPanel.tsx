@@ -14,8 +14,8 @@ export function MetricsPanel({
   pathLabel = "Path length",
 }: MetricsPanelProps) {
   const items = [
-    { label: "Cells checked", value: metrics ? String(metrics.nodesExplored) : "—" },
-    { label: frontierLabel, value: metrics ? String(metrics.frontierSize) : "—" },
+    { label: "Cells checked", value: metrics ? String(metrics.nodesExplored) : "-" },
+    { label: frontierLabel, value: metrics ? String(metrics.frontierSize) : "-" },
     {
       label: pathLabel,
       value:
@@ -23,9 +23,9 @@ export function MetricsPanel({
           ? Number.isInteger(metrics.pathCost)
             ? String(metrics.pathCost)
             : metrics.pathCost.toFixed(2)
-          : "—",
+          : "-",
     },
-    { label: "Steps in this run", value: metrics ? String(metrics.totalSteps) : "—" },
+    { label: "Steps in this run", value: metrics ? String(metrics.totalSteps) : "-" },
   ];
 
   return (

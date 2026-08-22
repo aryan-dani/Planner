@@ -38,23 +38,47 @@ export function QueenMark() {
   );
 }
 
-export function LivingGrid() {
-  const cells = Array.from({ length: 40 }, (_, i) => i);
+const HERO_MAZE = [
+  "############",
+  "#Sxx#......#",
+  "#.#x#.###..#",
+  "#.#xxx#....#",
+  "#.####.#.#.#",
+  "#....#...#G#",
+  "############",
+] as const;
+
+export function HeroMaze() {
   return (
     <div
-      className="grid grid-cols-8 gap-px w-[9.5rem] opacity-80"
+      className="grid gap-px"
+      style={{ gridTemplateColumns: `repeat(${HERO_MAZE[0].length}, minmax(0, 1fr))` }}
       aria-hidden
     >
-      {cells.map((i) => (
-        <span
-          key={i}
-          className={`viz-hero-dot aspect-square bg-foreground ${
-            i === 3 || i === 12 || i === 19 || i === 27 || i === 34
-              ? "opacity-70"
-              : "opacity-10"
-          }`}
-        />
-      ))}
+      {HERO_MAZE.flatMap((row, rowIndex) =>
+        Array.from(row, (cell, colIndex) => {
+          const key = `${rowIndex}-${colIndex}`;
+          if (cell === "#") {
+            return <span key={key} className="aspect-square bg-foreground/75" />;
+          }
+          if (cell === "S" || cell === "G") {
+            return (
+              <span
+                key={key}
+                className="aspect-square bg-foreground text-background flex items-center justify-center text-[8px] font-mono font-bold"
+              >
+                {cell}
+              </span>
+            );
+          }
+          if (cell === "x") {
+            return (
+              <span key={key} className="viz-hero-dot aspect-square bg-foreground/35" />
+            );
+          }
+          return <span key={key} className="aspect-square bg-foreground/[0.07]" />;
+        }),
+      )}
     </div>
   );
 }

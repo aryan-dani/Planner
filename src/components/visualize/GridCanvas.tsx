@@ -125,11 +125,11 @@ export function GridCanvas({
 
   return (
     <div
-      className="w-full flex flex-col gap-3 select-none"
+      className="w-full flex flex-col items-center gap-3 select-none"
       onPointerLeave={handlePointerUp}
       onPointerUp={handlePointerUp}
     >
-      <p className="text-xs text-muted">
+      <p className="text-xs text-muted text-center">
         {isInteractive
           ? "Drag S or G to move them. Drag empty cells to add walls."
           : showRunLegend
@@ -137,11 +137,11 @@ export function GridCanvas({
             : null}
       </p>
 
-      <div className="max-w-full overflow-x-auto">
+      <div className="w-full overflow-hidden">
         <div
-          className="grid gap-px bg-border/80 border border-border w-max min-w-full touch-none shadow-[inset_0_1px_0_rgb(var(--foreground)/0.04)]"
+          className="grid gap-px bg-border/80 border border-border w-full touch-none"
           style={{
-            gridTemplateColumns: `repeat(${numCols}, minmax(1.85rem, 1fr))`,
+            gridTemplateColumns: `repeat(${numCols}, minmax(0, 1fr))`,
           }}
           role="grid"
           aria-label="Pathfinding grid"
@@ -197,7 +197,7 @@ export function GridCanvas({
                   aria-label={`Row ${rIdx + 1}, column ${cIdx + 1}${label ? `, ${label}` : ""}`}
                   onPointerDown={() => handlePointerDown(rIdx, cIdx)}
                   onPointerEnter={() => handlePointerEnter(rIdx, cIdx)}
-                  className={`viz-cell aspect-square min-h-[1.85rem] flex items-center justify-center text-[11px] ${
+                  className={`viz-cell aspect-square w-full flex items-center justify-center text-[10px] sm:text-[11px] ${
                     isInteractive ? "cursor-pointer" : "cursor-default"
                   } ${cellStyles} ${extra}`}
                 >

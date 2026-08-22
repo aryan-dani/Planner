@@ -288,7 +288,7 @@ export default function CommunityClient({
               Utility OS · MIT-WPU
             </h1>
             <p className="text-sm text-muted mt-2 leading-relaxed">
-              One community invite unlocks four rooms. Pick what you need —
+              One community invite unlocks four rooms. Pick what you need:
               updates, casual chat, academic help, or product feedback.
             </p>
           </div>
@@ -335,7 +335,7 @@ export default function CommunityClient({
               <span className="font-semibold text-foreground">New members:</span>{" "}
               WhatsApp often hides messages posted before you joined. Open{" "}
               <span className="font-semibold text-foreground">Announcements</span>{" "}
-              and read the pinned guide — that&apos;s the standing reference, not
+              and read the pinned guide. That&apos;s the standing reference, not
               the dated update posts.
             </p>
           </div>

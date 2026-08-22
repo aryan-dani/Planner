@@ -138,7 +138,7 @@ export default function DirectoryClient({
         <p className="text-sm text-muted mt-1">
           {configured
             ? `${filtered.length} of ${staff.length} people${refreshing ? " · refreshing…" : ""}`
-            : "Campus data unavailable — set ISHANI_API_URL to enable the directory."}
+            : "Campus data unavailable. Set ISHANI_API_URL to enable the directory."}
         </p>
       </div>
 
@@ -218,7 +218,7 @@ export default function DirectoryClient({
                           {String(member.name || "Unknown")}
                         </p>
                         <p className="text-xs text-muted mt-1 line-clamp-1">
-                          {String(member.designation || "—")}
+                          {String(member.designation || "-")}
                         </p>
                         {member.email ? (
                           <p className="text-xs text-muted mt-3 flex items-center gap-1.5 truncate">
@@ -261,7 +261,7 @@ export default function DirectoryClient({
                   {String(selected.name || "Staff")}
                 </h3>
                 <p className="text-xs text-muted mt-0.5">
-                  {String(selected.designation || "—")}
+                  {String(selected.designation || "-")}
                 </p>
               </div>
               <button
