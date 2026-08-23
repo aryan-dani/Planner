@@ -4,6 +4,13 @@ import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { auth, db } from "@/lib/firebase";
 import { updateProfile } from "firebase/auth";
+import {
+  startProviderLink,
+  confirmMergeWithGithub,
+  confirmMergeWithGoogle,
+  consumeRedirectResult,
+  getPendingMergeStep,
+} from "@/lib/firebaseAuth";
 import { doc, setDoc, getDoc } from "firebase/firestore";
 import { useAcademicStore, Branch, Semester } from "@/store/academicStore";
 import { toast } from "sonner";
@@ -70,6 +77,9 @@ export default function ProfileClientComponent() {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [linking, setLinking] = useState(false);
+  const [mergeStep, setMergeStep] = useState<"github" | "google" | null>(null);
+  const [redirectBusy, setRedirectBusy] = useState(true);
   const [currentUser, setCurrentUser] = useState<any>(null);
 
   // Form states
@@ -86,6 +96,7 @@ export default function ProfileClientComponent() {
   // Refs for click outside
   const branchRef = useRef<HTMLDivElement>(null);
   const semesterRef = useRef<HTMLDivElement>(null);
+  const mergingRef = useRef(false);
 
   // Options configurations
   const branchOptions: { value: Branch; label: string }[] = [
@@ -103,6 +114,7 @@ export default function ProfileClientComponent() {
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
       if (!user) {
+        if (mergingRef.current) return;
         toast.error("Please sign in to access your profile settings.");
         router.push("/login?redirectTo=/profile");
         return;
@@ -142,6 +154,39 @@ export default function ProfileClientComponent() {
 
     return () => unsubscribe();
   }, [router, branch, semester]);
+
+  useEffect(() => {
+    let cancelled = false;
+    mergingRef.current = true;
+    (async () => {
+      try {
+        const outcome = await consumeRedirectResult(auth);
+        if (cancelled) return;
+        if (outcome.status === "linked") {
+          setCurrentUser(outcome.user);
+          setDisplayName(outcome.user.displayName || "");
+          setPhotoURL(outcome.user.photoURL || "");
+          setTempPhotoUrl(outcome.user.photoURL || "");
+          setMergeStep(null);
+          toast.success("Google and GitHub are now one account.");
+        } else if (outcome.status === "needs-github-confirm") {
+          setMergeStep("github");
+        } else if (outcome.status === "needs-google-confirm") {
+          setMergeStep("google");
+        } else if (outcome.status === "error") {
+          toast.error("Could not finish account linking. Please try again.");
+        } else {
+          setMergeStep(getPendingMergeStep());
+        }
+      } finally {
+        mergingRef.current = false;
+        if (!cancelled) setRedirectBusy(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Click outside to close dropdowns
   useEffect(() => {
@@ -215,7 +260,116 @@ export default function ProfileClientComponent() {
     }
   };
 
-  if (loading) {
+  const applyLinkedUser = (user: any) => {
+    setCurrentUser(user);
+    setDisplayName(user.displayName || "");
+    setPhotoURL(user.photoURL || "");
+    setTempPhotoUrl(user.photoURL || "");
+  };
+
+  const handleLinkGithub = async () => {
+    if (!auth.currentUser) return;
+    setLinking(true);
+    mergingRef.current = true;
+    try {
+      const outcome = await startProviderLink(auth, "github");
+      if (outcome.status === "linked") {
+        applyLinkedUser(outcome.user);
+        setMergeStep(null);
+        toast.success("GitHub is now linked. You can sign in with either provider.");
+      } else if (outcome.status === "needs-google-confirm") {
+        setMergeStep("google");
+        toast.message("Confirm Google to finish merging into one profile.");
+      }
+    } catch (err: any) {
+      toast.error(
+        err.code === "auth/popup-closed-by-user"
+          ? "Linking was cancelled. Please try again."
+          : err.message || "Could not link GitHub."
+      );
+    } finally {
+      mergingRef.current = false;
+      if (!auth.currentUser) {
+        router.push("/login?redirectTo=/profile");
+      }
+      setLinking(false);
+    }
+  };
+
+  const handleLinkGoogle = async () => {
+    if (!auth.currentUser) return;
+    setLinking(true);
+    mergingRef.current = true;
+    try {
+      const outcome = await startProviderLink(auth, "google");
+      if (outcome.status === "linked") {
+        applyLinkedUser(outcome.user);
+        setMergeStep(null);
+        toast.success("Google is now linked. You can sign in with either provider.");
+      } else if (outcome.status === "needs-github-confirm") {
+        setMergeStep("github");
+        toast.message("Confirm GitHub to finish merging into one profile.");
+      }
+    } catch (err: any) {
+      toast.error(
+        err.code === "auth/popup-closed-by-user"
+          ? "Linking was cancelled. Please try again."
+          : err.message || "Could not link Google."
+      );
+    } finally {
+      mergingRef.current = false;
+      if (!auth.currentUser) {
+        router.push("/login?redirectTo=/profile");
+      }
+      setLinking(false);
+    }
+  };
+
+  const handleConfirmGithubMerge = async () => {
+    if (!auth.currentUser) return;
+    setLinking(true);
+    mergingRef.current = true;
+    try {
+      const outcome = await confirmMergeWithGithub(auth);
+      if (outcome.status === "linked") {
+        applyLinkedUser(outcome.user);
+        setMergeStep(null);
+        toast.success("Google and GitHub are now one account.");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Could not finish merging GitHub.");
+    } finally {
+      mergingRef.current = false;
+      if (!auth.currentUser) {
+        router.push("/login?redirectTo=/profile");
+      }
+      setLinking(false);
+    }
+  };
+
+  const handleConfirmGoogleMerge = async () => {
+    if (!auth.currentUser) return;
+    setLinking(true);
+    mergingRef.current = true;
+    try {
+      const outcome = await confirmMergeWithGoogle(auth);
+      if (outcome.status === "linked") {
+        applyLinkedUser(outcome.user);
+        setMergeStep(null);
+        toast.success("Google and GitHub are now one account.");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Could not finish merging Google.");
+    } finally {
+      mergingRef.current = false;
+      if (!auth.currentUser) {
+        router.push("/login?redirectTo=/profile");
+      }
+      setLinking(false);
+    }
+  };
+
+  if (loading || redirectBusy) {
     return (
       <div
         className="flex flex-col min-h-screen items-center justify-center bg-background gap-3"
@@ -487,6 +641,66 @@ export default function ProfileClientComponent() {
                 Saving these settings automatically syncs your layout, schedules, resources, and syllabus checklist.
               </p>
             </div>
+
+            {/* Connected accounts */}
+            {(!isGoogle || !isGithub || mergeStep) && (
+              <div className="bg-card border border-border/80 rounded-2xl p-6 shadow-xs flex flex-col gap-3">
+                <h3 className="text-sm font-bold text-foreground pb-3 border-b border-border/50">
+                  Connected accounts
+                </h3>
+                <p className="text-xs text-muted leading-relaxed">
+                  {mergeStep === "github"
+                    ? "Google is on another Utility account. Confirm GitHub in this tab so both logins share one profile and photo."
+                    : mergeStep === "google"
+                      ? "GitHub is on another Utility account. Confirm Google in this tab so both logins share one profile and photo."
+                      : "Link the other provider so Google and GitHub use the same profile and photo. If a popup is blocked, continue in this tab."}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {mergeStep === "github" ? (
+                    <button
+                      type="button"
+                      onClick={handleConfirmGithubMerge}
+                      disabled={linking}
+                      className="bg-foreground text-background text-xs font-semibold px-4 py-2.5 rounded-xl hover:opacity-90 disabled:opacity-50 transition-opacity"
+                    >
+                      {linking ? "Linking…" : "Confirm GitHub"}
+                    </button>
+                  ) : mergeStep === "google" ? (
+                    <button
+                      type="button"
+                      onClick={handleConfirmGoogleMerge}
+                      disabled={linking}
+                      className="bg-foreground text-background text-xs font-semibold px-4 py-2.5 rounded-xl hover:opacity-90 disabled:opacity-50 transition-opacity"
+                    >
+                      {linking ? "Linking…" : "Confirm Google"}
+                    </button>
+                  ) : (
+                    <>
+                      {!isGithub && (
+                        <button
+                          type="button"
+                          onClick={handleLinkGithub}
+                          disabled={linking}
+                          className="bg-foreground text-background text-xs font-semibold px-4 py-2.5 rounded-xl hover:opacity-90 disabled:opacity-50 transition-opacity"
+                        >
+                          {linking ? "Linking…" : "Link GitHub"}
+                        </button>
+                      )}
+                      {!isGoogle && (
+                        <button
+                          type="button"
+                          onClick={handleLinkGoogle}
+                          disabled={linking}
+                          className="bg-foreground text-background text-xs font-semibold px-4 py-2.5 rounded-xl hover:opacity-90 disabled:opacity-50 transition-opacity"
+                        >
+                          {linking ? "Linking…" : "Link Google"}
+                        </button>
+                      )}
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Save Buttons */}
             <div className="flex items-center justify-between gap-4 mt-2">

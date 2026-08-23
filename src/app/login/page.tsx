@@ -5,14 +5,18 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { auth } from "@/lib/firebase";
 import {
   signInWithEmailAndPassword,
-  signInWithPopup,
-  GoogleAuthProvider,
-  GithubAuthProvider,
 } from "firebase/auth";
 import Link from "next/link";
 import { ArrowLeft, Loader2, Eye, EyeOff, Layers } from "lucide-react";
 import { motion } from "framer-motion";
 import { sanitizeRedirectTo } from "@/lib/workspace";
+import {
+  signInWithPopupOrRedirect,
+  consumeRedirectResult,
+  rememberRedirectTo,
+  takeRememberedRedirectTo,
+  linkGithubOverGoogleAccount,
+} from "@/lib/firebaseAuth";
 
 function getFriendlyErrorMessage(errorCode: string): string {
   switch (errorCode) {
@@ -30,6 +34,12 @@ function getFriendlyErrorMessage(errorCode: string): string {
       return "The password is too weak. Please use at least 6 characters.";
     case "auth/popup-closed-by-user":
       return "Sign-in was cancelled. Please try again.";
+    case "auth/popup-blocked":
+      return "The sign-in popup was blocked. Continue in this tab when prompted.";
+    case "auth/account-exists-with-different-credential":
+      return "This email is already used with Google. Sign in with Google, then you can link GitHub from your profile.";
+    case "auth/credential-already-in-use":
+      return "This GitHub login is already tied to another Utility account.";
     case "auth/network-request-failed":
       return "A network error occurred. Please check your internet connection.";
     default:
@@ -52,6 +62,14 @@ function LoginContent() {
 
   // If already logged in, redirect
   useEffect(() => {
+    consumeRedirectResult(auth).then((outcome) => {
+      const next = takeRememberedRedirectTo() || redirectTo;
+      if (outcome.status === "linked") {
+        router.push(next);
+      } else if (outcome.status === "needs-github-confirm" || outcome.status === "needs-google-confirm") {
+        router.push("/profile");
+      }
+    }).catch(() => {});
     const unsubscribe = auth.onAuthStateChanged((user) => {
       if (user) {
         router.push(redirectTo);
@@ -81,8 +99,11 @@ function LoginContent() {
     setError(null);
 
     try {
-      const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
+      const cred = await signInWithPopupOrRedirect(auth, "google");
+      if (!cred) {
+        rememberRedirectTo(redirectTo);
+        return;
+      }
       setTimeout(() => {
         router.push(redirectTo);
       }, 500);
@@ -97,12 +118,28 @@ function LoginContent() {
     setError(null);
 
     try {
-      const provider = new GithubAuthProvider();
-      await signInWithPopup(auth, provider);
+      const cred = await signInWithPopupOrRedirect(auth, "github");
+      if (!cred) {
+        rememberRedirectTo(redirectTo);
+        return;
+      }
       setTimeout(() => {
         router.push(redirectTo);
       }, 500);
     } catch (err: any) {
+      try {
+        const linked = await linkGithubOverGoogleAccount(auth, err);
+        if (linked) {
+          setTimeout(() => {
+            router.push(redirectTo);
+          }, 500);
+          return;
+        }
+      } catch (linkErr: any) {
+        setError(getFriendlyErrorMessage(linkErr.code || linkErr.message));
+        setGithubLoading(false);
+        return;
+      }
       setError(getFriendlyErrorMessage(err.code || err.message));
       setGithubLoading(false);
     }

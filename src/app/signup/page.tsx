@@ -3,15 +3,20 @@
 import { useEffect, useState, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
-import { ArrowLeft, Layers, Loader2 } from "lucide-react";
+import { ArrowLeft, Layers, Loader2, Eye, EyeOff } from "lucide-react";
 import { auth } from "@/lib/firebase";
 import {
-  signInWithPopup,
-  GoogleAuthProvider,
-  GithubAuthProvider,
+  createUserWithEmailAndPassword,
 } from "firebase/auth";
 import { motion } from "framer-motion";
 import { sanitizeRedirectTo } from "@/lib/workspace";
+import {
+  signInWithPopupOrRedirect,
+  consumeRedirectResult,
+  rememberRedirectTo,
+  takeRememberedRedirectTo,
+  linkGithubOverGoogleAccount,
+} from "@/lib/firebaseAuth";
 
 function getFriendlyErrorMessage(errorCode: string): string {
   switch (errorCode) {
@@ -25,6 +30,12 @@ function getFriendlyErrorMessage(errorCode: string): string {
       return "The password is too weak. Please use at least 6 characters.";
     case "auth/popup-closed-by-user":
       return "Sign-up was cancelled. Please try again.";
+    case "auth/popup-blocked":
+      return "The sign-in popup was blocked. Continue in this tab when prompted.";
+    case "auth/account-exists-with-different-credential":
+      return "This email is already used with Google. Sign in with Google, then you can link GitHub from your profile.";
+    case "auth/credential-already-in-use":
+      return "This GitHub login is already tied to another Utility account.";
     case "auth/network-request-failed":
       return "A network error occurred. Please check your internet connection.";
     default:
@@ -33,7 +44,11 @@ function getFriendlyErrorMessage(errorCode: string): string {
 }
 
 function SignupContent() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [githubLoading, setGithubLoading] = useState(false);
   const searchParams = useSearchParams();
@@ -42,6 +57,14 @@ function SignupContent() {
   const redirectTo = sanitizeRedirectTo(searchParams.get("redirectTo"));
 
   useEffect(() => {
+    consumeRedirectResult(auth).then((outcome) => {
+      const next = takeRememberedRedirectTo() || redirectTo;
+      if (outcome.status === "linked") {
+        router.push(next);
+      } else if (outcome.status === "needs-github-confirm" || outcome.status === "needs-google-confirm") {
+        router.push("/profile");
+      }
+    }).catch(() => {});
     const unsubscribe = auth.onAuthStateChanged((user) => {
       if (user) {
         router.push(redirectTo);
@@ -50,13 +73,32 @@ function SignupContent() {
     return () => unsubscribe();
   }, [redirectTo, router]);
 
+  const handleEmailSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+
+    try {
+      await createUserWithEmailAndPassword(auth, email, password);
+      setTimeout(() => {
+        router.push(redirectTo);
+      }, 500);
+    } catch (err: any) {
+      setError(getFriendlyErrorMessage(err.code || err.message));
+      setLoading(false);
+    }
+  };
+
   const handleGoogleSignup = async () => {
     setGoogleLoading(true);
     setError(null);
 
     try {
-      const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
+      const cred = await signInWithPopupOrRedirect(auth, "google");
+      if (!cred) {
+        rememberRedirectTo(redirectTo);
+        return;
+      }
       setTimeout(() => {
         router.push(redirectTo);
       }, 500);
@@ -71,12 +113,28 @@ function SignupContent() {
     setError(null);
 
     try {
-      const provider = new GithubAuthProvider();
-      await signInWithPopup(auth, provider);
+      const cred = await signInWithPopupOrRedirect(auth, "github");
+      if (!cred) {
+        rememberRedirectTo(redirectTo);
+        return;
+      }
       setTimeout(() => {
         router.push(redirectTo);
       }, 500);
     } catch (err: any) {
+      try {
+        const linked = await linkGithubOverGoogleAccount(auth, err);
+        if (linked) {
+          setTimeout(() => {
+            router.push(redirectTo);
+          }, 500);
+          return;
+        }
+      } catch (linkErr: any) {
+        setError(getFriendlyErrorMessage(linkErr.code || linkErr.message));
+        setGithubLoading(false);
+        return;
+      }
       setError(getFriendlyErrorMessage(err.code || err.message));
       setGithubLoading(false);
     }
@@ -132,7 +190,7 @@ function SignupContent() {
 
           <h1 className="text-xl font-bold text-foreground mb-1">Sign up</h1>
           <p className="text-sm text-muted mb-6">
-            Choose a provider to create your account and start using Utility.
+            Create an account with Google, GitHub, or email and password.
           </p>
 
           {error && (
@@ -145,7 +203,7 @@ function SignupContent() {
             <button
               type="button"
               onClick={handleGoogleSignup}
-              disabled={googleLoading || githubLoading}
+              disabled={googleLoading || githubLoading || loading}
               className="bg-foreground text-background py-2.5 rounded-xl text-sm font-semibold hover:opacity-90 disabled:opacity-50 transition-all flex items-center justify-center gap-2 hover:scale-[1.01] active:scale-95 duration-150 shadow-sm"
             >
               {googleLoading ? (
@@ -160,7 +218,7 @@ function SignupContent() {
             <button
               type="button"
               onClick={handleGithubSignup}
-              disabled={googleLoading || githubLoading}
+              disabled={googleLoading || githubLoading || loading}
               className="bg-foreground text-background py-2.5 rounded-xl text-sm font-semibold hover:opacity-90 disabled:opacity-50 transition-all flex items-center justify-center gap-2 hover:scale-[1.01] active:scale-95 duration-150 shadow-sm"
             >
               {githubLoading ? (
@@ -181,6 +239,78 @@ function SignupContent() {
               GitHub
             </button>
           </div>
+
+          <div className="relative my-5">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-border" />
+            </div>
+            <div className="relative flex justify-center">
+              <span className="bg-card px-2 text-xs text-muted">
+                or sign up with email
+              </span>
+            </div>
+          </div>
+
+          <form onSubmit={handleEmailSignup} className="space-y-4">
+            <div>
+              <label className="block text-xs font-semibold text-foreground mb-1.5">
+                Email address
+              </label>
+              <input
+                type="email"
+                required
+                autoComplete="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@example.com"
+                className="w-full bg-background border border-border rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-0 focus-visible:ring-0 focus:border-foreground/40 text-foreground placeholder:text-muted transition-[border-color,box-shadow] duration-150 input-premium-focus"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-foreground mb-1.5">
+                Password
+              </label>
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  required
+                  minLength={6}
+                  autoComplete="new-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="At least 6 characters"
+                  className="w-full bg-background border border-border rounded-xl px-3 py-2.5 pr-10 text-sm outline-none focus:ring-0 focus-visible:ring-0 focus:border-foreground/40 text-foreground placeholder:text-muted transition-[border-color,box-shadow] duration-150 input-premium-focus"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="absolute right-3 inset-y-0 flex items-center text-muted hover:text-foreground"
+                >
+                  {showPassword ? (
+                    <EyeOff className="w-4 h-4" />
+                  ) : (
+                    <Eye className="w-4 h-4" />
+                  )}
+                </button>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading || googleLoading || githubLoading}
+              className="w-full bg-foreground text-background py-2.5 rounded-xl text-sm font-semibold hover:opacity-90 disabled:opacity-50 transition-opacity flex items-center justify-center gap-2 mt-2 hover:scale-[1.01] active:scale-95 duration-150"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Creating account…
+                </>
+              ) : (
+                "Create account"
+              )}
+            </button>
+          </form>
         </motion.div>
 
         <p className="text-center text-xs text-muted mt-6">
