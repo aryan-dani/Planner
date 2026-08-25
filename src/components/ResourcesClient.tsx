@@ -37,6 +37,8 @@ import {
   folderIdForResource,
   folderLabelFromId,
   findAssignmentSiblings,
+  folderScopeSubject,
+  subjectFolderScope,
 } from "@/lib/resourceGroups";
 import {
   resolveSubjectName,
@@ -328,8 +330,20 @@ export default function ResourcesClient({
       return;
     }
     const urlFolder = parseResourceFolder(urlFolderParam);
+    if (!urlFolder) {
+      setActiveFolderId((prev) => (prev === null ? prev : null));
+      return;
+    }
+    if (selectedSubject) {
+      const scope = folderScopeSubject(urlFolder);
+      const subjectScope = subjectFolderScope(selectedSubject);
+      if (scope && scope !== subjectScope) {
+        setActiveFolderId(null);
+        return;
+      }
+    }
     setActiveFolderId((prev) => (prev === urlFolder ? prev : urlFolder));
-  }, [urlFolderParam]);
+  }, [urlFolderParam, selectedSubject]);
 
   useEffect(() => {
     if (!selectedSubject || selectedFilter === "all") return;
@@ -501,7 +515,8 @@ export default function ResourcesClient({
             ).length;
           } else if (filter.value === "writeup" || filter.value === "codes") {
             acc[filter.value] = searchedResources.filter(
-              (r) => r.category === filter.value,
+              (r) =>
+                isAssignmentCategory(r.category) || isDatasetResource(r),
             ).length;
           } else {
             acc[filter.value] = searchedResources.filter(
@@ -524,28 +539,36 @@ export default function ResourcesClient({
   );
 
   const assignmentFolders = useMemo(
-    () => groupByAssignment(assignmentItems),
-    [assignmentItems],
+    () =>
+      groupByAssignment(assignmentItems, selectedSubject ?? undefined),
+    [assignmentItems, selectedSubject],
   );
 
   const notesFolders = useMemo(
     () =>
       groupByUnit(
         filteredResources.filter((r) => r.category === "notes"),
+        selectedSubject ?? undefined,
       ),
-    [filteredResources],
+    [filteredResources, selectedSubject],
   );
 
   const pptFolders = useMemo(
     () =>
-      groupByUnit(filteredResources.filter((r) => r.category === "ppt")),
-    [filteredResources],
+      groupByUnit(
+        filteredResources.filter((r) => r.category === "ppt"),
+        selectedSubject ?? undefined,
+      ),
+    [filteredResources, selectedSubject],
   );
 
   const pyqFolders = useMemo(
     () =>
-      groupByYear(filteredResources.filter((r) => r.category === "pyq")),
-    [filteredResources],
+      groupByYear(
+        filteredResources.filter((r) => r.category === "pyq"),
+        selectedSubject ?? undefined,
+      ),
+    [filteredResources, selectedSubject],
   );
 
   const qbItems = useMemo(

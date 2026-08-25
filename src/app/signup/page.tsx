@@ -57,20 +57,40 @@ function SignupContent() {
   const redirectTo = sanitizeRedirectTo(searchParams.get("redirectTo"));
 
   useEffect(() => {
-    consumeRedirectResult(auth).then((outcome) => {
-      const next = takeRememberedRedirectTo() || redirectTo;
-      if (outcome.status === "linked") {
-        router.push(next);
-      } else if (outcome.status === "needs-github-confirm" || outcome.status === "needs-google-confirm") {
-        router.push("/profile");
+    let cancelled = false;
+    let mergeHandled = false;
+
+    (async () => {
+      try {
+        const outcome = await consumeRedirectResult(auth);
+        if (cancelled) return;
+        mergeHandled = true;
+        const next = takeRememberedRedirectTo() || redirectTo;
+        if (outcome.status === "linked") {
+          router.push(next);
+        } else if (
+          outcome.status === "needs-github-confirm" ||
+          outcome.status === "needs-google-confirm"
+        ) {
+          router.push("/profile");
+        } else if (auth.currentUser) {
+          router.push(redirectTo);
+        }
+      } catch {
+        mergeHandled = true;
+        if (auth.currentUser) router.push(redirectTo);
       }
-    }).catch(() => {});
+    })();
+
     const unsubscribe = auth.onAuthStateChanged((user) => {
-      if (user) {
-        router.push(redirectTo);
-      }
+      if (!mergeHandled || !user) return;
+      router.push(redirectTo);
     });
-    return () => unsubscribe();
+
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
   }, [redirectTo, router]);
 
   const handleEmailSignup = async (e: React.FormEvent) => {
@@ -80,9 +100,7 @@ function SignupContent() {
 
     try {
       await createUserWithEmailAndPassword(auth, email, password);
-      setTimeout(() => {
-        router.push(redirectTo);
-      }, 500);
+      router.push(redirectTo);
     } catch (err: any) {
       setError(getFriendlyErrorMessage(err.code || err.message));
       setLoading(false);
@@ -99,9 +117,7 @@ function SignupContent() {
         rememberRedirectTo(redirectTo);
         return;
       }
-      setTimeout(() => {
-        router.push(redirectTo);
-      }, 500);
+      router.push(redirectTo);
     } catch (err: any) {
       setError(getFriendlyErrorMessage(err.code || err.message));
       setGoogleLoading(false);
@@ -118,16 +134,12 @@ function SignupContent() {
         rememberRedirectTo(redirectTo);
         return;
       }
-      setTimeout(() => {
-        router.push(redirectTo);
-      }, 500);
+      router.push(redirectTo);
     } catch (err: any) {
       try {
         const linked = await linkGithubOverGoogleAccount(auth, err);
         if (linked) {
-          setTimeout(() => {
-            router.push(redirectTo);
-          }, 500);
+          router.push(redirectTo);
           return;
         }
       } catch (linkErr: any) {

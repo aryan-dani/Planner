@@ -17,34 +17,10 @@ export default function LabsClient({
   const [labs, setLabs] = useState(initialLabs);
   const [search, setSearch] = useState("");
   const [floorFilter, setFloorFilter] = useState<string>("ALL");
-  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     setLabs(initialLabs);
   }, [initialLabs]);
-
-  useEffect(() => {
-    if (!configured) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        setRefreshing(true);
-        const res = await fetch("/api/campus/home-data");
-        if (!res.ok) return;
-        const data = await res.json();
-        if (!cancelled && Array.isArray(data.infrastructure)) {
-          setLabs(data.infrastructure);
-        }
-      } catch {
-        /* keep SSR */
-      } finally {
-        if (!cancelled) setRefreshing(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [configured]);
 
   const floors = useMemo(() => {
     const set = new Set<string>();
@@ -96,7 +72,7 @@ export default function LabsClient({
         </h1>
         <p className="text-sm text-muted mt-1">
           {configured
-            ? `${filtered.length} of ${labs.length} labs${refreshing ? " · refreshing…" : ""}`
+            ? `${filtered.length} of ${labs.length} labs`
             : "Campus data unavailable. Set ISHANI_API_URL to enable the lab registry."}
         </p>
       </div>

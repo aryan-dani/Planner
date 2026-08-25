@@ -32,6 +32,7 @@ import {
   folderLabelFromId,
   getResourceFileRole,
 } from "@/lib/resourceGroups";
+import { auth } from "@/lib/firebase";
 
 interface ResourceViewerProps {
   resource: ResourceItem;
@@ -100,7 +101,7 @@ export default function ResourceViewer({
     !isCsv &&
     !isImage &&
     (isCodeExtension(extension) || resource.category === "codes");
-  const isTextFetch = isCode || isCsv;
+  const isTextFetch = isCode || isCsv || isNotebook;
   const viewerUrl = useMemo(() => getViewerUrl(resource), [resource]);
   const downloadUrl = useMemo(() => getDirectUrl(resource), [resource]);
   const driveId = useMemo(
@@ -180,7 +181,15 @@ export default function ResourceViewer({
       setLoadError(false);
       try {
         if (driveId) {
-          const res = await fetch(`/api/resources/code?id=${driveId}`);
+          const user = auth.currentUser;
+          const headers: HeadersInit = {};
+          if (user) {
+            headers.Authorization = `Bearer ${await user.getIdToken()}`;
+          }
+          const res = await fetch(`/api/resources/code?id=${driveId}`, { headers });
+          if (res.status === 413) {
+            throw new Error("File too large to preview in-app");
+          }
           if (!res.ok) throw new Error("Failed to load file");
           const text = await res.text();
           if (!cancelled) {

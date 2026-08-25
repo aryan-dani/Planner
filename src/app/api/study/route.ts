@@ -4,6 +4,7 @@ import { generateText } from 'ai';
 import { adminDb } from '@/lib/firebaseAdmin';
 import { performRAGSearch } from '@/lib/ragSearch';
 import { isAuthFailure, requireUser } from '@/lib/apiAuth';
+import { enforceUserRateLimit } from '@/lib/rateLimit';
 import { DEFAULT_BRANCH, DEFAULT_SEMESTER } from '@/lib/workspace';
 import { z } from 'zod';
 
@@ -21,6 +22,14 @@ const studySchema = z.object({
 export async function POST(req: Request) {
   const auth = await requireUser(req);
   if (isAuthFailure(auth)) return auth;
+
+  const rate = enforceUserRateLimit(auth.uid, "study", 20, 60_000);
+  if (!rate.allowed) {
+    return new Response(JSON.stringify({ error: 'Rate limit exceeded. Try again shortly.' }), {
+      status: 429,
+      headers: { 'Retry-After': String(rate.retryAfterSec), 'Content-Type': 'application/json' },
+    });
+  }
 
   try {
     let body;

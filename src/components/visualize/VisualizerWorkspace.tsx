@@ -43,23 +43,43 @@ function VisualizerWorkspaceInner({
 
   useEffect(() => {
     if (!gridId || structure === "tree") return;
-    const unsub = onAuthStateChanged(auth, async (user) => {
+
+    let cancelled = false;
+    const user = auth.currentUser;
+
+    async function loadGrid() {
       if (!user) {
         setLoadError("Sign in to open a saved maze.");
         return;
       }
       try {
-        const grid = await fetchSavedGrid(gridId);
+        const grid = await fetchSavedGrid(gridId!);
+        if (cancelled) return;
         if (!grid) {
           setLoadError("That saved maze was not found.");
           return;
         }
         setLoadedGrid(grid.gridData);
       } catch {
-        setLoadError("Could not load the saved maze.");
+        if (!cancelled) setLoadError("Could not load the saved maze.");
+      }
+    }
+
+    loadGrid();
+
+    const unsub = onAuthStateChanged(auth, (nextUser) => {
+      if (nextUser && nextUser.uid !== user?.uid) {
+        cancelled = false;
+        loadGrid();
+      } else if (!nextUser) {
+        setLoadError("Sign in to open a saved maze.");
       }
     });
-    return () => unsub();
+
+    return () => {
+      cancelled = true;
+      unsub();
+    };
   }, [gridId, structure]);
 
   const isPathAlgorithm = PATH_ALGORITHM_IDS.has(algorithm.id);

@@ -1,9 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { auth, db } from "@/lib/firebase";
+import { auth } from "@/lib/firebase";
 import { onAuthStateChanged, signOut } from "firebase/auth";
-import { collection, getDocs } from "firebase/firestore";
 import {
   Trash,
   Edit2,
@@ -14,7 +13,6 @@ import {
   ShieldCheck,
   ArrowLeft,
   Loader2,
-  ChevronDown,
   CheckCircle2,
   CloudFog,
   ExternalLink,
@@ -50,34 +48,7 @@ export default function AdminClient() {
   const [tab, setTab] = useState<"drive" | "manage" | "users">("drive");
   const [usersList, setUsersList] = useState<any[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
-
-  const fetchUsers = useCallback(async () => {
-    setLoadingUsers(true);
-    try {
-      const snap = await getDocs(collection(db, "users"));
-      const list: any[] = [];
-      snap.forEach((doc) => {
-        list.push({ id: doc.id, ...doc.data() });
-      });
-      // Sort users by last active
-      list.sort((a, b) => {
-        const dateA = a.updatedAt || a.lastActive || "";
-        const dateB = b.updatedAt || b.lastActive || "";
-        return new Date(dateB).getTime() - new Date(dateA).getTime();
-      });
-      setUsersList(list);
-    } catch (err) {
-      console.error("Error fetching users:", err);
-    } finally {
-      setLoadingUsers(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (tab === "users") {
-      fetchUsers();
-    }
-  }, [tab, fetchUsers]);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [branch, setBranch] = useState("AIDS");
   const [semester, setSemester] = useState("5");
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -94,10 +65,60 @@ export default function AdminClient() {
   const [message, setMessage] = useState("");
   const [syncingDrive, setSyncingDrive] = useState(false);
 
+  const getAdminBearerHeaders = useCallback(async (): Promise<HeadersInit> => {
+    const user = auth.currentUser;
+    if (!user) {
+      throw new Error("You must be signed in as an admin.");
+    }
+    const idToken = await user.getIdToken();
+    return { Authorization: `Bearer ${idToken}` };
+  }, []);
+
+  const fetchUsers = useCallback(async () => {
+    setLoadingUsers(true);
+    try {
+      const headers = await getAdminBearerHeaders();
+      const res = await fetch("/api/admin/users", { headers });
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
+      setUsersList(data.users || []);
+    } catch (err) {
+      console.error("Error fetching users:", err);
+    } finally {
+      setLoadingUsers(false);
+    }
+  }, [getAdminBearerHeaders]);
+
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    if (tab === "users") {
+      fetchUsers();
+    }
+  }, [tab, fetchUsers]);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setUserEmail(user?.email ?? null);
-      setLoadingAuth(false);
+      if (!user) {
+        setIsAdmin(false);
+        setLoadingAuth(false);
+        return;
+      }
+      try {
+        const idToken = await user.getIdToken();
+        const res = await fetch("/api/admin/me", {
+          headers: { Authorization: `Bearer ${idToken}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setIsAdmin(!!data.isAdmin);
+        } else {
+          setIsAdmin(false);
+        }
+      } catch {
+        setIsAdmin(false);
+      } finally {
+        setLoadingAuth(false);
+      }
     });
     return () => unsubscribe();
   }, []);
@@ -144,23 +165,6 @@ export default function AdminClient() {
       setSyncingDrive(false);
     }
   };
-
-  const adminEmails =
-    process.env.NEXT_PUBLIC_ADMIN_EMAILS?.split(",")
-      .map((e) => e.trim().toLowerCase())
-      .filter(Boolean) ?? [];
-  const isAdmin = !!(
-    userEmail && adminEmails.includes(userEmail.toLowerCase())
-  );
-
-  const getAdminBearerHeaders = useCallback(async (): Promise<HeadersInit> => {
-    const user = auth.currentUser;
-    if (!user) {
-      throw new Error("You must be signed in as an admin.");
-    }
-    const idToken = await user.getIdToken();
-    return { Authorization: `Bearer ${idToken}` };
-  }, []);
 
   const fetchAdminData = useCallback(async () => {
     if (!isAdmin) return;
@@ -469,13 +473,12 @@ export default function AdminClient() {
                   <select
                     value={branch}
                     onChange={(e) => setBranch(e.target.value)}
-                    className="appearance-none w-full bg-background border border-border rounded-xl pl-4 pr-10 py-3 text-sm font-semibold outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-foreground transition-all"
+                    className="ui-select w-full"
                   >
                     <option value="AIDS">AIDS</option>
                     <option value="CSE">CSE</option>
                     <option value="ECE">ECE</option>
                   </select>
-                  <ChevronDown className="absolute right-4 top-3.5 w-4 h-4 text-muted pointer-events-none" />
                 </div>
               </div>
               <div className="relative">
@@ -486,7 +489,7 @@ export default function AdminClient() {
                   <select
                     value={semester}
                     onChange={(e) => setSemester(e.target.value)}
-                    className="appearance-none w-full bg-background border border-border rounded-xl pl-4 pr-10 py-3 text-sm font-semibold outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-foreground transition-all"
+                    className="ui-select w-full"
                   >
                     {[1, 2, 3, 4, 5, 6, 7, 8].map((sem) => (
                       <option key={sem} value={sem}>
@@ -494,7 +497,6 @@ export default function AdminClient() {
                       </option>
                     ))}
                   </select>
-                  <ChevronDown className="absolute right-4 top-3.5 w-4 h-4 text-muted pointer-events-none" />
                 </div>
               </div>
             </div>
@@ -536,7 +538,7 @@ export default function AdminClient() {
                                   onChange={(e) =>
                                     setEditSubjectId(e.target.value)
                                   }
-                                  className="appearance-none w-full bg-background border border-border rounded-lg px-3 py-2 text-sm font-medium outline-none focus:border-primary text-foreground pr-8"
+                                  className="ui-select w-full pr-8"
                                 >
                                   {subjects.map((sub) => (
                                     <option key={sub.id} value={sub.id}>
@@ -544,7 +546,6 @@ export default function AdminClient() {
                                     </option>
                                   ))}
                                 </select>
-                                <ChevronDown className="absolute right-2.5 top-2.5 w-4 h-4 text-muted pointer-events-none" />
                               </div>
                             </div>
                           ) : (

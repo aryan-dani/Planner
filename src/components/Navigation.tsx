@@ -303,6 +303,7 @@ function NavigationInner() {
       params.delete("subject");
       params.delete("filter");
       params.delete("view");
+      params.delete("folder");
       writeStoredWorkspace(newBranch as Branch, newSem as Semester);
       startNavigationProgress();
       startTransition(() => {

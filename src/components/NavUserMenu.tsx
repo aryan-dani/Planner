@@ -35,6 +35,8 @@ export default function NavUserMenu({
   const [user, setUser] = useState<NavUser | null>(null);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
+  const workspaceRef = useRef({ branch, semester });
+  workspaceRef.current = { branch, semester };
 
   useEffect(() => {
     const unsubscribe = onIdTokenChanged(auth, async (firebaseUser) => {
@@ -76,8 +78,8 @@ export default function NavUserMenu({
 
             if (snap.exists()) {
               const data = snap.data();
-              const prefBranch = (data.branch as Branch) || branch;
-              const prefSemester = (data.semester as Semester) || semester;
+              const prefBranch = (data.branch as Branch) || workspaceRef.current.branch;
+              const prefSemester = (data.semester as Semester) || workspaceRef.current.semester;
               if (onWorkspaceFromPrefs) {
                 onWorkspaceFromPrefs(prefBranch, prefSemester);
               } else {
@@ -86,8 +88,8 @@ export default function NavUserMenu({
               }
               await setDoc(userPrefsRef, updateData, { merge: true });
             } else {
-              updateData.branch = branch;
-              updateData.semester = semester;
+              updateData.branch = workspaceRef.current.branch;
+              updateData.semester = workspaceRef.current.semester;
               await setDoc(userPrefsRef, updateData, { merge: true });
             }
           })

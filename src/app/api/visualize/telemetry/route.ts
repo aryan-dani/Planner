@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { FieldValue } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { optionalUser } from "@/lib/apiAuth";
+import { isAuthFailure, requireUser } from "@/lib/apiAuth";
 import { getAlgorithm } from "@/lib/visualize/catalog";
 
 export const dynamic = "force-dynamic";
@@ -16,7 +16,8 @@ const ALLOWED_ACTIONS = new Set([
 
 export async function POST(request: Request) {
   try {
-    const user = await optionalUser(request);
+    const user = await requireUser(request);
+    if (isAuthFailure(user)) return user;
     const body = await request.json();
 
     const algorithmId =
@@ -43,7 +44,7 @@ export async function POST(request: Request) {
 
     const db = adminDb();
     await db.collection("visualize_telemetry").add({
-      owner_id: user?.uid ?? null,
+      owner_id: user.uid,
       sessionId,
       algorithmId,
       action,

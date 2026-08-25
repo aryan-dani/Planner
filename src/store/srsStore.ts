@@ -40,6 +40,30 @@ interface SRSState {
 
 const DECKS_KEY = 'utility_srs_decks';
 const CARDS_KEY = 'utility_srs_cards';
+const META_KEY = 'utility_srs_meta';
+
+type SRSMeta = { updated_at: string };
+
+let cloudHydrating = false;
+
+function readLocalMeta(): SRSMeta | null {
+  if (typeof window === 'undefined') return null;
+  const raw = localStorage.getItem(META_KEY);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as SRSMeta;
+  } catch {
+    return null;
+  }
+}
+
+function writeLocalMeta(updatedAt: string) {
+  localStorage.setItem(META_KEY, JSON.stringify({ updated_at: updatedAt }));
+}
+
+function touchLocalMeta() {
+  writeLocalMeta(new Date().toISOString());
+}
 
 function getTodayString() {
   return new Date().toISOString().split('T')[0];
@@ -97,6 +121,7 @@ export const useSRSStore = create<SRSState>((set, get) => ({
     const nextDecks = [...get().decks, newDeck];
     set({ decks: nextDecks });
     localStorage.setItem(DECKS_KEY, JSON.stringify(nextDecks));
+    touchLocalMeta();
     get().syncToCloud().catch(console.error);
     return newDeck;
   },
@@ -107,6 +132,7 @@ export const useSRSStore = create<SRSState>((set, get) => ({
     set({ decks: nextDecks, cards: nextCards });
     localStorage.setItem(DECKS_KEY, JSON.stringify(nextDecks));
     localStorage.setItem(CARDS_KEY, JSON.stringify(nextCards));
+    touchLocalMeta();
     get().syncToCloud().catch(console.error);
   },
 
@@ -123,6 +149,7 @@ export const useSRSStore = create<SRSState>((set, get) => ({
     const nextCards = [...get().cards, newCard];
     set({ cards: nextCards });
     localStorage.setItem(CARDS_KEY, JSON.stringify(nextCards));
+    touchLocalMeta();
     get().syncToCloud().catch(console.error);
   },
 
@@ -139,6 +166,7 @@ export const useSRSStore = create<SRSState>((set, get) => ({
     const nextCards = [...get().cards, ...newCards];
     set({ cards: nextCards });
     localStorage.setItem(CARDS_KEY, JSON.stringify(nextCards));
+    touchLocalMeta();
     get().syncToCloud().catch(console.error);
   },
 
@@ -146,6 +174,7 @@ export const useSRSStore = create<SRSState>((set, get) => ({
     const nextCards = get().cards.filter((c) => c.id !== cardId);
     set({ cards: nextCards });
     localStorage.setItem(CARDS_KEY, JSON.stringify(nextCards));
+    touchLocalMeta();
     get().syncToCloud().catch(console.error);
   },
 
@@ -170,6 +199,7 @@ export const useSRSStore = create<SRSState>((set, get) => ({
     // Log review activity to heatmap
     logActivity('srs_flashcard_reviewed', 1);
 
+    touchLocalMeta();
     get().syncToCloud().catch(console.error);
   },
 
@@ -179,27 +209,30 @@ export const useSRSStore = create<SRSState>((set, get) => ({
     );
     set({ cards: nextCards });
     localStorage.setItem(CARDS_KEY, JSON.stringify(nextCards));
+    touchLocalMeta();
     get().syncToCloud().catch(console.error);
   },
 
   syncToCloud: async () => {
     const user = auth.currentUser;
-    if (!user) return;
+    if (!user || cloudHydrating) return;
 
     set({ syncing: true });
     try {
+      const updatedAt = new Date().toISOString();
       const payload = {
         decks: get().decks,
         cards: get().cards,
-        updated_at: new Date().toISOString(),
+        updated_at: updatedAt,
       };
       
       const docRef = doc(db, 'srs_data', user.uid);
       await setDoc(docRef, {
         user_id: user.uid,
         data: payload,
-        updated_at: new Date().toISOString()
+        updated_at: updatedAt,
       }, { merge: true });
+      writeLocalMeta(updatedAt);
     } catch (e) {
       console.error('Firebase SRS sync error:', e);
     } finally {
@@ -211,6 +244,7 @@ export const useSRSStore = create<SRSState>((set, get) => ({
     const user = auth.currentUser;
     if (!user) return;
 
+    cloudHydrating = true;
     set({ syncing: true });
     try {
       const docRef = doc(db, 'srs_data', user.uid);
@@ -221,15 +255,30 @@ export const useSRSStore = create<SRSState>((set, get) => ({
         if (cloudData) {
           const cloudDecks = cloudData.decks || [];
           const cloudCards = cloudData.cards || [];
-          
-          set({ decks: cloudDecks, cards: cloudCards });
-          localStorage.setItem(DECKS_KEY, JSON.stringify(cloudDecks));
-          localStorage.setItem(CARDS_KEY, JSON.stringify(cloudCards));
+          const cloudUpdated = cloudData.updated_at
+            ? new Date(cloudData.updated_at).getTime()
+            : 0;
+          const localMeta = readLocalMeta();
+          const localUpdated = localMeta?.updated_at
+            ? new Date(localMeta.updated_at).getTime()
+            : 0;
+
+          if (cloudUpdated >= localUpdated) {
+            set({ decks: cloudDecks, cards: cloudCards });
+            localStorage.setItem(DECKS_KEY, JSON.stringify(cloudDecks));
+            localStorage.setItem(CARDS_KEY, JSON.stringify(cloudCards));
+            if (cloudData.updated_at) {
+              writeLocalMeta(cloudData.updated_at);
+            }
+          } else if (localUpdated > 0) {
+            await get().syncToCloud();
+          }
         }
       }
     } catch (e) {
       console.error('Firebase SRS pull error:', e);
     } finally {
+      cloudHydrating = false;
       set({ syncing: false });
     }
   },

@@ -17,34 +17,10 @@ export default function SeatingClient({
   const [seating, setSeating] = useState(initialSeating);
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<string>("ALL");
-  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     setSeating(initialSeating);
   }, [initialSeating]);
-
-  useEffect(() => {
-    if (!configured) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        setRefreshing(true);
-        const res = await fetch("/api/campus/faculty-seating");
-        if (!res.ok) return;
-        const data = await res.json();
-        if (!cancelled && Array.isArray(data.faculty_seating)) {
-          setSeating(data.faculty_seating);
-        }
-      } catch {
-        /* keep SSR data */
-      } finally {
-        if (!cancelled) setRefreshing(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [configured]);
 
   const types = useMemo(() => {
     const set = new Set<string>();
@@ -97,7 +73,7 @@ export default function SeatingClient({
         </h1>
         <p className="text-sm text-muted mt-1">
           {configured
-            ? `${filtered.length} of ${seating.length} entries${refreshing ? " · refreshing…" : ""}`
+            ? `${filtered.length} of ${seating.length} entries`
             : "Campus data unavailable. Set ISHANI_API_URL to enable live seating."}
         </p>
       </div>

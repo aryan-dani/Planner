@@ -29,8 +29,7 @@ import {
   X
 } from 'lucide-react';
 import { useAcademicStore } from '@/store/academicStore';
-import { auth, db } from '@/lib/firebase';
-import { collection, query, where, getDocs, doc, setDoc } from 'firebase/firestore';
+import { auth } from '@/lib/firebase';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { logActivity } from '@/lib/activity';
@@ -41,6 +40,8 @@ import { useSearchParams } from 'next/navigation';
 import AcademicBreadcrumb from '@/components/AcademicBreadcrumb';
 import Link from 'next/link';
 import { buildResourcesHref } from '@/lib/resourceUrl';
+import type { ResourceItem } from '@/lib/dataFetcher';
+import type { Branch, Semester } from '@/store/academicStore';
 
 const SUGGESTED_PROMPTS = [
   'Explain overfitting vs underfitting in Machine Learning with examples',
@@ -254,15 +255,25 @@ export interface ChatSession {
 
 const EMPTY_ARRAY: any[] = [];
 
-export default function AskClient() {
+interface AskClientProps {
+  initialWorkspace: { branch: Branch; semester: Semester };
+  initialSubjects: string[];
+  initialResources: ResourceItem[];
+}
+
+export default function AskClient({
+  initialWorkspace,
+  initialSubjects,
+  initialResources,
+}: AskClientProps) {
   const { branch, semester } = useAcademicStore();
-  const [subjects, setSubjects] = useState<string[]>([]);
+  const [subjects, setSubjects] = useState<string[]>(initialSubjects);
   const [activeTab, setActiveTab] = useState<'chat' | 'flashcards' | 'quiz'>('chat');
 
   const searchParams = useSearchParams();
 
   // Grounded Document Chat States
-  const [resources, setResources] = useState<any[]>([]);
+  const [resources, setResources] = useState<ResourceItem[]>(initialResources);
   const [selectedResourceId, setSelectedResourceId] = useState<string>('all');
 
   // Speech Recognition States
@@ -319,30 +330,17 @@ export default function AskClient() {
   const [isGeneratingQuiz, setIsGeneratingQuiz] = useState(false);
   const [quizSubmitted, setQuizSubmitted] = useState(false);
 
-  // Fetch subjects for context
+  // Refresh grounded context when workspace changes (skip duplicate mount fetch)
   useEffect(() => {
-    let cancelled = false;
-    const q = query(
-      collection(db, 'subjects'),
-      where('branch', '==', branch),
-      where('semester', '==', semester)
-    );
-    getDocs(q)
-      .then((snapshot) => {
-        if (cancelled) return;
-        const data = snapshot.docs.map(doc => ({ name: doc.data().name as string }));
-        setSubjects(data.map((s: { name: string }) => s.name).filter((n: string) => n.toUpperCase() !== 'SYLLABUS'));
-      })
-      .catch(err => {
-        if (!cancelled) console.error("Error loading subjects in AskAI:", err);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [branch, semester]);
+    if (
+      branch === initialWorkspace.branch &&
+      semester === initialWorkspace.semester
+    ) {
+      setSubjects(initialSubjects);
+      setResources(initialResources);
+      return;
+    }
 
-  // Fetch resources for grounded chat selector
-  useEffect(() => {
     const abortController = new AbortController();
     fetch(`/api/resources/list?branch=${branch}&semester=${semester}`, {
       signal: abortController.signal,
@@ -350,7 +348,17 @@ export default function AskClient() {
       .then(async (res) => {
         if (!res.ok) return;
         const data = await res.json();
-        if (data.resources) setResources(data.resources);
+        if (Array.isArray(data.resources)) {
+          setResources(data.resources);
+          const names = Array.from(
+            new Set<string>(
+              (data.resources as ResourceItem[])
+                .map((r) => r.subject_name)
+                .filter((name): name is string => typeof name === "string" && name.length > 0),
+            ),
+          ).sort((a, b) => a.localeCompare(b));
+          setSubjects(names);
+        }
       })
       .catch((err) => {
         if (err?.name !== 'AbortError') {
@@ -358,7 +366,7 @@ export default function AskClient() {
         }
       });
     return () => abortController.abort();
-  }, [branch, semester]);
+  }, [branch, semester, initialWorkspace.branch, initialWorkspace.semester, initialSubjects, initialResources]);
 
   // Initialize Speech Recognition
   useEffect(() => {
@@ -440,7 +448,7 @@ export default function AskClient() {
     if (!activeSessionId) return EMPTY_ARRAY;
     const session = sessions.find(s => s.id === activeSessionId);
     return session ? session.messages : EMPTY_ARRAY;
-  }, [chatSessionKey, sessionsLoaded]);
+  }, [activeSessionId, sessions, sessionsLoaded]);
 
   const chatHelpers = (useChat as any)({
     id: chatSessionKey,
@@ -751,19 +759,28 @@ export default function AskClient() {
     setIsPublishingDeck(true);
     try {
       const user = auth.currentUser;
-      const authorName = user?.email ? user.email.split('@')[0] : 'Anonymous Scholar';
+      if (!user) {
+        toast.error("Sign in to publish a deck.");
+        return;
+      }
+      const idToken = await user.getIdToken();
+      const authorName = user.email ? user.email.split('@')[0] : 'Anonymous Scholar';
 
-      const newDeckRef = doc(collection(db, 'community_decks'));
-      await setDoc(newDeckRef, {
-        title: flashcardTopic || 'Academic Flashcards',
-        branch,
-        semester,
-        author_name: authorName,
-        author_uid: user?.uid || '',
-        flashcards: flashcards,
-        upvotes: 0,
-        created_at: new Date().toISOString()
+      const res = await fetch('/api/community-decks', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({
+          title: flashcardTopic || 'Academic Flashcards',
+          branch,
+          semester,
+          author_name: authorName,
+          flashcards,
+        }),
       });
+      if (!res.ok) throw new Error(await res.text());
 
       setPublishedDeck(true);
       logActivity('community_deck_published', 1);

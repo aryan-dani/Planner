@@ -13,6 +13,7 @@ import {
 } from "@/lib/firebaseAuth";
 import { doc, setDoc, getDoc } from "firebase/firestore";
 import { useAcademicStore, Branch, Semester } from "@/store/academicStore";
+import { DEFAULT_SEMESTER } from "@/lib/workspace";
 import { toast } from "sonner";
 import Link from "next/link";
 import {
@@ -87,7 +88,7 @@ export default function ProfileClientComponent() {
   const [photoURL, setPhotoURL] = useState("");
   const [tempPhotoUrl, setTempPhotoUrl] = useState(""); // Holds manual text inputs
   const [selectedBranch, setSelectedBranch] = useState<Branch>("AIDS");
-  const [selectedSemester, setSelectedSemester] = useState<Semester>(4);
+  const [selectedSemester, setSelectedSemester] = useState<Semester>(DEFAULT_SEMESTER);
 
   // Custom dropdown states
   const [branchOpen, setBranchOpen] = useState(false);
@@ -97,6 +98,8 @@ export default function ProfileClientComponent() {
   const branchRef = useRef<HTMLDivElement>(null);
   const semesterRef = useRef<HTMLDivElement>(null);
   const mergingRef = useRef(false);
+  const workspaceRef = useRef({ branch, semester });
+  workspaceRef.current = { branch, semester };
 
   // Options configurations
   const branchOptions: { value: Branch; label: string }[] = [
@@ -133,17 +136,17 @@ export default function ProfileClientComponent() {
           if (data.branch) {
             setSelectedBranch(data.branch as Branch);
           } else {
-            setSelectedBranch(branch);
+            setSelectedBranch(workspaceRef.current.branch);
           }
           if (data.semester) {
             setSelectedSemester(data.semester as Semester);
           } else {
-            setSelectedSemester(semester);
+            setSelectedSemester(workspaceRef.current.semester);
           }
         } else {
           // If no doc, match the current store settings
-          setSelectedBranch(branch);
-          setSelectedSemester(semester);
+          setSelectedBranch(workspaceRef.current.branch);
+          setSelectedSemester(workspaceRef.current.semester);
         }
       } catch (err) {
         console.error("Error fetching academic preferences:", err);
@@ -153,7 +156,7 @@ export default function ProfileClientComponent() {
     });
 
     return () => unsubscribe();
-  }, [router, branch, semester]);
+  }, [router]);
 
   useEffect(() => {
     let cancelled = false;

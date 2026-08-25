@@ -43,6 +43,12 @@ interface CommandItem {
   hint?: string;
 }
 
+const SUBJECT_CACHE_TTL_MS = 5 * 60 * 1000;
+const subjectCache = new Map<
+  string,
+  { fetchedAt: number; subjects: Array<{ id: string; name: string }> }
+>();
+
 function highlightMatch(text: string, query: string) {
   if (!query.trim()) return <span>{text}</span>;
   const regex = new RegExp(`(${query.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')})`, 'gi');
@@ -81,6 +87,13 @@ export default function CommandPalette() {
   useEffect(() => {
     if (!isCommandPaletteOpen) return;
 
+    const cacheKey = `${branch}:${semester}`;
+    const cached = subjectCache.get(cacheKey);
+    if (cached && Date.now() - cached.fetchedAt < SUBJECT_CACHE_TTL_MS) {
+      setDynamicSubjects(cached.subjects);
+      return;
+    }
+
     const q = firestoreQuery(
       collection(db, 'subjects'),
       where('branch', '==', branch),
@@ -91,7 +104,9 @@ export default function CommandPalette() {
       .then((snapshot) => {
         const data = snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name as string }));
         data.sort((a, b) => a.name.localeCompare(b.name));
-        setDynamicSubjects(data.filter(s => s.name.toUpperCase() !== 'SYLLABUS'));
+        const filtered = data.filter(s => s.name.toUpperCase() !== 'SYLLABUS');
+        subjectCache.set(cacheKey, { fetchedAt: Date.now(), subjects: filtered });
+        setDynamicSubjects(filtered);
       })
       .catch((error) => {
         console.error("Error fetching subjects in CommandPalette:", error);

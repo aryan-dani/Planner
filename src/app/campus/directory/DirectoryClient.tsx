@@ -40,34 +40,10 @@ export default function DirectoryClient({
   const [search, setSearch] = useState("");
   const [groupFilter, setGroupFilter] = useState<string>("ALL");
   const [selected, setSelected] = useState<StaffMember | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     setStaff(initialStaff);
   }, [initialStaff]);
-
-  useEffect(() => {
-    if (!configured) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        setRefreshing(true);
-        const res = await fetch("/api/campus/home-data");
-        if (!res.ok) return;
-        const data = await res.json();
-        if (!cancelled && Array.isArray(data.staff)) {
-          setStaff(data.staff);
-        }
-      } catch {
-        /* keep SSR */
-      } finally {
-        if (!cancelled) setRefreshing(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [configured]);
 
   const groups = useMemo(() => {
     const present = new Set(
@@ -137,7 +113,7 @@ export default function DirectoryClient({
         </h1>
         <p className="text-sm text-muted mt-1">
           {configured
-            ? `${filtered.length} of ${staff.length} people${refreshing ? " · refreshing…" : ""}`
+            ? `${filtered.length} of ${staff.length} people`
             : "Campus data unavailable. Set ISHANI_API_URL to enable the directory."}
         </p>
       </div>

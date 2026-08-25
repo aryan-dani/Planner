@@ -42,18 +42,20 @@ export function subjectToSlug(subject: string): string {
   return encodeURIComponent(subject);
 }
 
-/** Normalize folder deep-link ids: assignment-1, unit-2, year-2024, other */
+/** Normalize folder deep-link ids: scoped or legacy assignment-1, unit-2, year-2024, other */
 export function parseResourceFolder(
   value: string | null | undefined,
 ): string | null {
   if (!value) return null;
   const normalized = decodeURIComponent(value).trim().toLowerCase();
   if (!normalized) return null;
-  if (
-    /^(assignment-[\da-z]+|unit-\d+|year-\d{4}|other)$/i.test(normalized)
-  ) {
-    return normalized;
-  }
+  const legacy =
+    /^(assignment-[\da-z]+|unit-\d+|year-\d{4}|other)$/i.test(normalized);
+  if (legacy) return normalized;
+  const scoped = /^.+::(assignment-[\da-z]+|unit-\d+|year-\d{4}|other)$/i.test(
+    normalized,
+  );
+  if (scoped) return normalized;
   return null;
 }
 

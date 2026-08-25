@@ -720,7 +720,7 @@ export default function SyllabusClient({ subjects, branch, semester, syllabusUrl
                                     <span className="text-[9px] text-muted-foreground font-extrabold uppercase tracking-widest">Vault Files:</span>
                                     {matches.map(file => {
                                       const unit = parseUnitKey(file.title) || parseUnitKey(mod.title);
-                                      const folder = unit ? unitFolderId(unit.num) : null;
+                                      const folder = unit ? unitFolderId(unit.num, subject.name) : null;
                                       const href = buildResourcesHref({
                                         branch,
                                         semester,
@@ -933,7 +933,7 @@ export default function SyllabusClient({ subjects, branch, semester, syllabusUrl
                     <select
                       value={scheduleCategory}
                       onChange={(e) => setScheduleCategory(e.target.value)}
-                      className="w-full bg-surface border border-border rounded-xl px-4 py-2.5 text-xs font-semibold text-foreground outline-none focus:ring-1 focus:ring-foreground"
+                      className="ui-select w-full"
                     >
                       <option value="Revision">Revision</option>
                       <option value="Exam Prep">Exam Prep</option>

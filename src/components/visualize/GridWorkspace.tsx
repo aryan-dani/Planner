@@ -295,7 +295,7 @@ export function GridWorkspace({
               onChange={(e) =>
                 setGridHeuristic(e.target.value as GridHeuristicId)
               }
-              className="min-h-11 bg-transparent border border-border rounded-lg text-foreground text-sm px-2"
+              className="ui-select"
             >
               {GRID_HEURISTIC_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>

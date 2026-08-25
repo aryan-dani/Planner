@@ -37,3 +37,10 @@ jobs:
           FIREBASE_CLIENT_EMAIL: ${{ secrets.FIREBASE_CLIENT_EMAIL }}
           FIREBASE_PRIVATE_KEY: ${{ secrets.FIREBASE_PRIVATE_KEY }}
           GOOGLE_DRIVE_FOLDER_ID: ${{ secrets.GOOGLE_DRIVE_FOLDER_ID }}
+
+      - name: Revalidate production cache tags
+        if: ${{ secrets.CRON_SECRET != '' && secrets.VERCEL_REVALIDATE_URL != '' }}
+        run: |
+          curl -fsS -X POST "${{ secrets.VERCEL_REVALIDATE_URL }}" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            -H "Content-Type: application/json"

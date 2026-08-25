@@ -60,22 +60,42 @@ function LoginContent() {
 
   const redirectTo = sanitizeRedirectTo(searchParams.get("redirectTo"));
 
-  // If already logged in, redirect
+  // If already logged in, redirect after merge handling completes
   useEffect(() => {
-    consumeRedirectResult(auth).then((outcome) => {
-      const next = takeRememberedRedirectTo() || redirectTo;
-      if (outcome.status === "linked") {
-        router.push(next);
-      } else if (outcome.status === "needs-github-confirm" || outcome.status === "needs-google-confirm") {
-        router.push("/profile");
+    let cancelled = false;
+    let mergeHandled = false;
+
+    (async () => {
+      try {
+        const outcome = await consumeRedirectResult(auth);
+        if (cancelled) return;
+        mergeHandled = true;
+        const next = takeRememberedRedirectTo() || redirectTo;
+        if (outcome.status === "linked") {
+          router.push(next);
+        } else if (
+          outcome.status === "needs-github-confirm" ||
+          outcome.status === "needs-google-confirm"
+        ) {
+          router.push("/profile");
+        } else if (auth.currentUser) {
+          router.push(redirectTo);
+        }
+      } catch {
+        mergeHandled = true;
+        if (auth.currentUser) router.push(redirectTo);
       }
-    }).catch(() => {});
+    })();
+
     const unsubscribe = auth.onAuthStateChanged((user) => {
-      if (user) {
-        router.push(redirectTo);
-      }
+      if (!mergeHandled || !user) return;
+      router.push(redirectTo);
     });
-    return () => unsubscribe();
+
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
   }, [redirectTo, router]);
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -85,9 +105,7 @@ function LoginContent() {
 
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      setTimeout(() => {
-        router.push(redirectTo);
-      }, 500);
+      router.push(redirectTo);
     } catch (err: any) {
       setError(getFriendlyErrorMessage(err.code || err.message));
       setLoading(false);
@@ -104,9 +122,7 @@ function LoginContent() {
         rememberRedirectTo(redirectTo);
         return;
       }
-      setTimeout(() => {
-        router.push(redirectTo);
-      }, 500);
+      router.push(redirectTo);
     } catch (err: any) {
       setError(getFriendlyErrorMessage(err.code || err.message));
       setGoogleLoading(false);
@@ -123,16 +139,12 @@ function LoginContent() {
         rememberRedirectTo(redirectTo);
         return;
       }
-      setTimeout(() => {
-        router.push(redirectTo);
-      }, 500);
+      router.push(redirectTo);
     } catch (err: any) {
       try {
         const linked = await linkGithubOverGoogleAccount(auth, err);
         if (linked) {
-          setTimeout(() => {
-            router.push(redirectTo);
-          }, 500);
+          router.push(redirectTo);
           return;
         }
       } catch (linkErr: any) {

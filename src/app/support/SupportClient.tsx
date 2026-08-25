@@ -2,9 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { Check, Copy } from "lucide-react";
-import { auth, db } from "@/lib/firebase";
+import { auth } from "@/lib/firebase";
 import { onAuthStateChanged, type User as FirebaseUser } from "firebase/auth";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { toast } from "sonner";
 import Link from "next/link";
 
@@ -77,16 +76,27 @@ export default function SupportClient() {
 
     setIsSubmitting(true);
     try {
-      await addDoc(collection(db, "support_messages"), {
-        userId: currentUser?.uid || "anonymous",
-        name: formName || "Anonymous",
-        email: formEmail || "no-email@shared.com",
-        txnId: formTxnId.trim(),
-        message: formMessage.trim(),
-        amount,
-        status: "pending_verification",
-        createdAt: serverTimestamp(),
+      const user = auth.currentUser;
+      if (!user) {
+        toast.error("Sign in to send a support message");
+        return;
+      }
+      const idToken = await user.getIdToken();
+      const res = await fetch("/api/support", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({
+          name: formName,
+          email: formEmail,
+          txnId: formTxnId.trim(),
+          message: formMessage.trim(),
+          amount,
+        }),
       });
+      if (!res.ok) throw new Error(await res.text());
       setIsSubmitted(true);
       toast.success("Thanks. Message saved.");
       setFormTxnId("");

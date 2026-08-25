@@ -1,4 +1,5 @@
 import { ResourceItem } from "@/lib/dataFetcher";
+import { subjectToSlug } from "@/lib/resourceUrl";
 import {
   getFileExtension,
   isNotebookExtension,
@@ -132,23 +133,61 @@ function folderSlug(kind: FolderKind, key: string | number): string {
   return `other`;
 }
 
-export function assignmentFolderId(key: string): string {
-  return folderSlug("assignment", assignmentBaseNum(key) || key);
+const FOLDER_SCOPE_SEP = "::";
+
+/** URL-safe subject prefix so folder ids do not collide across subjects. */
+export function subjectFolderScope(subjectName: string): string {
+  return subjectToSlug(subjectName).toLowerCase();
 }
 
-export function unitFolderId(num: number): string {
-  return folderSlug("unit", num);
+export function scopedFolderId(subjectName: string, baseId: string): string {
+  return `${subjectFolderScope(subjectName)}${FOLDER_SCOPE_SEP}${baseId}`;
 }
 
-export function yearFolderId(year: number): string {
-  return folderSlug("year", year);
+export function unscopedFolderId(scopedId: string): string {
+  const idx = scopedId.indexOf(FOLDER_SCOPE_SEP);
+  if (idx === -1) return scopedId;
+  return scopedId.slice(idx + FOLDER_SCOPE_SEP.length);
+}
+
+export function folderScopeSubject(scopedId: string): string | null {
+  const idx = scopedId.indexOf(FOLDER_SCOPE_SEP);
+  if (idx === -1) return null;
+  try {
+    return decodeURIComponent(scopedId.slice(0, idx));
+  } catch {
+    return scopedId.slice(0, idx);
+  }
+}
+
+export function assignmentFolderId(key: string, subjectName?: string): string {
+  const base = folderSlug("assignment", assignmentBaseNum(key) || key);
+  return subjectName ? scopedFolderId(subjectName, base) : base;
+}
+
+export function unitFolderId(num: number, subjectName?: string): string {
+  const base = folderSlug("unit", num);
+  return subjectName ? scopedFolderId(subjectName, base) : base;
+}
+
+export function yearFolderId(year: number, subjectName?: string): string {
+  const base = folderSlug("year", year);
+  return subjectName ? scopedFolderId(subjectName, base) : base;
+}
+
+function otherFolderId(subjectName?: string): string {
+  const base = "other";
+  return subjectName ? scopedFolderId(subjectName, base) : base;
 }
 
 /**
  * Group writeups + codes (+ datasets) into Assignment folders.
  * Letter variants (2A, 2B) nest under Assignment 2.
  */
-export function groupByAssignment(items: ResourceItem[]): ResourceFolderNode[] {
+export function groupByAssignment(
+  items: ResourceItem[],
+  subjectName?: string,
+): ResourceFolderNode[] {
   type Bucket = {
     key: string;
     files: ResourceItem[];
@@ -179,7 +218,7 @@ export function groupByAssignment(items: ResourceItem[]): ResourceFolderNode[] {
     let parent = parents.get(num);
     if (!parent) {
       parent = {
-        id: assignmentFolderId(String(num)),
+        id: assignmentFolderId(String(num), subjectName),
         kind: "assignment",
         label: `Assignment ${num}`,
         sortKey: num,
@@ -198,8 +237,9 @@ export function groupByAssignment(items: ResourceItem[]): ResourceFolderNode[] {
     const files = sortFilesByRole(bucket.files);
 
     if (isLetterVariant(bucket.key) && bucket.key.toUpperCase() !== String(num)) {
+      const childBase = `assignment-${bucket.key.toLowerCase()}`;
       parent.children.push({
-        id: `assignment-${bucket.key.toLowerCase()}`,
+        id: subjectName ? scopedFolderId(subjectName, childBase) : childBase,
         kind: "assignment",
         label: `Assignment ${bucket.key.toUpperCase()}`,
         sortKey: num,
@@ -228,7 +268,7 @@ export function groupByAssignment(items: ResourceItem[]): ResourceFolderNode[] {
 
   if (ungrouped.length > 0) {
     result.push({
-      id: "other",
+      id: otherFolderId(subjectName),
       kind: "other",
       label: "Other files",
       sortKey: 9999,
@@ -241,7 +281,10 @@ export function groupByAssignment(items: ResourceItem[]): ResourceFolderNode[] {
 }
 
 /** Group notes/PPT by Unit N. */
-export function groupByUnit(items: ResourceItem[]): ResourceFolderNode[] {
+export function groupByUnit(
+  items: ResourceItem[],
+  subjectName?: string,
+): ResourceFolderNode[] {
   const buckets = new Map<number, ResourceItem[]>();
   const ungrouped: ResourceItem[] = [];
 
@@ -259,7 +302,7 @@ export function groupByUnit(items: ResourceItem[]): ResourceFolderNode[] {
   const result: ResourceFolderNode[] = Array.from(buckets.entries())
     .sort(([a], [b]) => a - b)
     .map(([num, files]) => ({
-      id: unitFolderId(num),
+      id: unitFolderId(num, subjectName),
       kind: "unit" as const,
       label: `Unit ${num}`,
       sortKey: num,
@@ -270,7 +313,7 @@ export function groupByUnit(items: ResourceItem[]): ResourceFolderNode[] {
 
   if (ungrouped.length > 0) {
     result.push({
-      id: "other",
+      id: otherFolderId(subjectName),
       kind: "other",
       label: "Other files",
       sortKey: 9999,
@@ -283,7 +326,10 @@ export function groupByUnit(items: ResourceItem[]): ResourceFolderNode[] {
 }
 
 /** Group PYQ by year. */
-export function groupByYear(items: ResourceItem[]): ResourceFolderNode[] {
+export function groupByYear(
+  items: ResourceItem[],
+  subjectName?: string,
+): ResourceFolderNode[] {
   const buckets = new Map<number, ResourceItem[]>();
   const ungrouped: ResourceItem[] = [];
 
@@ -301,7 +347,7 @@ export function groupByYear(items: ResourceItem[]): ResourceFolderNode[] {
   const result: ResourceFolderNode[] = Array.from(buckets.entries())
     .sort(([a], [b]) => b - a) // newest first
     .map(([year, files]) => ({
-      id: yearFolderId(year),
+      id: yearFolderId(year, subjectName),
       kind: "year" as const,
       label: String(year),
       sortKey: year,
@@ -312,7 +358,7 @@ export function groupByYear(items: ResourceItem[]): ResourceFolderNode[] {
 
   if (ungrouped.length > 0) {
     result.push({
-      id: "other",
+      id: otherFolderId(subjectName),
       kind: "other",
       label: "Other files",
       sortKey: 0,
@@ -378,6 +424,7 @@ export function findFolderById(
 
 /** Resolve which assignment/unit/year folder a resource belongs to. */
 export function folderIdForResource(item: ResourceItem): string | null {
+  const subject = item.subject_name;
   if (
     item.category === "writeup" ||
     item.category === "codes" ||
@@ -387,16 +434,16 @@ export function folderIdForResource(item: ResourceItem): string | null {
       parseAssignmentKey(item.title) || parseWriteUpKey(item.title);
     if (key) {
       const base = assignmentBaseNum(key);
-      return assignmentFolderId(String(base || key));
+      return assignmentFolderId(String(base || key), subject);
     }
   }
   if (item.category === "notes" || item.category === "ppt") {
     const unit = parseUnitKey(item.title);
-    if (unit) return unitFolderId(unit.num);
+    if (unit) return unitFolderId(unit.num, subject);
   }
   if (item.category === "pyq") {
     const year = parseYearKey(item.title);
-    if (year) return yearFolderId(year);
+    if (year) return yearFolderId(year, subject);
   }
   return null;
 }
@@ -404,13 +451,14 @@ export function folderIdForResource(item: ResourceItem): string | null {
 /** Human label for a folder id, e.g. assignment-1 → Assignment 1 */
 export function folderLabelFromId(folderId: string | null | undefined): string | null {
   if (!folderId) return null;
-  const assignment = folderId.match(/^assignment-(.+)$/i);
+  const baseId = unscopedFolderId(folderId);
+  const assignment = baseId.match(/^assignment-(.+)$/i);
   if (assignment) return `Assignment ${assignment[1].toUpperCase()}`;
-  const unit = folderId.match(/^unit-(\d+)$/i);
+  const unit = baseId.match(/^unit-(\d+)$/i);
   if (unit) return `Unit ${unit[1]}`;
-  const year = folderId.match(/^year-(\d+)$/i);
+  const year = baseId.match(/^year-(\d+)$/i);
   if (year) return year[1];
-  if (folderId === "other") return "Other files";
+  if (baseId === "other") return "Other files";
   return null;
 }
 

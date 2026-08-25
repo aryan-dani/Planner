@@ -85,6 +85,12 @@ export function ProgressClient() {
         </motion.p>
       </motion.header>
 
+      {signedIn === null && (
+        <div className="rounded-xl border border-border bg-card p-5 max-w-xl">
+          <p className="text-sm text-muted">Loading your progress…</p>
+        </div>
+      )}
+
       {signedIn === false && (
         <div className="rounded-xl border border-border bg-card p-5 max-w-xl">
           <p className="text-sm font-semibold text-foreground">

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { isAuthFailure, requireAdmin } from "@/lib/apiAuth";
 
@@ -129,6 +130,9 @@ export async function PATCH(request: Request) {
       subject_id,
     });
 
+    revalidateTag("resources", "max");
+    revalidateTag("subjects", "max");
+
     return NextResponse.json({ success: true });
   } catch (error: any) {
     console.error("Error updating resource:", error);
@@ -159,6 +163,9 @@ export async function DELETE(request: Request) {
     batch.delete(db.collection("resources").doc(id));
     batch.delete(db.collection("resource_content").doc(id));
     await batch.commit();
+
+    revalidateTag("resources", "max");
+    revalidateTag("subjects", "max");
 
     return NextResponse.json({ success: true });
   } catch (error: any) {

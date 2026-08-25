@@ -255,7 +255,7 @@ function TaskItem({
         <select
           value={task.status || (task.done ? 'done' : 'todo')}
           onChange={(e) => onUpdateStatus?.(e.target.value as any)}
-          className="text-xs font-bold px-2 py-1.5 min-h-11 md:min-h-0 rounded-md border border-border bg-surface text-foreground outline-none cursor-pointer"
+          className="ui-select ui-select-sm"
         >
           <option value="todo">To Do</option>
           <option value="in-progress">In Progress</option>
@@ -674,7 +674,7 @@ function ShareModal({
                   <select
                     value={role}
                     onChange={(e) => setRole(e.target.value as 'editor' | 'viewer')}
-                    className="bg-surface border border-border rounded-lg px-2 py-2 text-xs text-foreground outline-none"
+                    className="ui-select ui-select-sm"
                   >
                     <option value="editor">Editor</option>
                     <option value="viewer">Viewer</option>
@@ -879,6 +879,8 @@ export default function PlannerClient() {
   const [quickAddText, setQuickAddText] = useState('');
   const [moreOpen, setMoreOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cloudHydratingRef = useRef(false);
+  const lastPushedSnapshotRef = useRef<string | null>(null);
 
   const today = todayISO();
   const calendarDays = useMemo(() => getCalendarDays(month, year), [month, year]);
@@ -952,6 +954,11 @@ export default function PlannerClient() {
       if (!res.ok) throw new Error(await res.text());
       const resData = await res.json();
       setPlanMeta(prev => ({ ...prev, id: resData.id }));
+      lastPushedSnapshotRef.current = JSON.stringify({
+        data: planData,
+        title: planMeta.title,
+        is_public: planMeta.is_public,
+      });
       setLastSynced(new Date());
     } catch (e) {
       console.error('Sync error:', e);
@@ -962,6 +969,7 @@ export default function PlannerClient() {
 
   const pullFromCloud = useCallback(async () => {
     if (!user) return;
+    cloudHydratingRef.current = true;
     setSyncing(true);
     try {
       const firebaseUser = auth.currentUser;
@@ -979,14 +987,16 @@ export default function PlannerClient() {
 
       if (resData.plan) {
         const p = resData.plan;
-        setPlanData(p.data || {});
-        setPlanMeta({
+        const nextData = p.data || {};
+        const nextMeta = {
           id: p.id,
           title: p.title || 'Study Plan',
           month,
           year,
           is_public: !!p.is_public
-        });
+        };
+        setPlanData(nextData);
+        setPlanMeta(nextMeta);
         
         let updatedDate = new Date();
         if (p.updated_at) {
@@ -994,21 +1004,35 @@ export default function PlannerClient() {
         }
         setLastSynced(updatedDate);
         localStorage.setItem(storageKey(month, year), JSON.stringify({
-          data: p.data,
-          meta: { id: p.id, title: p.title, month, year, is_public: !!p.is_public }
+          data: nextData,
+          meta: nextMeta
         }));
+
+        lastPushedSnapshotRef.current = JSON.stringify({
+          data: nextData,
+          title: nextMeta.title,
+          is_public: nextMeta.is_public,
+        });
 
         setCollaborators(resData.collaborators || []);
       }
     } catch (e) {
       console.error(e);
     } finally {
+      cloudHydratingRef.current = false;
       setSyncing(false);
     }
   }, [user, month, year]);
 
   useEffect(() => {
     if (!user || !mounted) return;
+    if (cloudHydratingRef.current) return;
+    const snapshot = JSON.stringify({
+      data: planData,
+      title: planMeta.title,
+      is_public: planMeta.is_public,
+    });
+    if (snapshot === lastPushedSnapshotRef.current) return;
     const timer = setTimeout(() => pushToCloud(), 2000);
     return () => clearTimeout(timer);
   }, [planData, planMeta, user, mounted, pushToCloud]);

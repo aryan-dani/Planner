@@ -250,13 +250,18 @@ export async function confirmMergeWithGoogle(auth: Auth): Promise<LinkMergeResul
   }
 }
 
-let consumeOnce: Promise<LinkMergeResult> | null = null;
+let redirectOutcome: LinkMergeResult | null = null;
+let redirectOutcomePromise: Promise<LinkMergeResult> | null = null;
 
 export async function consumeRedirectResult(auth: Auth): Promise<LinkMergeResult> {
-  if (!consumeOnce) {
-    consumeOnce = consumeRedirectResultImpl(auth);
+  if (redirectOutcome) return redirectOutcome;
+  if (!redirectOutcomePromise) {
+    redirectOutcomePromise = consumeRedirectResultImpl(auth).then((result) => {
+      redirectOutcome = result;
+      return result;
+    });
   }
-  return consumeOnce;
+  return redirectOutcomePromise;
 }
 
 async function consumeRedirectResultImpl(auth: Auth): Promise<LinkMergeResult> {

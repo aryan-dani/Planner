@@ -5,6 +5,8 @@
 
 import { db } from "../lib/firebase.mjs";
 
+const BATCH_LIMIT = 500;
+
 export default async function purgeCache() {
   console.log(`\n🧹 Starting Semantic Cache Cleanup…\n`);
 
@@ -26,13 +28,17 @@ export default async function purgeCache() {
 
     console.log(`🗑️ Found ${snapshot.size} expired cache entries. Deleting...`);
 
-    const batch = db.batch();
-    snapshot.docs.forEach((doc) => {
-      batch.delete(doc.ref);
-    });
+    let deleted = 0;
+    for (let i = 0; i < snapshot.docs.length; i += BATCH_LIMIT) {
+      const batch = db.batch();
+      const chunk = snapshot.docs.slice(i, i + BATCH_LIMIT);
+      chunk.forEach((doc) => batch.delete(doc.ref));
+      await batch.commit();
+      deleted += chunk.length;
+      console.log(`  ✅ Deleted ${deleted}/${snapshot.size}`);
+    }
 
-    await batch.commit();
-    console.log(`✅ Successfully deleted ${snapshot.size} expired cache entries.\n`);
+    console.log(`✅ Successfully deleted ${deleted} expired cache entries.\n`);
   } catch (error) {
     console.error(`❌ Cache cleanup failed: ${error.message}`);
   }

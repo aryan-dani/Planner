@@ -80,7 +80,7 @@ export function CspWorkspace({ algorithmId }: CspWorkspaceProps) {
           <select
             value={n}
             onChange={(e) => setN(Number(e.target.value))}
-            className="min-h-11 bg-transparent border-b border-border text-foreground text-sm px-1"
+            className="ui-select ui-select-sm"
           >
             {[4, 5, 6, 7, 8].map((size) => (
               <option key={size} value={size}>

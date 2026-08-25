@@ -8,6 +8,7 @@ import {
 import { adminDb } from '@/lib/firebaseAdmin';
 import { performRAGSearch } from '@/lib/ragSearch';
 import { isAuthFailure, requireUser } from '@/lib/apiAuth';
+import { enforceUserRateLimit } from '@/lib/rateLimit';
 import { DEFAULT_BRANCH, DEFAULT_SEMESTER } from '@/lib/workspace';
 import { z } from 'zod';
 
@@ -83,6 +84,14 @@ function cachedTextStreamResponse(text: string) {
 export async function POST(req: Request) {
   const auth = await requireUser(req);
   if (isAuthFailure(auth)) return auth;
+
+  const rate = enforceUserRateLimit(auth.uid, "chat", 30, 60_000);
+  if (!rate.allowed) {
+    return new Response(JSON.stringify({ error: 'Rate limit exceeded. Try again shortly.' }), {
+      status: 429,
+      headers: { 'Retry-After': String(rate.retryAfterSec), 'Content-Type': 'application/json' },
+    });
+  }
 
   let body;
   try {

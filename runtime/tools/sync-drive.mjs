@@ -30,6 +30,8 @@ async function retrieveAllFiles(folderId, currentPath = "") {
       fields: "nextPageToken, files(id, name, mimeType, modifiedTime)",
       pageSize: 100,
       pageToken: pageToken,
+      supportsAllDrives: true,
+      includeItemsFromAllDrives: true,
     });
 
     const files = res.data.files || [];
@@ -79,6 +81,7 @@ async function syncDrive() {
     };
     const liveSubjectIds = new Set();
     const liveResourceIds = new Set();
+    const syncedSubjectIds = new Set();
 
     for (const file of files) {
       // Expected path: [optional_branch_parent/]Semester_Branch/Category/Subject/File
@@ -122,14 +125,18 @@ async function syncDrive() {
         `subject-${branch}-${semester}-${subjectName.toLowerCase()}`,
       );
       const subjectRef = db.collection("subjects").doc(subjectId);
-      await subjectRef.set(
-        {
-          name: subjectName,
-          branch: branch,
-          semester: semester,
-        },
-        { merge: true },
-      );
+      if (!syncedSubjectIds.has(subjectId)) {
+        await subjectRef.set(
+          {
+            name: subjectName,
+            branch: branch,
+            semester: semester,
+          },
+          { merge: true },
+        );
+        syncedSubjectIds.add(subjectId);
+        stats.subjects++;
+      }
       liveSubjectIds.add(subjectId);
 
       // 2. Sync Resource to Firestore

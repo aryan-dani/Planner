@@ -73,7 +73,21 @@ export async function POST(
       return NextResponse.json({ error: "Deck not found" }, { status: 404 });
     }
 
-    await deckRef.update({ upvotes: FieldValue.increment(1) });
+    const voteRef = db.collection("community_deck_upvotes").doc(`${auth.uid}_${id}`);
+    const existingVote = await voteRef.get();
+    if (existingVote.exists) {
+      const upvotes = Number(deckDoc.data()?.upvotes || 0);
+      return NextResponse.json({ success: true, upvotes, alreadyUpvoted: true });
+    }
+
+    await db.runTransaction(async (transaction) => {
+      transaction.set(voteRef, {
+        uid: auth.uid,
+        deck_id: id,
+        created_at: FieldValue.serverTimestamp(),
+      });
+      transaction.update(deckRef, { upvotes: FieldValue.increment(1) });
+    });
     const updated = await deckRef.get();
     const upvotes = Number(updated.data()?.upvotes || 0);
 

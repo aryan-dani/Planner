@@ -128,8 +128,12 @@ export default async function indexContent() {
           const fileId = fileIdMatch[1];
           const drive = getDrive();
           const driveRes = await drive.files.get(
-            { fileId: fileId, alt: "media" },
-            { responseType: "arraybuffer" }
+            {
+              fileId: fileId,
+              alt: "media",
+              supportsAllDrives: true,
+            },
+            { responseType: "arraybuffer" },
           );
           buffer = Buffer.from(driveRes.data);
         } else {
