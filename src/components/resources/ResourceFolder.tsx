@@ -50,7 +50,7 @@ export default function ResourceFolder({
   return (
     <div
       ref={ref}
-      id={`folder-${folder.id}`}
+      data-folder-scroll={folder.id}
       className="border-b border-border/60 last:border-b-0"
     >
       <button

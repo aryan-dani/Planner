@@ -10,6 +10,7 @@ import {
   singletonFile,
   allTopLevelSingletons,
   collectSingletonFiles,
+  folderScrollSelector,
 } from "@/lib/resourceGroups";
 import { motion, AnimatePresence } from "framer-motion";
 import ResourceCard from "./ResourceCard";
@@ -97,7 +98,9 @@ export default function ResourceSection({
 
   useEffect(() => {
     if (!flattenAllSingles || !activeFolderId || !scrollRef.current) return;
-    const el = scrollRef.current.querySelector(`#folder-${activeFolderId}`);
+    const el = scrollRef.current.querySelector(
+      folderScrollSelector(activeFolderId),
+    );
     el?.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }, [flattenAllSingles, activeFolderId, singletonCardItems.length]);
 
@@ -207,11 +210,9 @@ export default function ResourceSection({
                     return (
                       <motion.div
                         key={item.id}
-                        id={
-                          folderMatch && activeFolderId === folderMatch.id
-                            ? `folder-${folderMatch.id}`
-                            : undefined
-                        }
+                        {...(folderMatch && activeFolderId === folderMatch.id
+                          ? { "data-folder-scroll": folderMatch.id }
+                          : {})}
                         initial={{ opacity: 0, y: 8 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{

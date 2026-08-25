@@ -541,3 +541,10 @@ export function subjectSummaryCounts(items: ResourceItem[]): {
     qb,
   };
 }
+
+export const FOLDER_SCROLL_ATTR = "data-folder-scroll";
+
+/** CSS selector for a folder scroll anchor (scoped ids may contain `::`). */
+export function folderScrollSelector(folderId: string): string {
+  return `[${FOLDER_SCROLL_ATTR}="${CSS.escape(folderId)}"]`;
+}
