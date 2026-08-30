@@ -1,203 +1,276 @@
 /**
  * runtime/tools/index-content.mjs
- * Indexes the full-text content of resources (from Google Drive or Firebase Storage) into the database.
- * Enables AI summarization, denormalized metadata, and tokenized keyword search.
+ * Indexes resources into resource_content (legacy) + resource_chunks (hybrid RAG).
  */
 
-import { select, upsert } from "../lib/db.mjs";
+import crypto from "crypto";
+import { select, upsert, remove } from "../lib/db.mjs";
 import { downloadFile } from "../lib/storage.mjs";
-import { extractText } from "../lib/extractor.mjs";
+import { extractStructured } from "../lib/extractor.mjs";
 import { getDrive } from "../lib/drive.mjs";
+import { chunkUnits, buildDocFreq, capDocFreq } from "../lib/chunker.mjs";
+import { embedChunks } from "../lib/embed.mjs";
+import { MAX_DOC_FREQ_TERMS } from "../lib/rag/config.mjs";
+import { db } from "../lib/firebase.mjs";
+import { FieldValue } from "firebase-admin/firestore";
 
-function extractSearchTokens(text, title, subjectName) {
-  const combined = `${title} ${subjectName} ${text}`;
-  const clean = combined.toLowerCase().replace(/[^a-z0-9\s]/g, " ");
-  const words = clean.split(/\s+/);
-  const stopWords = new Set([
-    "the", "is", "a", "and", "or", "in", "of", "to", "for", "with", "on", 
-    "at", "by", "an", "this", "that", "it", "from", "as", "are", "be", "was",
-    "were", "but", "not", "he", "she", "they", "them", "his", "her", "their"
-  ]);
-  const tokens = new Set();
-  for (const word of words) {
-    if (word.length >= 3 && word.length <= 25 && !stopWords.has(word)) {
-      tokens.add(word);
+const SUPPORTED_EXTS = [".pdf", ".docx", ".pptx", ".xlsx"];
+const PAGE_SIZE = 500;
+
+function hashBuffer(buffer) {
+  return crypto.createHash("sha256").update(buffer).digest("hex");
+}
+
+function getExt(resource) {
+  const title = (resource.title || "").toLowerCase();
+  const url = (resource.file_url || "").toLowerCase().split("?")[0];
+  for (const ext of SUPPORTED_EXTS) {
+    if (title.endsWith(ext.slice(1)) || url.endsWith(ext)) {
+      return ext.slice(1);
     }
   }
-  return Array.from(tokens).slice(0, 5000); // safety cap
+  return (title.split(".").pop() || "").toLowerCase();
+}
+
+async function fetchAll(table, columns = "*") {
+  const all = [];
+  let offset = 0;
+  while (true) {
+    const { data } = await select(table, { columns, limit: PAGE_SIZE, offset });
+    if (!data.length) break;
+    all.push(...data);
+    if (data.length < PAGE_SIZE) break;
+    offset += PAGE_SIZE;
+  }
+  return all;
+}
+
+async function downloadResourceBuffer(res) {
+  if (res.file_url.includes("drive.google.com")) {
+    const fileIdMatch = res.file_url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+    if (!fileIdMatch) throw new Error("Could not extract Google Drive file ID");
+    const drive = getDrive();
+    const driveRes = await drive.files.get(
+      { fileId: fileIdMatch[1], alt: "media", supportsAllDrives: true },
+      { responseType: "arraybuffer" },
+    );
+    return Buffer.from(driveRes.data);
+  }
+
+  const url = new URL(res.file_url);
+  const pathParts = decodeURIComponent(url.pathname).split("/course-content/");
+  if (pathParts.length < 2) throw new Error("Invalid storage URL");
+  return downloadFile("course-content", pathParts[1]);
+}
+
+async function deleteStaleChunks(resourceId, keepCount) {
+  const { data } = await select("resource_chunks", {
+    columns: "id,chunk_index",
+    where: [{ column: "resource_id", op: "eq", value: resourceId }],
+    limit: 5000,
+  });
+  const stale = data.filter((d) => (d.chunk_index ?? 0) >= keepCount);
+  for (let i = 0; i < stale.length; i += 30) {
+    const batch = stale.slice(i, i + 30);
+    if (batch.length === 0) continue;
+    await remove("resource_chunks", [
+      { column: "id", op: "in", value: batch.map((s) => s.id) },
+    ]);
+  }
 }
 
 export default async function indexContent() {
-  console.log(`\n🔍 Starting Content Indexing…\n`);
+  console.log("\n🔍 Starting Hybrid Content Indexing…\n");
 
   try {
-    // 1. Fetch all resources
-    const { data: resources } = await select("resources", { limit: 5000 });
-    const supportedExts = [".pdf", ".docx", ".pptx", ".xlsx"];
+    const resources = await fetchAll("resources");
     const indexable = resources.filter((r) => {
-      const url = r.file_url.toLowerCase().split("?")[0];
-      const title = (r.title || "").toLowerCase();
-      return supportedExts.some(
-        (ext) => url.endsWith(ext) || title.endsWith(ext),
-      );
+      const ext = getExt(r);
+      return SUPPORTED_EXTS.some((e) => e === `.${ext}`);
     });
 
-    console.log(`📦 Found ${indexable.length} indexable resources to check.\n`);
+    console.log(`📦 ${indexable.length} indexable resources.\n`);
 
-    // 2. Fetch all subjects for mapping metadata
-    let subjectsMap = new Map();
-    try {
-      const { data: subjects } = await select("subjects", { limit: 5000 });
-      subjectsMap = new Map(subjects.map((s) => [s.id, s]));
-      console.log(`✅ Loaded ${subjectsMap.size} subjects for metadata mapping.`);
-    } catch (e) {
-      console.warn(`⚠️  Could not fetch subjects. Metadata mapping will be limited.`);
+    const subjects = await fetchAll("subjects");
+    const subjectsMap = new Map(subjects.map((s) => [s.id, s]));
+
+    const indexedContent = await fetchAll("resource_content", "resource_id, last_indexed, search_tokens, content_hash");
+    const indexedMap = new Map(indexedContent.map((i) => [i.resource_id, i]));
+
+    const existingChunks = await fetchAll("resource_chunks", "resource_id, content_hash, chunk_index");
+    const chunkHashMap = new Map();
+    for (const c of existingChunks) {
+      if (!chunkHashMap.has(c.resource_id)) chunkHashMap.set(c.resource_id, new Set());
+      chunkHashMap.get(c.resource_id).add(c.content_hash);
     }
 
-    // 3. Fetch already indexed IDs and timestamps
-    let indexedMap = new Map();
-    try {
-      const { data: indexed } = await select("resource_content", {
-        columns: "resource_id, last_indexed, search_tokens",
-        limit: 5000,
-      });
-      indexedMap = new Map(indexed.map((i) => [i.resource_id, i]));
-      console.log(`✅ ${indexedMap.size} resources already indexed.`);
-    } catch (e) {
-      console.warn(`⚠️  Could not fetch indexed IDs from Firebase.`);
-      console.log(
-        `👉 Please ensure your Firebase Firestore settings allow access to the 'resource_content' collection.\n`,
-      );
-      return;
-    }
-
-    const toIndex = indexable.filter((p) => {
-      const doc = indexedMap.get(p.id);
-      if (!doc) return true;
-      // Re-index if search_tokens is missing or empty (to migrate old indexes)
-      if (!doc.search_tokens || doc.search_tokens.length === 0) {
-        console.log(`🔄 Resource missing search_tokens: ${p.title}. Re-indexing...`);
-        return true;
+    const toIndex = [];
+    for (const res of indexable) {
+      const doc = indexedMap.get(res.id);
+      if (!doc) {
+        toIndex.push(res);
+        continue;
       }
+      if (!doc.search_tokens?.length) {
+        toIndex.push(res);
+        continue;
+      }
+      if (res.content_hash && doc.content_hash === res.content_hash) continue;
       if (
-        p.created_at &&
-        new Date(p.created_at).getTime() > new Date(doc.last_indexed).getTime()
+        res.created_at &&
+        doc.last_indexed &&
+        new Date(res.created_at).getTime() > new Date(doc.last_indexed).getTime()
       ) {
-        console.log(`🔄 File updated in storage: ${p.title}. Re-indexing...`);
-        return true;
+        toIndex.push(res);
       }
-      return false;
-    });
-    console.log(`🚀 ${toIndex.length} resources to index (new, updated, or migrating).\n`);
-
-    // Helper for parallel processing with concurrency limit
-    async function processInParallel(items, concurrency, processor) {
-      const results = [];
-      const executing = new Set();
-      for (const item of items) {
-        const p = Promise.resolve().then(() =>
-          processor(item, items.indexOf(item)),
-        );
-        results.push(p);
-        executing.add(p);
-        const clean = () => executing.delete(p);
-        p.then(clean).catch(clean);
-        if (executing.size >= concurrency) {
-          await Promise.race(executing);
-        }
-      }
-      return Promise.all(results);
     }
 
-    await processInParallel(toIndex, 5, async (res, index) => {
+    // Also index resources missing content_hash (first hybrid migration)
+    for (const res of indexable) {
+      if (!res.content_hash && !toIndex.find((r) => r.id === res.id)) {
+        toIndex.push(res);
+      }
+    }
+
+    console.log(`🚀 ${toIndex.length} resources to (re)index.\n`);
+
+    const allChunkTokens = [];
+
+    async function processResource(res, index) {
       try {
-        console.log(
-          `📄 [${index + 1}/${toIndex.length}] Indexing: ${res.title}...`,
-        );
+        console.log(`📄 [${index + 1}/${toIndex.length}] ${res.title}…`);
+        const ext = getExt(res);
+        const buffer = await downloadResourceBuffer(res);
+        const contentHash = hashBuffer(buffer);
 
-        let buffer;
-        const ext = (res.title.split(".").pop() || "").toLowerCase();
-
-        if (res.file_url.includes("drive.google.com")) {
-          // Google Drive download
-          const fileIdMatch = res.file_url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
-          if (!fileIdMatch) {
-            console.warn(`   ⚠️  Could not extract Google Drive file ID for ${res.title}, skipping.`);
-            return;
-          }
-          const fileId = fileIdMatch[1];
-          const drive = getDrive();
-          const driveRes = await drive.files.get(
-            {
-              fileId: fileId,
-              alt: "media",
-              supportsAllDrives: true,
-            },
-            { responseType: "arraybuffer" },
-          );
-          buffer = Buffer.from(driveRes.data);
-        } else {
-          // Firebase Storage download fallback
-          const url = new URL(res.file_url);
-          const pathParts = decodeURIComponent(url.pathname).split(
-            "/course-content/",
-          );
-          if (pathParts.length < 2) {
-            console.warn(`   ⚠️  Invalid URL format for ${res.title}, skipping.`);
-            return;
-          }
-          const path = pathParts[1];
-          buffer = await downloadFile("course-content", path);
-        }
-
-        const { text, pages } = await extractText(buffer, ext);
-
-        if (!text || text.trim().length === 0) {
-          console.warn(`   ⚠️  No text extracted for ${res.title}, skipping.`);
+        const { units, pages, fullText } = await extractStructured(buffer, ext);
+        if (!fullText?.trim() && units.length === 0) {
+          console.warn(`   ⚠️  No text extracted, skipping.`);
           return;
         }
 
-        const cleanText = text
+        const subject = subjectsMap.get(res.subject_id);
+        const subjectName = subject?.name || "";
+        const branch = subject?.branch || "";
+        const semester = subject?.semester ?? null;
+
+        const cleanText = (fullText || units.map((u) => u.text).join("\n\n"))
           .replace(/\u0000/g, "")
           .replace(/\\u0000/g, "")
           .replace(/\x00/g, "");
 
-        const subject = subjectsMap.get(res.subject_id);
-        const subjectName = subject ? subject.name : "";
-        const branch = subject ? subject.branch : "";
-        const semester = subject ? subject.semester : null;
-
-        const searchTokens = extractSearchTokens(cleanText, res.title, subjectName);
-
+        // Legacy resource_content (summarize API)
+        const legacyTokens = [...new Set(cleanText.toLowerCase().split(/\W+/).filter((w) => w.length >= 3))].slice(0, 5000);
         await upsert(
           "resource_content",
           {
             id: res.id,
             resource_id: res.id,
             content: cleanText.length > 800000 ? cleanText.substring(0, 800000) : cleanText,
-            pages: pages,
+            pages,
             last_indexed: new Date().toISOString(),
             title: res.title || "",
             subject_name: subjectName,
             file_url: res.file_url || "",
             snippet: cleanText.substring(0, 500),
-            branch: branch || "",
-            semester: semester,
-            search_tokens: searchTokens,
+            branch,
+            semester,
+            search_tokens: legacyTokens,
+            content_hash: contentHash,
           },
           "resource_id",
         );
 
-        console.log(`   ✅ Success (${pages} pages, ${text.length} chars, ${searchTokens.length} search tokens)`);
+        // Chunk-level index
+        const chunks = chunkUnits(units.length ? units : [{ text: cleanText, sectionLabel: "Document", sectionIndex: 1 }]);
+
+        for (const chunk of chunks) {
+          chunk.content_hash = crypto
+            .createHash("sha256")
+            .update(`${contentHash}:${chunk.chunk_index}:${chunk.text}`)
+            .digest("hex");
+          allChunkTokens.push(chunk);
+        }
+
+        const skipHashes = chunkHashMap.get(res.id) || new Set();
+        if (process.env.GEMINI_API_KEY) {
+          await embedChunks(chunks, skipHashes);
+        } else {
+          console.warn("   ⚠️  GEMINI_API_KEY not set — skipping embeddings (lexical search only).");
+        }
+
+        for (const chunk of chunks) {
+          const docId = `${res.id}_${chunk.chunk_index}`;
+          const payload = {
+            id: docId,
+            resource_id: res.id,
+            chunk_index: chunk.chunk_index,
+            text: chunk.text,
+            section_label: chunk.section_label,
+            section_index: chunk.section_index,
+            heading: chunk.heading || "",
+            branch,
+            semester,
+            subject_id: res.subject_id || "",
+            subject_name: subjectName,
+            category: res.category || "other",
+            title: res.title || "",
+            file_url: res.file_url || "",
+            chunk_tokens: chunk.chunk_tokens,
+            token_count: chunk.token_count,
+            content_hash: chunk.content_hash,
+            last_indexed: new Date().toISOString(),
+          };
+
+          if (chunk.embedding?.length) {
+            payload.embedding = FieldValue.vector(chunk.embedding);
+          }
+
+          await upsert("resource_chunks", payload, "resource_id");
+        }
+
+        await deleteStaleChunks(res.id, chunks.length);
+
+        await db.collection("resources").doc(res.id).set(
+          { content_hash: contentHash },
+          { merge: true },
+        );
+
+        console.log(`   ✅ ${chunks.length} chunks, ${pages} pages`);
       } catch (err) {
-        console.error(`   ❌ Failed (${res.title}): ${err.message}`);
+        console.error(`   ❌ ${res.title}: ${err.message}`);
       }
+    }
+
+    // Process with concurrency 5
+    const executing = new Set();
+    for (let i = 0; i < toIndex.length; i++) {
+      const p = processResource(toIndex[i], i);
+      executing.add(p);
+      p.finally(() => executing.delete(p));
+      if (executing.size >= 5) await Promise.race(executing);
+    }
+    await Promise.all(executing);
+
+    // Corpus stats for BM25 IDF
+    console.log("\n📊 Computing corpus statistics…");
+    const allChunksForStats = await fetchAll("resource_chunks", "chunk_tokens, token_count");
+    const df = buildDocFreq(allChunksForStats);
+    const totalTokens = allChunksForStats.reduce((s, c) => s + (c.token_count || 0), 0);
+    const avgTokenCount = allChunksForStats.length
+      ? totalTokens / allChunksForStats.length
+      : 0;
+
+    await db.collection("rag_stats").doc("global").set({
+      total_chunks: allChunksForStats.length,
+      avg_token_count: avgTokenCount,
+      doc_freq: capDocFreq(df, MAX_DOC_FREQ_TERMS),
+      updated_at: new Date().toISOString(),
     });
 
-    console.log(
-      `\n✨ Indexing complete! Processed ${toIndex.length} resources.`,
-    );
+    console.log(`\n✨ Indexing complete. ${allChunksForStats.length} total chunks in corpus.\n`);
   } catch (error) {
-    console.error(`\n❌ Error during indexing: ${error.message}`);
+    console.error(`\n❌ Indexing error: ${error.message}`);
+    throw error;
   }
 }

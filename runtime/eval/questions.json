@@ -1,0 +1,93 @@
+[
+  {
+    "id": "q1",
+    "query": "explain BFS breadth first search",
+    "branch": "AIDS",
+    "semester": 4,
+    "expected_resource_id": null,
+    "acceptable_section_labels": ["Slide", "Page", "Section"],
+    "expected_subject": "Artificial Intelligence"
+  },
+  {
+    "id": "q2",
+    "query": "what is minimax algorithm",
+    "branch": "AIDS",
+    "semester": 4,
+    "expected_resource_id": null,
+    "acceptable_section_labels": ["Slide", "Page"],
+    "expected_subject": "Artificial Intelligence"
+  },
+  {
+    "id": "q3",
+    "query": "normalization in DBMS",
+    "branch": "AIDS",
+    "semester": 5,
+    "expected_resource_id": null,
+    "acceptable_section_labels": ["Slide", "Page", "Section"],
+    "expected_subject": "Database"
+  },
+  {
+    "id": "q4",
+    "query": "ETL data engineering pipeline",
+    "branch": "AIDS",
+    "semester": 4,
+    "expected_resource_id": null,
+    "acceptable_section_labels": ["Slide", "Page"],
+    "expected_subject": "Data Engineering"
+  },
+  {
+    "id": "q5",
+    "query": "dynamic programming knapsack",
+    "branch": "AIDS",
+    "semester": 4,
+    "expected_resource_id": null,
+    "acceptable_section_labels": ["Slide", "Page"],
+    "expected_subject": "Design and Analysis of Algorithms"
+  },
+  {
+    "id": "q6",
+    "query": "A star heuristic search",
+    "branch": "AIDS",
+    "semester": 4,
+    "expected_resource_id": null,
+    "acceptable_section_labels": ["Slide", "Page"],
+    "expected_subject": "Artificial Intelligence"
+  },
+  {
+    "id": "q7",
+    "query": "OLAP data warehouse",
+    "branch": "AIDS",
+    "semester": 4,
+    "expected_resource_id": null,
+    "acceptable_section_labels": ["Slide", "Page"],
+    "expected_subject": "Data Engineering"
+  },
+  {
+    "id": "q8",
+    "query": "alpha beta pruning",
+    "branch": "AIDS",
+    "semester": 4,
+    "expected_resource_id": null,
+    "acceptable_section_labels": ["Slide", "Page"],
+    "expected_subject": "Artificial Intelligence"
+  },
+  {
+    "id": "q9",
+    "query": "matplotlib seaborn visualization",
+    "branch": "AIDS",
+    "semester": 5,
+    "expected_resource_id": null,
+    "acceptable_section_labels": ["Slide", "Page"],
+    "expected_subject": "Data Visualization"
+  },
+  {
+    "id": "q10",
+    "query": "previous year question DBMS",
+    "branch": "AIDS",
+    "semester": 5,
+    "expected_resource_id": null,
+    "acceptable_section_labels": ["Slide", "Page"],
+    "expected_subject": "Database",
+    "category": "pyq"
+  }
+]
