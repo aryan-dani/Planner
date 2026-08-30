@@ -1,0 +1,10 @@
+{
+  "name": "Utility OS",
+  "install": "npm ci",
+  "terminals": [
+    {
+      "name": "next-dev",
+      "command": "npm run dev"
+    }
+  ]
+}
