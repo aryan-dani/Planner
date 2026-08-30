@@ -1,0 +1,135 @@
+import { adminDb } from "@/lib/firebaseAdmin";
+import { FieldValue } from "firebase-admin/firestore";
+import {
+  RETRIEVAL_CACHE_TTL_MS,
+  SEMANTIC_CACHE_DISTANCE,
+  EMBED_DIMS,
+} from "./config";
+import { embedQuery } from "./embed";
+import type { RetrievalResult } from "./types";
+
+interface CacheEntry<T> {
+  value: T;
+  expiresAt: number;
+}
+
+const retrievalMemory = new Map<string, CacheEntry<RetrievalResult>>();
+
+export function getRetrievalCache(key: string): RetrievalResult | null {
+  const entry = retrievalMemory.get(key);
+  if (!entry) return null;
+  if (Date.now() > entry.expiresAt) {
+    retrievalMemory.delete(key);
+    return null;
+  }
+  return entry.value;
+}
+
+export function setRetrievalCache(key: string, value: RetrievalResult): void {
+  retrievalMemory.set(key, {
+    value,
+    expiresAt: Date.now() + RETRIEVAL_CACHE_TTL_MS,
+  });
+  if (retrievalMemory.size > 500) {
+    const oldest = retrievalMemory.keys().next().value;
+    if (oldest) retrievalMemory.delete(oldest);
+  }
+}
+
+export interface SemanticCacheHit {
+  response: string;
+  sources?: unknown;
+}
+
+export async function lookupSemanticCache(params: {
+  uid: string;
+  query: string;
+  branch: string;
+  semester: number;
+  resourceId?: string;
+}): Promise<SemanticCacheHit | null> {
+  if (!process.env.GEMINI_API_KEY) return null;
+
+  try {
+    const queryVector = await embedQuery(params.query);
+    const db = adminDb();
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let ref: any = db
+      .collection("semantic_cache")
+      .where("branch", "==", params.branch)
+      .where("semester", "==", params.semester);
+
+    if (params.resourceId) {
+      ref = ref.where("resource_id", "==", params.resourceId);
+    } else {
+      ref = ref.where("resource_id", "==", null);
+    }
+
+    const vectorQuery = ref.findNearest({
+      vectorField: "query_embedding",
+      queryVector: FieldValue.vector(queryVector),
+      limit: 3,
+      distanceMeasure: "COSINE",
+      distanceResultField: "_distance",
+    });
+
+    const snap = await vectorQuery.get();
+    for (const doc of snap.docs) {
+      const data = doc.data();
+      const distance = doc.get("_distance") as number;
+      const createdAt = data.created_at ? new Date(data.created_at).getTime() : 0;
+      const fresh = Date.now() - createdAt < 7 * 24 * 60 * 60 * 1000;
+
+      if (fresh && distance <= SEMANTIC_CACHE_DISTANCE && data.response) {
+        return {
+          response: data.response as string,
+          sources: data.sources,
+        };
+      }
+    }
+  } catch (err) {
+    console.warn("Semantic cache vector lookup failed:", err);
+  }
+
+  return null;
+}
+
+export async function storeSemanticCache(params: {
+  uid: string;
+  query: string;
+  branch: string;
+  semester: number;
+  resourceId?: string;
+  response: string;
+  sources?: unknown;
+}): Promise<void> {
+  try {
+    const db = adminDb();
+    let queryEmbedding: number[] | null = null;
+
+    if (process.env.GEMINI_API_KEY) {
+      try {
+        queryEmbedding = await embedQuery(params.query);
+      } catch {
+        /* optional */
+      }
+    }
+
+    await db.collection("semantic_cache").add({
+      uid: params.uid,
+      prompt: params.query,
+      branch: params.branch,
+      semester: params.semester,
+      resource_id: params.resourceId || null,
+      response: params.response,
+      sources: params.sources || null,
+      created_at: new Date().toISOString(),
+      ...(queryEmbedding?.length === EMBED_DIMS
+        ? { query_embedding: FieldValue.vector(queryEmbedding) }
+        : {}),
+    });
+  } catch (err) {
+    console.warn("Semantic cache store failed:", err);
+  }
+}

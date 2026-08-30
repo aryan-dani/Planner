@@ -4,7 +4,7 @@ A premium, monochrome academic workspace for university students. Built with Nex
 
 ## Core Features
 
-- **Document Intelligence (RAG)**: Ask questions grounded in your uploaded PDFs, PPTs, and DOCs.
+- **Document Intelligence (Hybrid RAG)**: Slide-level chunk retrieval with BM25 + vector search, grounded citations (Slide 14 · DBMS.pptx), and scoped answers by branch/semester.
 - **Drive Sync Runtime**: Node scripts that sync a shared Google Drive folder into Firestore and index document text for search.
 - **Resource Vault**: Notes, presentations, question banks, and PYQs organized by branch and semester.
 - **Study Planner**: Collaborative weekly/monthly planning with natural-language prompts.
@@ -19,7 +19,7 @@ A premium, monochrome academic workspace for university students. Built with Nex
 - **Styling**: Tailwind CSS + custom monochrome design tokens
 - **Database / Auth**: Firebase (Firestore + Auth) via `firebase` / `firebase-admin`
 - **Storage**: Google Drive (shared folder sync)
-- **AI**: Groq (Llama 3.3) via Vercel AI SDK
+- **AI**: Groq (`GROQ_API_KEY`) for chat/study/summarize; Gemini (`GEMINI_API_KEY`) for search embeddings only
 - **Icons / Motion**: Lucide React, Framer Motion
 
 ## Deployment & Setup
@@ -51,6 +51,9 @@ NEXT_PUBLIC_ADMIN_EMAILS=you@example.com
 ADMIN_EMAILS=you@example.com
 GROQ_API_KEY=
 
+# Hybrid RAG embeddings (Google AI Studio — NOT a replacement for Groq)
+GEMINI_API_KEY=
+
 # Protect /api/webhooks/storage-sync (required for Vercel Cron in production)
 CRON_SECRET=
 
@@ -70,6 +73,8 @@ Set these on the Vercel project for **Production**, then redeploy:
 | Variable | Why |
 |----------|-----|
 | `GOOGLE_DRIVE_FOLDER_ID` | In-process Drive→Firestore sync / cron fallback |
+| `GROQ_API_KEY` | Chat, study, summarize (unchanged) |
+| `GEMINI_API_KEY` | Chunk embeddings during `index-content` + semantic search cache |
 | `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY` | Admin token verify + Drive JWT |
 | `NEXT_PUBLIC_ADMIN_EMAILS` | Admin UI + Sync Now button |
 | `GH_PAT` (workflow scope) | **Recommended** — Sync Now dispatches `storage-sync.yml` (sync + index) |
@@ -78,9 +83,34 @@ Set these on the Vercel project for **Production**, then redeploy:
 
 Without `GOOGLE_DRIVE_FOLDER_ID` **and** without `GH_PAT`, Sync Now returns **503** instead of a fake success.
 
-For GitHub Actions daily sync, add the same `FIREBASE_*` and `GOOGLE_DRIVE_FOLDER_ID` values as repository secrets.
+For GitHub Actions daily sync, add the same `FIREBASE_*`, `GOOGLE_DRIVE_FOLDER_ID`, and `GEMINI_API_KEY` values as repository secrets.
 
-### 2. Drive Sync & Indexing
+### 2. Hybrid RAG setup (one-time)
+
+Groq still powers answers. Gemini only embeds text for better search.
+
+```bash
+# See what's configured (never prints secret values)
+npm run check-rag-env
+
+# Deploy Firestore vector indexes (requires: firebase login once)
+npm run deploy:indexes
+
+# Re-index: slide-level chunks + optional Gemini embeddings
+npm run index-content
+
+# Measure retrieval quality after indexing
+npm run eval-rag
+```
+
+**You must do manually:**
+1. Create `GEMINI_API_KEY` at [Google AI Studio](https://aistudio.google.com/apikey) → add to `.env.local`, Vercel, GitHub Secrets
+2. Run `firebase login` once, then `npm run deploy:indexes`
+3. Trigger **Scheduled Storage Sync** in GitHub Actions (or `npm run index-content` locally)
+
+Without `GEMINI_API_KEY`, search falls back to keyword/BM25 (still scoped by semester). Without deployed indexes, vector search is skipped until indexes finish building in Firebase Console.
+
+### 3. Drive Sync & Indexing
 
 ```bash
 # Sync Drive folder → Firestore subjects/resources
@@ -134,7 +164,7 @@ npm run rename-drive-files          # dry-run (default)
 npm run rename-drive-files:apply    # apply trash + mechanical renames
 ```
 
-### 3. Run Locally
+### 4. Run Locally
 
 ```bash
 npm install

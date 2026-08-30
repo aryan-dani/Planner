@@ -1,0 +1,42 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "resource_chunks",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "branch", "order": "ASCENDING" },
+        { "fieldPath": "semester", "order": "ASCENDING" },
+        { "fieldPath": "chunk_tokens", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "__name__", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "resource_chunks",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "branch", "order": "ASCENDING" },
+        { "fieldPath": "semester", "order": "ASCENDING" },
+        { "fieldPath": "embedding", "vectorConfig": { "dimension": 768, "flat": {} } }
+      ]
+    },
+    {
+      "collectionGroup": "resource_chunks",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "resource_id", "order": "ASCENDING" },
+        { "fieldPath": "embedding", "vectorConfig": { "dimension": 768, "flat": {} } }
+      ]
+    },
+    {
+      "collectionGroup": "semantic_cache",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "branch", "order": "ASCENDING" },
+        { "fieldPath": "semester", "order": "ASCENDING" },
+        { "fieldPath": "resource_id", "order": "ASCENDING" },
+        { "fieldPath": "query_embedding", "vectorConfig": { "dimension": 768, "flat": {} } }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

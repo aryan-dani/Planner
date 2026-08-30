@@ -93,7 +93,7 @@ export async function POST(req: Request) {
 
     let snippets: string[] = [];
     if (topic && topic.length > 2) {
-      const finalResults = await performRAGSearch(topic, 5);
+      const finalResults = await performRAGSearch(topic, 5, undefined, { branch, semester });
       snippets = finalResults.map((r) => `[SOURCE: ${r.title} | SUBJECT: ${r.subject_name}]: ${r.snippet}`);
     }
 

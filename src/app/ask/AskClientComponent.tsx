@@ -44,6 +44,8 @@ import { buildResourcesHref } from '@/lib/resourceUrl';
 import type { ResourceItem } from '@/lib/dataFetcher';
 import type { Branch, Semester } from '@/store/academicStore';
 import { Button, Select } from '@/components/ui';
+import { SourceCardList } from '@/components/ask/SourceCard';
+import type { RetrievalSource } from '@/lib/rag/types';
 
 const SUGGESTED_PROMPTS = [
   'Explain overfitting vs underfitting in Machine Learning with examples',
@@ -471,6 +473,15 @@ export default function AskClient({
     id: chatSessionKey,
     initialMessages,
     transport: chatTransport,
+    onData: (dataPart: { type?: string; data?: unknown }) => {
+      if (dataPart?.type === 'data-sources' && Array.isArray(dataPart.data)) {
+        setAssistantSources(dataPart.data as RetrievalSource[]);
+      }
+      if (dataPart?.type === 'data-scope') {
+        const scope = dataPart.data as { widened?: boolean };
+        setScopeWidened(Boolean(scope?.widened));
+      }
+    },
   });
 
   const { 
@@ -483,6 +494,8 @@ export default function AskClient({
 
 
   const [input, setInput] = useState('');
+  const [assistantSources, setAssistantSources] = useState<RetrievalSource[]>([]);
+  const [scopeWidened, setScopeWidened] = useState(false);
   const isLoading = status === 'submitted' || status === 'streaming';
 
   // Load chat sessions on mount
@@ -1148,6 +1161,14 @@ export default function AskClient({
                               content={getMessageContent(m)} 
                               showCursor={isLoading && m.id === messages[messages.length - 1].id}
                             />
+                            {m.id === messages[messages.length - 1]?.id && assistantSources.length > 0 && (
+                              <SourceCardList
+                                sources={assistantSources}
+                                widened={scopeWidened}
+                                branch={branch}
+                                semester={semester}
+                              />
+                            )}
                             <div className="absolute top-0 right-0 opacity-100 md:opacity-0 md:group-hover/bubble:opacity-100 transition-opacity">
                               <CopyButton text={getMessageContent(m)} />
                             </div>
