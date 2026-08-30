@@ -747,6 +747,27 @@ export default function AskClient({
     setRandomPrompts(shuffled.slice(0, 4));
   }, []);
 
+  // Keep the document from growing extra viewports while the transcript streams.
+  useEffect(() => {
+    const { documentElement, body } = document;
+    const prev = {
+      htmlOverflow: documentElement.style.overflow,
+      bodyOverflow: body.style.overflow,
+      htmlOverscroll: documentElement.style.overscrollBehavior,
+      bodyOverscroll: body.style.overscrollBehavior,
+    };
+    documentElement.style.overflow = 'hidden';
+    body.style.overflow = 'hidden';
+    documentElement.style.overscrollBehavior = 'none';
+    body.style.overscrollBehavior = 'none';
+    return () => {
+      documentElement.style.overflow = prev.htmlOverflow;
+      body.style.overflow = prev.bodyOverflow;
+      documentElement.style.overscrollBehavior = prev.htmlOverscroll;
+      body.style.overscrollBehavior = prev.bodyOverscroll;
+    };
+  }, []);
+
   // Generate Flashcards API Call
   const handleGenerateFlashcards = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -887,7 +908,7 @@ export default function AskClient({
   };
 
   return (
-    <div className="flex-1 min-h-0 w-full mx-auto flex flex-col overflow-hidden overscroll-none h-[calc(100dvh-3.5rem-env(safe-area-inset-top))] md:h-dvh page-gutter">
+    <div className="flex-1 min-h-0 w-full mx-auto grid grid-rows-[auto_minmax(0,1fr)] overflow-hidden overscroll-none h-[calc(100dvh-3.5rem-env(safe-area-inset-top))] max-h-[calc(100dvh-3.5rem-env(safe-area-inset-top))] md:h-dvh md:max-h-dvh page-gutter">
       {/* Top Navigation Tabs */}
       <div className="border-b border-border px-4 sm:px-6 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
         <div className="flex flex-col gap-2 min-w-0">
@@ -958,7 +979,7 @@ export default function AskClient({
 
       {/* Tab 1: Chat Assistant */}
       {activeTab === 'chat' && (
-        <div className="flex-1 min-h-0 flex overflow-hidden w-full relative">
+        <div className="min-h-0 min-w-0 flex overflow-hidden w-full relative">
           
           {/* Chat Sessions — overlay drawer on mobile, inline rail on md+ */}
           {sidebarOpen && (
@@ -1038,7 +1059,7 @@ export default function AskClient({
           )}
 
           {/* Main Chat Area */}
-          <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+          <div className="flex-1 min-h-0 min-w-0 grid grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden">
             
             {/* Top Toolbar: Sidebar toggle & grounded document selector */}
             <div className="flex items-center justify-between gap-2 flex-wrap border-b border-border px-3 sm:px-4 py-2.5 bg-surface/30 shrink-0">
@@ -1078,7 +1099,7 @@ export default function AskClient({
               )}
             </div>
 
-            <div ref={scrollContainerRef} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain px-4 sm:px-6 py-6 relative [overflow-anchor:none]">
+            <div ref={scrollContainerRef} className="min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain px-4 sm:px-6 py-6 relative [overflow-anchor:none]">
               {messages.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center text-center px-4">
                   <div className="w-16 h-16 bg-surface border border-border flex items-center justify-center mb-6 rounded-2xl shadow-sm">
@@ -1161,7 +1182,7 @@ export default function AskClient({
               {showScrollDown && (
                 <button
                   onClick={scrollToBottom}
-                  className="fixed bottom-24 left-1/2 -translate-x-1/2 w-8 h-8 rounded-full bg-card border border-border shadow-popover flex items-center justify-center text-muted hover:text-foreground transition-colors z-10"
+                  className="absolute bottom-4 left-1/2 -translate-x-1/2 w-8 h-8 rounded-full bg-card border border-border shadow-popover flex items-center justify-center text-muted hover:text-foreground transition-colors z-10"
                 >
                   <ArrowDown className="w-4 h-4" />
                 </button>
@@ -1251,7 +1272,7 @@ export default function AskClient({
 
       {/* Tab 2: Flashcards */}
       {activeTab === 'flashcards' && (
-        <div className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 py-6 flex flex-col items-center">
+        <div className="min-h-0 overflow-y-auto px-4 sm:px-6 py-6 flex flex-col items-center">
           <div className="w-full max-w-2xl mb-8">
             <form onSubmit={handleGenerateFlashcards} className="flex gap-2">
               <input
@@ -1484,7 +1505,7 @@ export default function AskClient({
 
       {/* Tab 3: Practice Quiz */}
       {activeTab === 'quiz' && (
-        <div className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 py-6 flex flex-col items-center">
+        <div className="min-h-0 overflow-y-auto px-4 sm:px-6 py-6 flex flex-col items-center">
           <div className="w-full max-w-2xl mb-8">
             <form onSubmit={handleGenerateQuiz} className="flex gap-2">
               <input
