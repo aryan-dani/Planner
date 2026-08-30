@@ -22,6 +22,9 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import type { Branch, Semester } from "@/lib/academic/scope";
+import { BRANCH_OPTIONS, SEMESTER_OPTIONS } from "@/lib/academic/scope";
+import { Select } from "@/components/ui/Select";
 
 interface Subject {
   id: string;
@@ -49,8 +52,8 @@ export default function AdminClient() {
   const [usersList, setUsersList] = useState<any[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [branch, setBranch] = useState("AIDS");
-  const [semester, setSemester] = useState("5");
+  const [branch, setBranch] = useState<Branch>("AIDS");
+  const [semester, setSemester] = useState<Semester>(5);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [loadingAuth, setLoadingAuth] = useState(true);
@@ -465,39 +468,27 @@ export default function AdminClient() {
         {tab === "manage" && (
           <div className="flex flex-col gap-6 animate-fade-in flex-1 min-h-0">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-surface p-5 rounded-2xl border border-border shadow-sm shrink-0">
-              <div className="relative">
-                <label className="block text-[10px] font-bold uppercase tracking-widest text-muted mb-2 ml-1">
+              <div>
+                <label className="block text-2xs font-bold uppercase tracking-widest text-muted mb-2 ml-1">
                   Branch
                 </label>
-                <div className="relative group">
-                  <select
-                    value={branch}
-                    onChange={(e) => setBranch(e.target.value)}
-                    className="ui-select w-full"
-                  >
-                    <option value="AIDS">AIDS</option>
-                    <option value="CSE">CSE</option>
-                    <option value="ECE">ECE</option>
-                  </select>
-                </div>
+                <Select<Branch>
+                  value={branch}
+                  options={BRANCH_OPTIONS}
+                  onChange={setBranch}
+                  size="lg"
+                />
               </div>
-              <div className="relative">
-                <label className="block text-[10px] font-bold uppercase tracking-widest text-muted mb-2 ml-1">
+              <div>
+                <label className="block text-2xs font-bold uppercase tracking-widest text-muted mb-2 ml-1">
                   Semester
                 </label>
-                <div className="relative group">
-                  <select
-                    value={semester}
-                    onChange={(e) => setSemester(e.target.value)}
-                    className="ui-select w-full"
-                  >
-                    {[1, 2, 3, 4, 5, 6, 7, 8].map((sem) => (
-                      <option key={sem} value={sem}>
-                        Semester {sem}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                <Select<Semester>
+                  value={semester}
+                  options={SEMESTER_OPTIONS}
+                  onChange={setSemester}
+                  size="lg"
+                />
               </div>
             </div>
 

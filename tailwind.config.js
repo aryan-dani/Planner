@@ -36,6 +36,17 @@ module.exports = {
         display: ['var(--font-display)', 'Georgia', 'serif'],
         mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
       },
+      fontSize: {
+        '3xs': ['0.5625rem', { lineHeight: '0.875rem' }],
+        '2xs': ['0.625rem', { lineHeight: '0.875rem' }],
+        'xs-plus': ['0.6875rem', { lineHeight: '1rem' }],
+      },
+      zIndex: {
+        dropdown: '110',
+        sticky: '50',
+        modal: '100',
+        toast: '200',
+      },
       borderRadius: {
         DEFAULT: 'var(--radius)',
         md: 'var(--radius-md)',

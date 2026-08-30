@@ -41,6 +41,7 @@ import { parseUnitKey, unitFolderId } from '@/lib/resourceGroups';
 import { buildResourcesHref } from '@/lib/resourceUrl';
 import AcademicBreadcrumb from '@/components/AcademicBreadcrumb';
 import Link from 'next/link';
+import { Button, Card, Badge, Input, Select, Segmented, Modal } from '@/components/ui';
 
 interface SyllabusClientProps {
   subjects: SubjectItem[];
@@ -55,6 +56,58 @@ interface ResourceItemExt extends ResourceItem {
 }
 
 const STORAGE_KEY = 'utility_syllabus_progress';
+
+function computeMatchingResources(
+  moduleTitle: string,
+  moduleDesc: string,
+  subjectName: string,
+  resources: ResourceItemExt[],
+) {
+  const subjectResources = resources.filter(
+    r => isSubjectMatch(r.subject_name, subjectName)
+  );
+
+  const pool = subjectResources;
+  if (pool.length === 0) return [];
+
+  const moduleUnit = parseUnitKey(moduleTitle);
+
+  const titleWords = moduleTitle.toLowerCase()
+    .replace(/unit\s+[ivx\d]+/gi, '')
+    .replace(/[^\w\s]/g, '')
+    .split(/\s+/)
+    .filter(w => w.length > 3);
+
+  const descWords = moduleDesc.toLowerCase()
+    .replace(/[^\w\s]/g, '')
+    .split(/\s+/)
+    .filter(w => w.length > 3);
+
+  const keywords = Array.from(new Set([...titleWords, ...descWords]));
+
+  const scored = pool.map(resource => {
+    const rTitle = resource.title.toLowerCase();
+    let score = 0;
+    if (moduleUnit) {
+      const resourceUnit = parseUnitKey(resource.title);
+      if (resourceUnit && resourceUnit.num === moduleUnit.num) {
+        score += 5;
+      }
+    }
+    keywords.forEach(word => {
+      if (rTitle.includes(word)) {
+        score += 1;
+      }
+    });
+    return { resource, score };
+  });
+
+  return scored
+    .filter(item => item.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .map(item => item.resource)
+    .slice(0, 3);
+}
 
 function getModulesForSubject(name: string) {
   const upper = name.toUpperCase();
@@ -224,58 +277,6 @@ export default function SyllabusClient({ subjects, branch, semester, syllabusUrl
     setMounted(true);
   }, []);
 
-  const getMatchingResources = (
-    moduleTitle: string,
-    moduleDesc: string,
-    subjectName: string
-  ) => {
-    const subjectResources = resources.filter(
-      r => isSubjectMatch(r.subject_name, subjectName)
-    );
-    
-    const pool = subjectResources;
-    if (pool.length === 0) return [];
-
-    const moduleUnit = parseUnitKey(moduleTitle);
-    
-    const titleWords = moduleTitle.toLowerCase()
-      .replace(/unit\s+[ivx\d]+/gi, '')
-      .replace(/[^\w\s]/g, '')
-      .split(/\s+/)
-      .filter(w => w.length > 3);
-      
-    const descWords = moduleDesc.toLowerCase()
-      .replace(/[^\w\s]/g, '')
-      .split(/\s+/)
-      .filter(w => w.length > 3);
-      
-    const keywords = Array.from(new Set([...titleWords, ...descWords]));
-    
-    const scored = pool.map(resource => {
-      const rTitle = resource.title.toLowerCase();
-      let score = 0;
-      // Prefer same unit number / roman
-      if (moduleUnit) {
-        const resourceUnit = parseUnitKey(resource.title);
-        if (resourceUnit && resourceUnit.num === moduleUnit.num) {
-          score += 5;
-        }
-      }
-      keywords.forEach(word => {
-        if (rTitle.includes(word)) {
-          score += 1;
-        }
-      });
-      return { resource, score };
-    });
-    
-    return scored
-      .filter(item => item.score > 0)
-      .sort((a, b) => b.score - a.score)
-      .map(item => item.resource)
-      .slice(0, 3);
-  };
-
   const updateModuleStatus = (subjectId: string, moduleIdx: number, status: 'not-started' | 'in-progress' | 'mastered') => {
     const key = `${subjectId}_${moduleIdx}`;
     setProgressMap((prev) => {
@@ -411,6 +412,20 @@ export default function SyllabusClient({ subjects, branch, semester, syllabusUrl
     });
   }, [subjects, branch, semester]);
 
+  const matchingResourcesMap = useMemo(() => {
+    const map = new Map<string, ResourceItemExt[]>();
+    for (const subject of displaySubjects) {
+      subject.modules.forEach((mod, modIdx) => {
+        const key = `${subject.id}_${modIdx}`;
+        map.set(
+          key,
+          computeMatchingResources(mod.title, mod.desc, subject.name, resources),
+        );
+      });
+    }
+    return map;
+  }, [displaySubjects, resources]);
+
   const filtered = useMemo(() => {
     if (!searchQuery.trim()) return displaySubjects;
     const q = searchQuery.toLowerCase();
@@ -485,22 +500,22 @@ export default function SyllabusClient({ subjects, branch, semester, syllabusUrl
 
         <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
           {syllabusUrl && (
-            <a
-              href={syllabusUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 px-4 py-2.5 bg-foreground text-background text-sm font-medium hover:opacity-90 rounded-lg transition-opacity shrink-0"
+            <Button
+              variant="primary"
+              size="md"
+              className="shrink-0 rounded-lg"
+              onClick={() => window.open(syllabusUrl, "_blank", "noopener,noreferrer")}
             >
               <FileText className="w-4 h-4" />
               Download PDF
-            </a>
+            </Button>
           )}
         </div>
       </div>
 
       {/* Progress */}
       {filtered.length > 0 && (
-        <div className="border border-border p-5 mb-10 rounded-lg flex flex-col md:flex-row items-center justify-between gap-6 relative z-10 bg-card">
+        <Card padding="md" className="mb-10 relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="flex flex-wrap items-center gap-4 w-full md:w-auto">
             <div className="space-y-1">
               <h3 className="text-sm font-semibold text-foreground">Semester progress</h3>
@@ -531,7 +546,7 @@ export default function SyllabusClient({ subjects, branch, semester, syllabusUrl
               />
             </div>
           </div>
-        </div>
+        </Card>
       )}
 
       {/* Subject Cards List */}
@@ -583,12 +598,12 @@ export default function SyllabusClient({ subjects, branch, semester, syllabusUrl
                         <h2 className="text-lg font-bold text-foreground tracking-tight truncate max-w-[280px] sm:max-w-md">
                           {subject.name}
                         </h2>
-                        <span className="text-[10px] font-mono font-bold text-foreground bg-foreground/10 border border-foreground/20 px-2.5 py-0.5 rounded-lg shrink-0">
+                        <Badge uppercase className="font-mono font-bold shrink-0">
                           {subject.code}
-                        </span>
-                        <span className="text-[10px] font-bold text-muted-foreground bg-surface border border-border px-2 py-0.5 rounded-lg shrink-0">
+                        </Badge>
+                        <Badge variant="outline" className="font-bold shrink-0">
                           {subject.type} · {subject.credits} CR
-                        </span>
+                        </Badge>
                       </div>
                       <p className="text-xs text-muted-foreground font-semibold">
                         Syllabus Tracker Core Modules
@@ -662,12 +677,13 @@ export default function SyllabusClient({ subjects, branch, semester, syllabusUrl
                             const currentVal = progressMap[`${subject.id}_${modIdx}`];
                             const isDone = currentVal === 'mastered' || currentVal === true;
                             const isInProgress = currentVal === 'in-progress';
-                            const matches = getMatchingResources(mod.title, mod.desc, subject.name);
+                            const matches = matchingResourcesMap.get(`${subject.id}_${modIdx}`) ?? [];
 
                             return (
-                              <div
+                              <Card
                                 key={modIdx}
-                                className={`flex flex-col p-5 rounded-2xl border transition-all duration-300 relative overflow-hidden ${
+                                padding="md"
+                                className={`flex flex-col rounded-2xl transition-all duration-300 relative overflow-hidden ${
                                   isDone
                                     ? 'bg-foreground/[0.02] dark:bg-foreground/[0.03] border-foreground/35 text-foreground shadow-xs'
                                     : isInProgress
@@ -749,66 +765,83 @@ export default function SyllabusClient({ subjects, branch, semester, syllabusUrl
                                   className="mt-4 pt-3.5 border-t border-border/40 flex flex-wrap items-center justify-between gap-3 pl-10 z-10" 
                                   onClick={(e) => e.stopPropagation()}
                                 >
-                                  <div className="flex items-center gap-1.5 bg-surface/50 border border-border/40 p-0.5 rounded-xl">
-                                    {(['not-started', 'in-progress', 'mastered'] as const).map((s) => {
-                                      const active = s === 'mastered' ? isDone : (s === 'in-progress' ? isInProgress : (!isDone && !isInProgress));
-                                      return (
-                                        <button
-                                          key={s}
-                                          onClick={() => updateModuleStatus(subject.id, modIdx, s)}
-                                          className={`px-2.5 py-1 text-[10px] font-bold rounded-lg transition-all ${
-                                            active
-                                              ? s === 'mastered'
-                                                ? 'bg-foreground text-background shadow-xs'
-                                                : s === 'in-progress'
-                                                ? 'bg-foreground/75 text-background shadow-xs'
-                                                : 'bg-muted text-background'
-                                              : 'text-muted hover:text-foreground'
-                                          }`}
-                                        >
-                                          {s === 'not-started' ? 'To Do' : s === 'in-progress' ? 'In Progress' : 'Mastered'}
-                                        </button>
-                                      );
-                                    })}
+                                  <div className="flex items-center gap-1.5">
+                                    <Segmented
+                                      size="sm"
+                                      value={
+                                        isDone
+                                          ? 'mastered'
+                                          : isInProgress
+                                          ? 'in-progress'
+                                          : 'not-started'
+                                      }
+                                      onChange={(s) =>
+                                        updateModuleStatus(
+                                          subject.id,
+                                          modIdx,
+                                          s as 'not-started' | 'in-progress' | 'mastered',
+                                        )
+                                      }
+                                      options={[
+                                        { value: 'not-started', label: 'To Do' },
+                                        { value: 'in-progress', label: 'In Progress' },
+                                        { value: 'mastered', label: 'Mastered' },
+                                      ]}
+                                      aria-label="Module progress"
+                                    />
                                   </div>
 
                                   <div className="flex flex-wrap gap-2">
-                                    <button
+                                    <Button
+                                      variant="secondary"
+                                      size="sm"
                                       onClick={() => {
                                         setSchedulingModule({ subjectName: subject.name, moduleTitle: mod.title });
                                         setScheduleTitle(`Study: ${subject.name} - ${mod.title}`);
                                         setPlannerModalOpen(true);
                                       }}
-                                      className="inline-flex items-center gap-1.5 text-xs font-bold text-muted-foreground hover:text-foreground bg-surface hover:bg-surface-hover border border-border hover:border-foreground/30 px-3 py-1.5 rounded-xl transition-all shadow-3xs hover:-translate-y-0.5 active:scale-95"
+                                      className="rounded-xl shadow-3xs hover:-translate-y-0.5"
                                       title="Schedule in Planner"
                                     >
                                       <Calendar className="w-3.5 h-3.5 text-foreground/80 shrink-0" />
                                       Schedule
-                                    </button>
-                                    <a
-                                      href={`/ask?tab=chat&prompt=${encodeURIComponent(`Create a detailed study guide explaining this syllabus topic: "${subject.name} - ${mod.title}". Focus on: ${mod.desc}`)}`}
-                                      className="inline-flex items-center gap-1.5 text-xs font-bold text-muted-foreground hover:text-foreground bg-surface hover:bg-surface-hover border border-border hover:border-foreground/30 px-3 py-1.5 rounded-xl transition-all shadow-3xs hover:-translate-y-0.5 active:scale-95"
+                                    </Button>
+                                    <Button
+                                      variant="secondary"
+                                      size="sm"
+                                      className="rounded-xl shadow-3xs hover:-translate-y-0.5"
+                                      onClick={() => {
+                                        window.location.href = `/ask?tab=chat&prompt=${encodeURIComponent(`Create a detailed study guide explaining this syllabus topic: "${subject.name} - ${mod.title}". Focus on: ${mod.desc}`)}`;
+                                      }}
                                     >
                                       <Brain className="w-3.5 h-3.5 text-foreground/80 shrink-0" />
                                       Guide
-                                    </a>
-                                    <a
-                                      href={`/ask?tab=flashcards&topic=${encodeURIComponent(`${subject.name} - ${mod.title}`)}&auto=true`}
-                                      className="inline-flex items-center gap-1.5 text-xs font-bold text-muted-foreground hover:text-foreground bg-surface hover:bg-surface-hover border border-border hover:border-foreground/30 px-3 py-1.5 rounded-xl transition-all shadow-3xs hover:-translate-y-0.5 active:scale-95"
+                                    </Button>
+                                    <Button
+                                      variant="secondary"
+                                      size="sm"
+                                      className="rounded-xl shadow-3xs hover:-translate-y-0.5"
+                                      onClick={() => {
+                                        window.location.href = `/ask?tab=flashcards&topic=${encodeURIComponent(`${subject.name} - ${mod.title}`)}&auto=true`;
+                                      }}
                                     >
                                       <Layers className="w-3.5 h-3.5 text-foreground/80 shrink-0" />
                                       Cards
-                                    </a>
-                                    <a
-                                      href={`/ask?tab=quiz&topic=${encodeURIComponent(`${subject.name} - ${mod.title}`)}&auto=true`}
-                                      className="inline-flex items-center gap-1.5 text-xs font-bold text-muted-foreground hover:text-foreground bg-surface hover:bg-surface-hover border border-border hover:border-foreground/30 px-3 py-1.5 rounded-xl transition-all shadow-3xs hover:-translate-y-0.5 active:scale-95"
+                                    </Button>
+                                    <Button
+                                      variant="secondary"
+                                      size="sm"
+                                      className="rounded-xl shadow-3xs hover:-translate-y-0.5"
+                                      onClick={() => {
+                                        window.location.href = `/ask?tab=quiz&topic=${encodeURIComponent(`${subject.name} - ${mod.title}`)}&auto=true`;
+                                      }}
                                     >
                                       <HelpCircle className="w-3.5 h-3.5 text-foreground/80 shrink-0" />
                                       Quiz
-                                    </a>
+                                    </Button>
                                   </div>
                                 </div>
-                              </div>
+                              </Card>
                             );
                           })}
                         </div>
@@ -849,7 +882,10 @@ export default function SyllabusClient({ subjects, branch, semester, syllabusUrl
 
       {/* Empty states */}
       {filtered.length === 0 && (
-        <div className="flex flex-col items-center justify-center p-20 text-center border-2 border-dashed border-border/80 rounded-2xl bg-card my-12 relative z-10">
+        <Card
+          padding="lg"
+          className="flex flex-col items-center justify-center p-20 text-center border-2 border-dashed my-12 relative z-10"
+        >
           <BookMarked className="w-12 h-12 text-muted-foreground/30 mb-4 animate-bounce" />
           <p className="text-lg font-bold text-foreground mb-1">No matching courses found</p>
           <p className="text-sm text-muted-foreground max-w-sm">
@@ -857,115 +893,99 @@ export default function SyllabusClient({ subjects, branch, semester, syllabusUrl
               ? `We couldn't find any subjects matching "${searchQuery}". Please check your search query.`
               : `No curriculum subjects are populated for ${branch} Semester ${semester} in the database.`}
           </p>
-        </div>
+        </Card>
       )}
 
       {/* Global Navigation Link to Resource Vault */}
       {filtered.length > 0 && (
         <div className="mt-14 flex justify-center relative z-10">
-          <Link
-            href={buildResourcesHref({ branch, semester })}
-            className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-surface border border-border/80 hover:border-border-strong hover:bg-surface-hover text-sm font-bold text-muted-foreground hover:text-foreground transition-all group shadow-sm hover:scale-[1.01]"
+          <Button
+            variant="secondary"
+            size="md"
+            className="rounded-2xl shadow-sm hover:scale-[1.01] group"
+            onClick={() => {
+              window.location.href = buildResourcesHref({ branch, semester });
+            }}
           >
             <Layers className="w-4 h-4 text-primary" />
             Open Study Resource Vault
-            <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-foreground group-hover:translate-x-1.5 transition-all" />
-          </Link>
+            <ArrowRight className="w-4 h-4 text-muted group-hover:text-foreground group-hover:translate-x-1.5 transition-all" />
+          </Button>
         </div>
       )}
-      {/* Add to Planner Scheduler Modal */}
-      <AnimatePresence>
-        {plannerModalOpen && schedulingModule && (
-          <div
-            onClick={() => {
-              setPlannerModalOpen(false);
-              setSchedulingModule(null);
-            }}
-            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-background/95"
-          >
-            <motion.div
-              onClick={(e) => e.stopPropagation()}
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="w-full max-w-md bg-card border border-border rounded-2xl shadow-popover overflow-hidden"
-            >
-              <div className="px-6 py-4 border-b border-border flex justify-between items-center">
-                <h3 className="font-bold text-foreground text-sm flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-primary" />
-                  Schedule Study Session
-                </h3>
-                <button
-                  onClick={() => {
-                    setPlannerModalOpen(false);
-                    setSchedulingModule(null);
-                  }}
-                  className="text-muted hover:text-foreground text-sm font-semibold"
-                >
-                  Close
-                </button>
-              </div>
 
-              <div className="p-6 space-y-4">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-muted">Task Title</label>
-                  <input
-                    type="text"
-                    value={scheduleTitle}
-                    onChange={(e) => setScheduleTitle(e.target.value)}
-                    className="w-full bg-surface border border-border rounded-xl px-4 py-2.5 text-xs font-semibold text-foreground outline-none focus:ring-1 focus:ring-foreground font-medium"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold uppercase tracking-widest text-muted">Date</label>
-                    <input
-                      type="date"
-                      value={scheduleDate}
-                      onChange={(e) => setScheduleDate(e.target.value)}
-                      className="w-full bg-surface border border-border rounded-xl px-4 py-2.5 text-xs font-semibold text-foreground outline-none focus:ring-1 focus:ring-foreground"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold uppercase tracking-widest text-muted">Category</label>
-                    <select
-                      value={scheduleCategory}
-                      onChange={(e) => setScheduleCategory(e.target.value)}
-                      className="ui-select w-full"
-                    >
-                      <option value="Revision">Revision</option>
-                      <option value="Exam Prep">Exam Prep</option>
-                      <option value="Assignment">Assignment</option>
-                      <option value="Project">Project</option>
-                      <option value="General">General</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              <div className="p-4 bg-surface border-t border-border flex justify-end gap-2">
-                <button
-                  onClick={() => {
-                    setPlannerModalOpen(false);
-                    setSchedulingModule(null);
-                  }}
-                  className="px-4 py-2 border border-border hover:bg-surface-hover text-xs font-semibold rounded-xl text-muted"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleScheduleTask}
-                  className="px-4 py-2 bg-foreground text-background hover:opacity-90 text-xs font-bold rounded-xl shadow-md"
-                >
-                  Schedule Task
-                </button>
-              </div>
-            </motion.div>
+      <Modal
+        open={plannerModalOpen && !!schedulingModule}
+        onClose={() => {
+          setPlannerModalOpen(false);
+          setSchedulingModule(null);
+        }}
+        title={
+          <span className="flex items-center gap-2">
+            <Calendar className="w-4 h-4 text-primary" />
+            Schedule Study Session
+          </span>
+        }
+        size="sm"
+      >
+        <div className="space-y-4 -mt-2">
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold uppercase tracking-widest text-muted">Task Title</label>
+            <Input
+              inputSize="sm"
+              type="text"
+              value={scheduleTitle}
+              onChange={(e) => setScheduleTitle(e.target.value)}
+              className="rounded-xl text-xs font-semibold"
+            />
           </div>
-        )}
-      </AnimatePresence>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold uppercase tracking-widest text-muted">Date</label>
+              <Input
+                inputSize="sm"
+                type="date"
+                value={scheduleDate}
+                onChange={(e) => setScheduleDate(e.target.value)}
+                className="rounded-xl text-xs font-semibold"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold uppercase tracking-widest text-muted">Category</label>
+              <Select
+                size="sm"
+                value={scheduleCategory}
+                options={[
+                  { value: "Revision", label: "Revision" },
+                  { value: "Exam Prep", label: "Exam Prep" },
+                  { value: "Assignment", label: "Assignment" },
+                  { value: "Project", label: "Project" },
+                  { value: "General", label: "General" },
+                ]}
+                onChange={setScheduleCategory}
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2 border-t border-border">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => {
+                setPlannerModalOpen(false);
+                setSchedulingModule(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button variant="primary" size="sm" onClick={handleScheduleTask}>
+              Schedule Task
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

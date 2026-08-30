@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { memo, useMemo } from "react";
 import {
   SearchTreeState,
   layoutSearchTree,
@@ -13,7 +13,7 @@ export interface SearchTreeCanvasProps {
   showRunLegend?: boolean;
 }
 
-export function SearchTreeCanvas({
+function SearchTreeCanvasInner({
   state,
   onSelectGoal,
   isInteractive = true,
@@ -187,6 +187,8 @@ export function SearchTreeCanvas({
     </div>
   );
 }
+
+export const SearchTreeCanvas = memo(SearchTreeCanvasInner);
 
 function formatNodeScores(node: {
   gCost: number;

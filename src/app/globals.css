@@ -693,21 +693,6 @@ input[type="range"].accent-slider::-moz-range-thumb:hover {
   outline: none !important;
 }
 
-/* Premium gradient action buttons */
-.btn-premium-gradient {
-  background: linear-gradient(135deg, rgb(var(--foreground)) 0%, rgb(var(--primary-hover)) 100%);
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-  box-shadow: 0 4px 14px 0 rgba(0, 0, 0, 0.08);
-}
-.btn-premium-gradient:hover {
-  opacity: 0.95;
-  transform: translateY(-1px);
-  box-shadow: 0 6px 20px 0 rgba(0, 0, 0, 0.12);
-}
-.btn-premium-gradient:active {
-  transform: translateY(0);
-}
-
 /* Card lift and clean shadowing on hover */
 .card-premium-hover {
   transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);

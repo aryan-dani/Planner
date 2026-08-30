@@ -1,4 +1,10 @@
-import type { Branch, Semester } from "@/store/academicStore";
+import type { Branch, Semester } from "@/lib/academic/scope";
+import {
+  BRANCH_SET,
+  SEMESTER_SET,
+} from "@/lib/academic/scope";
+
+export type { Branch, Semester };
 
 /** Fallback when URL, prefs, and localStorage are all empty. */
 export const DEFAULT_BRANCH: Branch = "AIDS";
@@ -6,13 +12,10 @@ export const DEFAULT_SEMESTER: Semester = 5;
 
 export const WORKSPACE_STORAGE_KEY = "utility-workspace";
 
-const BRANCHES = new Set<string>(["AIDS", "CSE", "ECE"]);
-const SEMESTERS = new Set([1, 2, 3, 4, 5, 6, 7, 8]);
-
 export function parseBranch(value: string | null | undefined): Branch | null {
   if (!value) return null;
   const upper = value.trim().toUpperCase();
-  return BRANCHES.has(upper) ? (upper as Branch) : null;
+  return BRANCH_SET.has(upper) ? (upper as Branch) : null;
 }
 
 export function parseSemester(
@@ -20,7 +23,7 @@ export function parseSemester(
 ): Semester | null {
   if (value === null || value === undefined || value === "") return null;
   const num = typeof value === "number" ? value : Number(value);
-  if (!Number.isFinite(num) || !SEMESTERS.has(num)) return null;
+  if (!Number.isFinite(num) || !SEMESTER_SET.has(num)) return null;
   return num as Semester;
 }
 

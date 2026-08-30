@@ -47,6 +47,7 @@ import {
   parseResourceFolder,
   type ResourceFilter,
 } from "@/lib/resourceUrl";
+import { Button, Card, Badge } from "@/components/ui";
 
 const ResourceViewer = dynamic(() => import("./ResourceViewer"), { ssr: false });
 const SummaryModal = dynamic(() => import("./SummaryModal"), { ssr: false });
@@ -727,7 +728,10 @@ export default function ResourcesClient({
       <div className="border-b border-border mb-8" />
 
       {resources.length === 0 ? (
-        <div className="flex flex-col items-center justify-center p-16 text-center border border-dashed border-border rounded-xl bg-surface">
+        <Card
+          padding="lg"
+          className="flex flex-col items-center justify-center p-16 text-center border-dashed bg-surface"
+        >
           <Folder className="w-10 h-10 text-muted/40 mb-3" />
           <p className="text-base font-semibold text-foreground mb-1">
             No Files Found
@@ -735,17 +739,18 @@ export default function ResourcesClient({
           <p className="text-sm text-muted">
             No resources uploaded for {branch} Semester {semester} yet.
           </p>
-        </div>
+        </Card>
       ) : (
         <div className="flex flex-col md:flex-row gap-8 items-start">
-          <div className="w-full md:w-60 shrink-0 border border-border rounded-xl bg-card shadow-sm overflow-hidden md:sticky md:top-24 z-10">
+          <Card
+            padding="none"
+            className="w-full md:w-60 shrink-0 shadow-sm overflow-hidden md:sticky md:top-24 z-10"
+          >
             <div className="px-4 py-3 border-b border-border bg-surface/50 flex items-center justify-between">
               <h3 className="font-semibold text-xs uppercase tracking-wider text-muted">
                 Subjects
               </h3>
-              <span className="text-[10px] font-semibold bg-surface px-2 py-0.5 rounded-md border border-border text-muted">
-                {filteredSubjectNames.length}
-              </span>
+              <Badge>{filteredSubjectNames.length}</Badge>
             </div>
             <div className="flex flex-col max-h-[65vh] overflow-y-auto scrollbar-none p-2 gap-0.5 relative">
               {filteredSubjectNames.map((subjectName) => {
@@ -778,11 +783,12 @@ export default function ResourcesClient({
                     <span className="flex-1 truncate text-[13px] z-10">
                       {subjectName}
                     </span>
-                    <span
-                      className={`text-[10px] px-1.5 py-0.5 rounded-md font-semibold transition-colors z-10 ${isActive ? "bg-background/20 text-background" : "text-muted"}`}
+                    <Badge
+                      variant={isActive ? "active" : "default"}
+                      className={`z-10 text-[10px] ${isActive ? "bg-background/20 text-background border-transparent" : ""}`}
                     >
                       {subjectResources.length}
-                    </span>
+                    </Badge>
                   </button>
                 );
               })}
@@ -792,7 +798,7 @@ export default function ResourcesClient({
                 </p>
               )}
             </div>
-          </div>
+          </Card>
 
           <div className="flex-1 w-full min-w-0 relative">
             {(isSubjectPending || isScopeLoading) && (
@@ -824,23 +830,25 @@ export default function ResourcesClient({
                       </h2>
                       {(searchQuery || selectedFilter !== "all") && (
                         <div className="flex items-center gap-2">
-                          <span className="text-xs font-medium text-muted px-2 py-0.5 bg-surface border border-border rounded-md">
+                          <Badge>
                             {filteredResources.length}{" "}
                             {filteredResources.length !== 1
                               ? "results"
                               : "result"}
-                          </span>
-                          <button
+                          </Badge>
+                          <Button
+                            variant="ghost"
+                            size="sm"
                             onClick={() => {
                               setSearchQuery("");
                               setAiSearchQuery("");
                               setSelectedFilter("all");
                               setActiveFolderId(null);
                             }}
-                            className="text-xs font-semibold text-foreground hover:text-muted transition-colors underline underline-offset-4"
+                            className="underline underline-offset-4"
                           >
                             Clear filters
-                          </button>
+                          </Button>
                         </div>
                       )}
                     </div>
@@ -860,16 +868,16 @@ export default function ResourcesClient({
                       const active = selectedFilter === value;
                       if (value !== "all" && count === 0) return null;
                       return (
-                        <button
+                        <Button
                           key={value}
+                          variant={active ? "primary" : "secondary"}
+                          size="sm"
                           onClick={() => {
                             setSelectedFilter(value);
                             setActiveFolderId(null);
                           }}
-                          className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[11px] font-medium transition-all whitespace-nowrap flex-shrink-0 relative ${
-                            active
-                              ? "border-transparent text-background shadow-sm"
-                              : "border-border bg-surface/50 text-muted hover:border-border-strong hover:text-foreground"
+                          className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-[11px] font-medium whitespace-nowrap flex-shrink-0 relative min-h-0 ${
+                            active ? "border-transparent shadow-sm" : ""
                           }`}
                         >
                           {active && (
@@ -887,19 +895,23 @@ export default function ResourcesClient({
                             className={`w-3 h-3 z-10 ${active ? "text-background" : "text-muted"}`}
                           />
                           <span className="z-10">{label}</span>
-                          <span
-                            className={`text-[9px] font-bold z-10 ${active ? "text-background/70" : "text-muted"}`}
+                          <Badge
+                            variant={active ? "active" : "default"}
+                            className={`text-[9px] z-10 ${active ? "bg-background/20 text-background/70 border-transparent" : ""}`}
                           >
                             {count}
-                          </span>
-                        </button>
+                          </Badge>
+                        </Button>
                       );
                     })}
                   </div>
                 </div>
 
                 {filteredResources.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-16 text-center border border-dashed border-border rounded-xl bg-surface/50">
+                  <Card
+                    padding="lg"
+                    className="flex flex-col items-center justify-center py-16 text-center border-dashed bg-surface/50"
+                  >
                     <Search className="w-6 h-6 text-muted/50 mb-3" />
                     <p className="text-sm font-medium text-foreground mb-1">
                       No Matching Files
@@ -909,7 +921,7 @@ export default function ResourcesClient({
                         ? `No files match "${searchQuery}" in this subject.`
                         : "No files match the selected filter."}
                     </p>
-                  </div>
+                  </Card>
                 ) : (
                   <div className="space-y-8">
                     {(contentResults.length > 0 || isSearchingContent) && (
@@ -937,21 +949,33 @@ export default function ResourcesClient({
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           {contentResults.map((result, idx) => (
-                            <button
-                              type="button"
+                            <Card
                               key={`${result.resource_id}-${idx}`}
+                              hover
+                              padding="sm"
+                              role="button"
+                              tabIndex={0}
                               onClick={() => {
                                 const resource = resources.find(
                                   (r) => r.id === result.resource_id,
                                 );
                                 if (resource) openResource(resource);
                               }}
-                              className="group text-left bg-card border border-border hover:border-border-strong rounded-xl p-4 transition-colors flex flex-col justify-between h-full shadow-xs"
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" || e.key === " ") {
+                                  e.preventDefault();
+                                  const resource = resources.find(
+                                    (r) => r.id === result.resource_id,
+                                  );
+                                  if (resource) openResource(resource);
+                                }
+                              }}
+                              className="group text-left cursor-pointer flex flex-col justify-between h-full shadow-xs"
                             >
                               <div>
-                                <span className="text-[10px] font-medium text-muted bg-surface border border-border px-2 py-0.5 rounded-md">
+                                <Badge className="text-[10px]">
                                   {result.subject_name}
-                                </span>
+                                </Badge>
                                 <h4
                                   className="text-sm font-medium text-foreground mt-2 mb-2 line-clamp-1 group-hover:text-primary transition-colors"
                                   title={result.title}
@@ -966,7 +990,7 @@ export default function ResourcesClient({
                                 <span>Open document</span>
                                 <span>→</span>
                               </div>
-                            </button>
+                            </Card>
                           ))}
                         </div>
                       </div>
@@ -1071,7 +1095,10 @@ export default function ResourcesClient({
                 )}
               </motion.div>
             ) : (
-              <div className="flex flex-col items-center justify-center h-full text-center py-24 border border-dashed border-border rounded-2xl bg-surface/30">
+              <Card
+                padding="lg"
+                className="flex flex-col items-center justify-center h-full text-center py-24 border-dashed bg-surface/30"
+              >
                 <Folder className="w-12 h-12 text-muted/30 mb-4" />
                 <p className="text-base font-bold text-foreground mb-1">
                   Select a Subject
@@ -1079,7 +1106,7 @@ export default function ResourcesClient({
                 <p className="text-sm font-medium text-muted max-w-xs mx-auto">
                   Choose a subject from the sidebar to view its resources.
                 </p>
-              </div>
+              </Card>
             )}
           </div>
         </div>

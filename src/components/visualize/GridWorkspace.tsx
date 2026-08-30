@@ -6,13 +6,9 @@ import { GridCanvas } from "@/components/visualize/GridCanvas";
 import { PlaybackToolbar } from "@/components/visualize/PlaybackToolbar";
 import { StepExplanation } from "@/components/visualize/StepExplanation";
 import { MetricsPanel } from "@/components/visualize/MetricsPanel";
-import {
-  HappeningNow,
-  GhostAction,
-  PrimaryAction,
-  Stage,
-  StudyFold,
-} from "@/components/visualize/LessonChrome";
+import { GhostAction, PrimaryAction } from "@/components/visualize/LessonChrome";
+import { WorkspaceShell } from "@/components/visualize/WorkspaceShell";
+import { HeuristicPicker } from "@/components/visualize/HeuristicPicker";
 import {
   Position,
   GridState,
@@ -33,6 +29,7 @@ import {
   manhattanDistance,
 } from "@/lib/visualize/heuristics";
 import { useVisualizerPlayback } from "@/lib/visualize/useVisualizerPlayback";
+import { usePendingPlay } from "@/lib/visualize/usePendingPlay";
 import { AlgorithmStep } from "@/lib/visualize/types";
 import { saveGrid } from "@/lib/visualize/client";
 import { auth } from "@/lib/firebase";
@@ -128,7 +125,6 @@ export function GridWorkspace({
   );
   const [steps, setSteps] = useState<AlgorithmStep<GridState>[]>([]);
   const [hasGenerated, setHasGenerated] = useState(false);
-  const [pendingPlay, setPendingPlay] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [signedIn, setSignedIn] = useState(false);
@@ -138,6 +134,7 @@ export function GridWorkspace({
     algorithmId === "a-star" || algorithmId === "greedy-bfs";
 
   const playback = useVisualizerPlayback(steps, algorithmId);
+  const { setPendingPlay } = usePendingPlay(steps, playback);
 
   useEffect(() => {
     return onAuthStateChanged(auth, (user) => setSignedIn(!!user));
@@ -149,13 +146,6 @@ export function GridWorkspace({
     setGoalPos(initialGridData.goalPos);
     setWalls(initialGridData.walls);
   }, [initialGridData]);
-
-  const play = playback.play;
-  useEffect(() => {
-    if (!pendingPlay || steps.length === 0) return;
-    play();
-    setPendingPlay(false);
-  }, [pendingPlay, steps.length, play]);
 
   const editableGridState = useMemo<GridState>(() => {
     const grid = createInitialGrid(rows, cols, startPos, goalPos, walls);
@@ -287,85 +277,61 @@ export function GridWorkspace({
   return (
     <div className="w-full space-y-6">
       {!hasGenerated && showGridHeuristicPicker && (
-        <div className="flex flex-wrap items-center justify-center gap-3 text-sm text-muted">
-          <label className="flex items-center gap-2">
-            Heuristic
-            <select
-              value={gridHeuristic}
-              onChange={(e) =>
-                setGridHeuristic(e.target.value as GridHeuristicId)
-              }
-              className="ui-select"
-            >
-              {GRID_HEURISTIC_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
+        <HeuristicPicker
+          value={gridHeuristic}
+          options={GRID_HEURISTIC_OPTIONS}
+          onChange={setGridHeuristic}
+        />
       )}
 
-      <Stage
-        label="Grid"
-        live={hasGenerated && playback.isPlaying}
+      <WorkspaceShell
+        stageLabel="Grid"
+        hasGenerated={hasGenerated}
+        playback={playback}
+        happeningIdle="The run will narrate each move here."
+        metricsSummary="Numbers from this step"
         dock={
-          <div className="flex flex-col items-center gap-3 min-h-[12.5rem]">
-            {!hasGenerated ? (
-              <div className="flex flex-wrap items-center justify-center gap-1">
-                <PrimaryAction flat onClick={handleWatch}>Watch it run</PrimaryAction>
-                <GhostAction
-                  onClick={handleClearWalls}
-                  disabled={walls.length === 0}
-                >
-                  Clear walls
-                </GhostAction>
-                <GhostAction onClick={handleResetEntireGrid}>
-                  Reset grid
-                </GhostAction>
-                <GhostAction onClick={handleSaveMaze} disabled={isSaving}>
-                  {isSaving ? "Saving…" : "Save maze"}
-                </GhostAction>
-              </div>
-            ) : (
-              <>
-                <PlaybackToolbar playback={playback} />
-                <HappeningNow
-                  text={playback.currentStep?.description ?? null}
-                  idle="The run will narrate each move here."
-                />
-                <GhostAction onClick={handleResetSearch}>
-                  Edit the maze
-                </GhostAction>
-              </>
-            )}
-            {saveMessage ? (
-              <p className="text-sm text-muted text-center">
-                {saveMessage}{" "}
-                {!signedIn && (
-                  <Link href="/login" className="underline text-foreground">
-                    Sign in
-                  </Link>
-                )}
-              </p>
-            ) : null}
-          </div>
+          !hasGenerated ? (
+            <div className="flex flex-wrap items-center justify-center gap-1">
+              <PrimaryAction flat onClick={handleWatch}>
+                Watch it run
+              </PrimaryAction>
+              <GhostAction
+                onClick={handleClearWalls}
+                disabled={walls.length === 0}
+              >
+                Clear walls
+              </GhostAction>
+              <GhostAction onClick={handleResetEntireGrid}>
+                Reset grid
+              </GhostAction>
+              <GhostAction onClick={handleSaveMaze} disabled={isSaving}>
+                {isSaving ? "Saving…" : "Save maze"}
+              </GhostAction>
+            </div>
+          ) : (
+            <>
+              <PlaybackToolbar playback={playback} />
+              <GhostAction onClick={handleResetSearch}>
+                Edit the maze
+              </GhostAction>
+            </>
+          )
         }
-      >
-        <GridCanvas
-          gridState={activeGridState}
-          onToggleWall={handleToggleWall}
-          onMoveStart={handleMoveStart}
-          onMoveGoal={handleMoveGoal}
-          isInteractive={!hasGenerated}
-          showRunLegend={hasGenerated}
-        />
-      </Stage>
-
-      <div>
-        <StudyFold summary="Numbers from this step">
-          {hasGenerated ? (
+        dockExtra={
+          saveMessage ? (
+            <p className="text-sm text-muted text-center">
+              {saveMessage}{" "}
+              {!signedIn && (
+                <Link href="/login" className="underline text-foreground">
+                  Sign in
+                </Link>
+              )}
+            </p>
+          ) : null
+        }
+        metricsContent={
+          hasGenerated ? (
             <>
               <MetricsPanel
                 metrics={playback.currentStep?.metrics ?? null}
@@ -388,16 +354,25 @@ export function GridWorkspace({
             </>
           ) : (
             <p className="text-sm text-muted">Watch it run to see counts.</p>
-          )}
-        </StudyFold>
-        <StudyFold summary="Plain-language steps">
+          )
+        }
+        stepsContent={
           <StepExplanation
             step={playback.currentStep}
             emptyMessage="Run the search to highlight a line."
             pseudocode={pseudocode}
           />
-        </StudyFold>
-      </div>
+        }
+      >
+        <GridCanvas
+          gridState={activeGridState}
+          onToggleWall={handleToggleWall}
+          onMoveStart={handleMoveStart}
+          onMoveGoal={handleMoveGoal}
+          isInteractive={!hasGenerated}
+          showRunLegend={hasGenerated}
+        />
+      </WorkspaceShell>
     </div>
   );
 }

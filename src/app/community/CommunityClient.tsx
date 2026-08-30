@@ -13,7 +13,6 @@ import {
   User,
   Calendar,
   BookOpen,
-  X,
   ArrowRight,
   Check,
   Trash2,
@@ -28,6 +27,7 @@ import {
 } from "lucide-react";
 import { logActivity } from "@/lib/activity";
 import { toast } from "sonner";
+import { Button, Badge, Card, Modal, Segmented } from "@/components/ui";
 
 const WHATSAPP_COMMUNITY_URL =
   "https://chat.whatsapp.com/IptJTcvj4F848iY2riZ3YZ";
@@ -292,15 +292,15 @@ export default function CommunityClient({
               updates, casual chat, academic help, or product feedback.
             </p>
           </div>
-          <a
-            href={WHATSAPP_COMMUNITY_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center justify-center gap-2 shrink-0 px-5 py-2.5 bg-foreground text-background text-sm font-semibold rounded-xl hover:opacity-90 transition-opacity focus-visible:outline-offset-2"
+          <Button
+            variant="primary"
+            size="md"
+            className="shrink-0 rounded-xl"
+            onClick={() => window.open(WHATSAPP_COMMUNITY_URL, "_blank", "noopener,noreferrer")}
           >
             Join on WhatsApp
             <ExternalLink className="w-3.5 h-3.5" />
-          </a>
+          </Button>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -365,50 +365,29 @@ export default function CommunityClient({
 
         {/* Branch Filter Pills */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-          <div className="flex flex-wrap items-center gap-2">
-            {["ALL", "AIDS", "CORE", "CSF"].map((b) => (
-              <button
-                key={b}
-                onClick={() => setSelectedBranch(b)}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all ${
-                  selectedBranch === b
-                    ? "bg-foreground text-background shadow-sm"
-                    : "bg-surface border border-border text-muted hover:text-foreground hover:bg-surface-hover"
-                }`}
-              >
-                {b}
-              </button>
-            ))}
-          </div>
+          <Segmented
+            value={selectedBranch}
+            onChange={setSelectedBranch}
+            size="sm"
+            aria-label="Filter by branch"
+            options={["ALL", "AIDS", "CORE", "CSF"].map((b) => ({
+              value: b,
+              label: b,
+            }))}
+          />
 
-          <div className="h-6 w-px bg-border hidden sm:block"></div>
+          <div className="h-6 w-px bg-border hidden sm:block" />
 
-          <div className="flex bg-surface border border-border p-0.5 rounded-xl shadow-xs">
-            <button
-              onClick={() => setSortBy("top")}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                sortBy === "top"
-                  ? "bg-foreground text-background font-bold"
-                  : "text-muted hover:text-foreground"
-              }`}
-            >
-              <ThumbsUp
-                className="w-3.5 h-3.5"
-              />
-              Top
-            </button>
-            <button
-              onClick={() => setSortBy("newest")}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                sortBy === "newest"
-                  ? "bg-foreground text-background font-bold"
-                  : "text-muted hover:text-foreground"
-              }`}
-            >
-              <Clock className="w-3.5 h-3.5" />
-              Newest
-            </button>
-          </div>
+          <Segmented
+            value={sortBy}
+            onChange={setSortBy}
+            size="sm"
+            aria-label="Sort decks"
+            options={[
+              { value: "top", label: <span className="inline-flex items-center gap-1.5"><ThumbsUp className="w-3.5 h-3.5" />Top</span> },
+              { value: "newest", label: <span className="inline-flex items-center gap-1.5"><Clock className="w-3.5 h-3.5" />Newest</span> },
+            ]}
+          />
         </div>
       </div>
 
@@ -430,22 +409,24 @@ export default function CommunityClient({
             >
               <div>
                 <div className="flex items-start justify-between gap-4 mb-3">
-                  <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold tracking-wider uppercase bg-surface border border-border text-foreground shrink-0">
+                  <Badge uppercase className="font-bold tracking-wider shrink-0">
                     {deck.branch} · Sem {deck.semester}
-                  </span>
+                  </Badge>
                   <div className="flex items-center gap-2">
                     {currentUserUid &&
                       deck.author_uid === currentUserUid && (
-                        <button
+                        <Button
+                          variant="ghost"
+                          size="sm"
                           onClick={() => handleDeleteDeck(deck.id)}
                           disabled={isDeleting === deck.id}
-                          className="p-1.5 rounded-lg text-muted hover:text-destructive hover:bg-destructive/10 transition-colors"
+                          className="p-1.5 min-h-0 hover:text-destructive hover:bg-destructive/10"
                           title="Delete Deck"
                         >
                           <Trash2
                             className={`w-4 h-4 ${isDeleting === deck.id ? "opacity-50" : ""}`}
                           />
-                        </button>
+                        </Button>
                       )}
                     <button
                       onClick={() => handleUpvote(deck.id, deck.upvotes)}
@@ -484,16 +465,20 @@ export default function CommunityClient({
 
               {/* Action Buttons */}
               <div className="grid grid-cols-2 gap-3 mt-6 pt-4 border-t border-border">
-                <button
+                <Button
+                  variant="primary"
+                  size="sm"
                   onClick={() => handleStudyDeck(deck)}
-                  className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-foreground text-background text-xs font-semibold hover:opacity-90 transition-opacity shadow-xs"
+                  className="rounded-xl shadow-xs"
                 >
                   <BookOpen className="w-4 h-4" />
                   Study Deck
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
                   onClick={() => handleCopyDeck(deck)}
-                  className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-surface border border-border text-foreground text-xs font-semibold hover:bg-surface-hover transition-all"
+                  className="rounded-xl"
                 >
                   {copiedDeckId === deck.id ? (
                     <>
@@ -503,7 +488,7 @@ export default function CommunityClient({
                   ) : (
                     "Save Deck"
                   )}
-                </button>
+                </Button>
               </div>
             </div>
           );
@@ -512,7 +497,10 @@ export default function CommunityClient({
 
       {/* Empty States */}
       {filteredDecks.length === 0 && (
-        <div className="flex flex-col items-center justify-center p-16 text-center border border-dashed border-border rounded-2xl bg-surface my-12">
+        <Card
+          padding="lg"
+          className="flex flex-col items-center justify-center p-16 text-center border-dashed bg-surface my-12"
+        >
           <Search className="w-10 h-10 text-muted/30 mb-3" />
           <p className="text-base font-semibold text-foreground mb-1">
             No community decks found
@@ -522,49 +510,43 @@ export default function CommunityClient({
               ? `No matches for "${searchQuery}"`
               : "Be the first scholar to publish a deck!"}
           </p>
-          <a
-            href="/ask"
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-foreground text-background text-xs font-bold hover:opacity-90 transition-opacity"
-          >
+          <Button variant="primary" size="sm" className="rounded-xl" onClick={() => { window.location.href = "/ask"; }}>
             Generate & Publish a Deck
             <ArrowRight className="w-4 h-4" />
-          </a>
-        </div>
+          </Button>
+        </Card>
       )}
 
-      {/* Modal Flashcard Viewer */}
-      {activeDeck && (
-        <div className="fixed inset-0 z-50 bg-background/95 flex items-center justify-center p-4 animate-fade-in">
-          <div className="bg-card border border-border w-full max-w-2xl p-6 sm:p-8 shadow-popover rounded-2xl relative flex flex-col min-h-[400px]">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between border-b border-border pb-4 mb-6">
-              <div>
-                <span className="text-xs font-bold uppercase tracking-wider text-primary">
-                  Interactive Study Room
-                </span>
-                <h2 className="text-lg font-bold text-foreground mt-0.5">
-                  {activeDeck.title}
-                </h2>
-              </div>
-              <button
-                onClick={() => setActiveDeck(null)}
-                className="w-9 h-9 rounded-xl bg-surface border border-border flex items-center justify-center text-muted hover:text-foreground transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
+      <Modal
+        open={!!activeDeck}
+        onClose={() => setActiveDeck(null)}
+        size="lg"
+        title={
+          activeDeck ? (
+            <div>
+              <Badge variant="outline" className="font-bold uppercase tracking-wider text-primary mb-1">
+                Interactive Study Room
+              </Badge>
+              <div className="text-lg font-bold text-foreground">{activeDeck.title}</div>
             </div>
-
-            {/* Flashcard Display Area */}
-            <div className="flex-1 flex flex-col items-center justify-center py-8 px-4 text-center">
+          ) : undefined
+        }
+        className="min-h-[400px]"
+      >
+        {activeDeck && (
+          <>
+            <div className="flex-1 flex flex-col items-center justify-center py-8 px-4 text-center -mt-2">
               {activeDeck.flashcards &&
               activeDeck.flashcards[currentCardIdx] ? (
-                <div
+                <Card
+                  padding="lg"
+                  hover
                   onClick={() => setShowAnswer(!showAnswer)}
-                  className="w-full max-w-lg min-h-[220px] p-8 border border-border bg-surface hover:shadow-card-hover rounded-2xl transition-all flex flex-col items-center justify-center cursor-pointer shadow-sm select-none group relative hover:-translate-y-0.5"
+                  className="w-full max-w-lg min-h-[220px] cursor-pointer shadow-sm select-none group relative hover:-translate-y-0.5 flex flex-col items-center justify-center"
                 >
-                  <span className="absolute top-4 right-4 text-[10px] font-mono text-muted uppercase bg-card border border-border px-2 py-1 rounded-md">
+                  <Badge className="absolute top-4 right-4 font-mono uppercase">
                     {showAnswer ? "Answer" : "Question"}
-                  </span>
+                  </Badge>
                   <p className="text-sm sm:text-base font-semibold text-foreground leading-relaxed px-4">
                     {showAnswer
                       ? activeDeck.flashcards[currentCardIdx].answer
@@ -573,30 +555,33 @@ export default function CommunityClient({
                   <span className="text-xs text-muted mt-6 italic group-hover:text-foreground transition-colors">
                     Click card to flip
                   </span>
-                </div>
+                </Card>
               ) : (
                 <p className="text-sm text-muted">Invalid flashcard format.</p>
               )}
             </div>
 
-            {/* Modal Footer Controls */}
             <div className="flex items-center justify-between border-t border-border pt-6 mt-auto">
               <span className="text-xs font-bold text-muted">
                 Card {currentCardIdx + 1} of{" "}
                 {activeDeck.flashcards?.length || 0}
               </span>
               <div className="flex items-center gap-3">
-                <button
+                <Button
+                  variant="secondary"
+                  size="sm"
                   onClick={() => {
                     setCurrentCardIdx((prev) => Math.max(0, prev - 1));
                     setShowAnswer(false);
                   }}
                   disabled={currentCardIdx === 0}
-                  className="px-4 py-2 rounded-xl bg-surface border border-border text-foreground text-xs font-semibold hover:bg-surface-hover disabled:opacity-40 transition-all"
+                  className="rounded-xl"
                 >
                   Previous
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="primary"
+                  size="sm"
                   onClick={() => {
                     setCurrentCardIdx((prev) =>
                       Math.min(
@@ -609,15 +594,15 @@ export default function CommunityClient({
                   disabled={
                     currentCardIdx === (activeDeck.flashcards?.length || 1) - 1
                   }
-                  className="px-4 py-2 rounded-xl bg-foreground text-background text-xs font-semibold hover:opacity-90 disabled:opacity-40 transition-opacity"
+                  className="rounded-xl"
                 >
                   Next Card
-                </button>
+                </Button>
               </div>
             </div>
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </Modal>
     </div>
   );
 }

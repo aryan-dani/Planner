@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { memo, type ReactNode } from "react";
 import { AlgorithmStep } from "@/lib/visualize/types";
 
 export type PseudocodeLine = { line: number; code: string };
@@ -13,7 +13,7 @@ export interface StepExplanationProps<TState> {
   extra?: ReactNode;
 }
 
-export function StepExplanation<TState>({
+function StepExplanationInner<TState>({
   step,
   emptyMessage,
   title = "What the code is doing",
@@ -55,3 +55,7 @@ export function StepExplanation<TState>({
     </div>
   );
 }
+
+export const StepExplanation = memo(
+  StepExplanationInner,
+) as typeof StepExplanationInner;

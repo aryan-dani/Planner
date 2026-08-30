@@ -1,17 +1,14 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import { useState } from "react";
 import { PlaybackToolbar } from "@/components/visualize/PlaybackToolbar";
 import { MetricsPanel } from "@/components/visualize/MetricsPanel";
 import { StepExplanation } from "@/components/visualize/StepExplanation";
-import {
-  GhostAction,
-  HappeningNow,
-  PrimaryAction,
-  Stage,
-  StudyFold,
-} from "@/components/visualize/LessonChrome";
+import { GhostAction, PrimaryAction } from "@/components/visualize/LessonChrome";
+import { WorkspaceShell } from "@/components/visualize/WorkspaceShell";
+import { GameTreeNode } from "@/components/visualize/GameTreeNode";
 import { useVisualizerPlayback } from "@/lib/visualize/useVisualizerPlayback";
+import { usePendingPlay } from "@/lib/visualize/usePendingPlay";
 import {
   generateDefaultTree,
   generateMinimaxSteps,
@@ -60,16 +57,9 @@ export function GameTreeWorkspace({ algorithmId }: GameTreeWorkspaceProps) {
   );
   const [steps, setSteps] = useState<AlgorithmStep<TreeState>[]>([]);
   const [hasGenerated, setHasGenerated] = useState(false);
-  const [pendingPlay, setPendingPlay] = useState(false);
 
   const playback = useVisualizerPlayback(steps, algorithmId);
-
-  const play = playback.play;
-  useEffect(() => {
-    if (!pendingPlay || steps.length === 0) return;
-    play();
-    setPendingPlay(false);
-  }, [pendingPlay, steps.length, play]);
+  const { setPendingPlay } = usePendingPlay(steps, playback);
 
   const handleWatch = () => {
     const tree = generateRandomTree(depth);
@@ -87,54 +77,6 @@ export function GameTreeWorkspace({ algorithmId }: GameTreeWorkspaceProps) {
     ? (playback.currentStep.state as TreeState)
     : null;
 
-  const TreeNodeComponent = ({ node }: { node: TreeNode }) => {
-    const isCurrent = activeState?.currentNodeId === node.id;
-    const evaluatedValue = activeState?.evaluatedNodes[node.id];
-    const isPruned = activeState?.prunedNodes.includes(node.id) ?? false;
-
-    let displayValue: string | number = "?";
-    if (evaluatedValue !== undefined) {
-      displayValue = evaluatedValue;
-    } else if (node.value !== null) {
-      displayValue = node.value;
-    }
-    if (isPruned) displayValue = "X";
-
-    return (
-      <div
-        className={`flex flex-col items-center ${isPruned ? "opacity-30" : ""}`}
-      >
-        <div className="flex flex-col items-center relative">
-          <div
-            className={`viz-cell flex items-center justify-center w-12 h-12 mb-6 text-sm font-semibold
-              ${node.isMaxNode ? "bg-foreground text-background" : "bg-background text-foreground border border-foreground"}
-              ${isCurrent ? "viz-cell-current" : ""}
-              ${isPruned ? "line-through" : ""}
-            `}
-            title={node.isMaxNode ? "MAX: wants a high number" : "MIN: wants a low number"}
-          >
-            {displayValue}
-          </div>
-          {node.children.length > 0 && (
-            <div className="absolute top-11 w-px h-6 bg-border" />
-          )}
-        </div>
-
-        {node.children.length > 0 && (
-          <div className="flex gap-4 sm:gap-8 md:gap-12 relative -mt-px">
-            <div className="absolute top-0 left-[25%] right-[25%] h-px bg-border" />
-            {node.children.map((child) => (
-              <div key={child.id} className="relative pt-6">
-                <div className="absolute top-0 left-1/2 w-px h-6 bg-border -translate-x-1/2" />
-                <TreeNodeComponent node={child} />
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    );
-  };
-
   const isAlphaBeta = algorithmId === "alpha-beta";
   const shownTree = activeState ? activeState.tree : initialTree;
 
@@ -147,36 +89,27 @@ export function GameTreeWorkspace({ algorithmId }: GameTreeWorkspaceProps) {
           : "Numbers on leaves are the score if the game ends there."}
       </p>
 
-      <Stage
-        label="Game tree"
-        live={hasGenerated && playback.isPlaying}
+      <WorkspaceShell
+        stageLabel="Game tree"
+        hasGenerated={hasGenerated}
+        playback={playback}
+        happeningIdle="Each highlight is one decision in the tree."
         dock={
-          <div className="flex flex-col items-center gap-3 min-h-[12.5rem]">
-            {!hasGenerated ? (
-              <PrimaryAction flat onClick={handleWatch}>Watch it run</PrimaryAction>
-            ) : (
-              <>
-                <PlaybackToolbar playback={playback} />
-                <GhostAction flat onClick={handleWatch}>New random tree</GhostAction>
-              </>
-            )}
-            <HappeningNow
-              text={playback.currentStep?.description ?? null}
-              idle="Each highlight is one decision in the tree."
-            />
-          </div>
+          !hasGenerated ? (
+            <PrimaryAction flat onClick={handleWatch}>
+              Watch it run
+            </PrimaryAction>
+          ) : (
+            <>
+              <PlaybackToolbar playback={playback} />
+              <GhostAction flat onClick={handleWatch}>
+                New random tree
+              </GhostAction>
+            </>
+          )
         }
-      >
-        <div className="overflow-x-auto overflow-y-hidden py-2">
-          <div className="min-w-max flex justify-center px-2">
-            <TreeNodeComponent node={shownTree} />
-          </div>
-        </div>
-      </Stage>
-
-      <div>
-        <StudyFold summary="Counts from this step">
-          {hasGenerated ? (
+        metricsContent={
+          hasGenerated ? (
             <MetricsPanel
               metrics={playback.currentStep?.metrics ?? null}
               frontierLabel={isAlphaBeta ? "Skipped nodes" : "Open work"}
@@ -184,16 +117,22 @@ export function GameTreeWorkspace({ algorithmId }: GameTreeWorkspaceProps) {
             />
           ) : (
             <p className="text-sm text-muted">Watch it run to see counts.</p>
-          )}
-        </StudyFold>
-        <StudyFold summary="Plain-language steps">
+          )
+        }
+        stepsContent={
           <StepExplanation
             step={playback.currentStep}
             emptyMessage="Run the tree to highlight a line."
             pseudocode={isAlphaBeta ? ALPHA_BETA_PSEUDOCODE : MINIMAX_PSEUDOCODE}
           />
-        </StudyFold>
-      </div>
+        }
+      >
+        <div className="overflow-x-auto overflow-y-hidden py-2">
+          <div className="min-w-max flex justify-center px-2">
+            <GameTreeNode node={shownTree} activeState={activeState} />
+          </div>
+        </div>
+      </WorkspaceShell>
     </div>
   );
 }

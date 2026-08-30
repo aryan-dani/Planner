@@ -1,17 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { PlaybackToolbar } from "@/components/visualize/PlaybackToolbar";
 import { StepExplanation } from "@/components/visualize/StepExplanation";
 import { MetricsPanel } from "@/components/visualize/MetricsPanel";
 import { SearchTreeCanvas } from "@/components/visualize/SearchTreeCanvas";
-import {
-  HappeningNow,
-  GhostAction,
-  PrimaryAction,
-  Stage,
-  StudyFold,
-} from "@/components/visualize/LessonChrome";
+import { GhostAction, PrimaryAction } from "@/components/visualize/LessonChrome";
+import { WorkspaceShell } from "@/components/visualize/WorkspaceShell";
+import { HeuristicPicker } from "@/components/visualize/HeuristicPicker";
 import {
   createCourseSearchTree,
   createInitialSearchTreeState,
@@ -26,6 +22,7 @@ import {
   SearchTreeAlgorithmId,
 } from "@/lib/visualize/engines/searchTree";
 import { useVisualizerPlayback } from "@/lib/visualize/useVisualizerPlayback";
+import { usePendingPlay } from "@/lib/visualize/usePendingPlay";
 import { AlgorithmStep } from "@/lib/visualize/types";
 
 const TREE_PSEUDOCODE: Record<
@@ -103,16 +100,9 @@ export function SearchTreeWorkspace({ algorithmId }: SearchTreeWorkspaceProps) {
     useState<TreeHeuristicMode>("printed");
   const [steps, setSteps] = useState<AlgorithmStep<SearchTreeState>[]>([]);
   const [hasGenerated, setHasGenerated] = useState(false);
-  const [pendingPlay, setPendingPlay] = useState(false);
 
   const playback = useVisualizerPlayback(steps, `${algorithmId}-tree`);
-
-  const play = playback.play;
-  useEffect(() => {
-    if (!pendingPlay || steps.length === 0) return;
-    play();
-    setPendingPlay(false);
-  }, [pendingPlay, steps.length, play]);
+  const { setPendingPlay } = usePendingPlay(steps, playback);
 
   const editableState = useMemo(
     () => createInitialSearchTreeState(graph),
@@ -170,68 +160,42 @@ export function SearchTreeWorkspace({ algorithmId }: SearchTreeWorkspaceProps) {
 
   return (
     <div className="w-full space-y-6">
-      {!hasGenerated && (
-        <div className="flex flex-wrap items-center justify-center gap-3 text-sm text-muted">
-          {showHeuristicPicker && (
-            <label className="flex items-center gap-2">
-              Heuristic
-              <select
-                value={heuristicMode}
-                onChange={(e) =>
-                  setHeuristicMode(e.target.value as TreeHeuristicMode)
-                }
-                className="ui-select"
-              >
-                {TREE_HEURISTIC_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
-        </div>
+      {!hasGenerated && showHeuristicPicker && (
+        <HeuristicPicker
+          value={heuristicMode}
+          options={TREE_HEURISTIC_OPTIONS}
+          onChange={setHeuristicMode}
+        />
       )}
 
-      <Stage
-        label="Search tree"
-        live={hasGenerated && playback.isPlaying}
+      <WorkspaceShell
+        stageLabel="Search tree"
+        hasGenerated={hasGenerated}
+        playback={playback}
+        happeningIdle="The run will narrate each expansion here."
+        metricsSummary="Numbers from this step"
         dock={
-          <div className="flex flex-col items-center gap-3 min-h-[12.5rem]">
-            {!hasGenerated ? (
-              <div className="flex flex-wrap items-center justify-center gap-1">
-                <PrimaryAction flat onClick={handleWatch}>Watch it run</PrimaryAction>
-                <GhostAction onClick={handleNewTree}>New tree</GhostAction>
-                <GhostAction onClick={handleResetCourseTree}>
-                  Course tree
-                </GhostAction>
-              </div>
-            ) : (
-              <>
-                <PlaybackToolbar playback={playback} />
-                <GhostAction onClick={handleResetSearch}>
-                  Edit the tree
-                </GhostAction>
-              </>
-            )}
-            <HappeningNow
-              text={playback.currentStep?.description ?? null}
-              idle="The run will narrate each expansion here."
-            />
-          </div>
+          !hasGenerated ? (
+            <div className="flex flex-wrap items-center justify-center gap-1">
+              <PrimaryAction flat onClick={handleWatch}>
+                Watch it run
+              </PrimaryAction>
+              <GhostAction onClick={handleNewTree}>New tree</GhostAction>
+              <GhostAction onClick={handleResetCourseTree}>
+                Course tree
+              </GhostAction>
+            </div>
+          ) : (
+            <>
+              <PlaybackToolbar playback={playback} />
+              <GhostAction onClick={handleResetSearch}>
+                Edit the tree
+              </GhostAction>
+            </>
+          )
         }
-      >
-        <SearchTreeCanvas
-          state={activeState}
-          onSelectGoal={handleSelectGoal}
-          isInteractive={!hasGenerated}
-          showRunLegend={hasGenerated}
-        />
-      </Stage>
-
-      <div>
-        <StudyFold summary="Numbers from this step">
-          {hasGenerated ? (
+        metricsContent={
+          hasGenerated ? (
             <>
               <MetricsPanel
                 metrics={playback.currentStep?.metrics ?? null}
@@ -249,16 +213,23 @@ export function SearchTreeWorkspace({ algorithmId }: SearchTreeWorkspaceProps) {
             </>
           ) : (
             <p className="text-sm text-muted">Watch it run to see counts.</p>
-          )}
-        </StudyFold>
-        <StudyFold summary="Plain-language steps">
+          )
+        }
+        stepsContent={
           <StepExplanation
             step={playback.currentStep}
             emptyMessage="Run the search to highlight a line."
             pseudocode={TREE_PSEUDOCODE[algorithmId]}
           />
-        </StudyFold>
-      </div>
+        }
+      >
+        <SearchTreeCanvas
+          state={activeState}
+          onSelectGoal={handleSelectGoal}
+          isInteractive={!hasGenerated}
+          showRunLegend={hasGenerated}
+        />
+      </WorkspaceShell>
     </div>
   );
 }

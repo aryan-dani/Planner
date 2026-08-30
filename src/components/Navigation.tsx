@@ -14,7 +14,6 @@ import {
   Sun,
   Moon,
   Monitor,
-  ChevronDown,
   ChevronLeft,
   ChevronRight,
   ShieldCheck,
@@ -42,6 +41,7 @@ import {
   resolveWorkspace,
   writeStoredWorkspace,
 } from "@/lib/workspace";
+import { ScopeSelector } from "@/components/academic/ScopeSelector";
 
 const NavUserMenu = dynamic(() => import("./NavUserMenu"), {
   ssr: false,
@@ -84,94 +84,6 @@ const SYSTEM_LINKS: NavLinkItem[] = [
   { href: "/install", label: "Install App", Icon: Download, desc: "PWA desktop application" },
   { href: "/support", label: "Support", Icon: Heart, desc: "Optional contribution" },
 ];
-
-const BRANCH_OPTIONS = [
-  { value: "AIDS", label: "AIDS" },
-  { value: "CSE", label: "CSE" },
-  { value: "ECE", label: "ECE" },
-];
-
-const SEMESTER_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8].map((sem) => ({
-  value: sem,
-  label: `Semester ${sem}`,
-}));
-
-function WorkspaceSelectInner<T extends string | number>({
-  value,
-  options,
-  onChange,
-  label,
-  icon: Icon,
-}: {
-  value: T;
-  options: { value: T; label: string }[];
-  onChange: (value: T) => void;
-  label: string;
-  icon?: any;
-}) {
-  const [isOpen, setIsOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setIsOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, []);
-
-  const selectedOption = options.find((o) => o.value === value);
-
-  return (
-    <div ref={ref} className="relative flex-1">
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-between gap-1.5 px-2 py-2 bg-background border border-border/80 rounded-xl text-xs font-semibold hover:border-border-strong hover:bg-surface/55 transition-all text-foreground focus-visible:outline-offset-1"
-      >
-        <span className="flex items-center gap-1 truncate">
-          {Icon && <Icon className="w-3.5 h-3.5 text-muted shrink-0" />}
-          <span className="truncate">{selectedOption?.label || label}</span>
-        </span>
-        <ChevronDown
-          className={`w-3 h-3 text-muted transition-transform duration-200 shrink-0 ${isOpen ? "rotate-180" : ""}`}
-        />
-      </button>
-
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            initial={{ opacity: 0, y: 4, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 4, scale: 0.95 }}
-            transition={{ duration: 0.1, ease: "easeOut" }}
-            className="absolute left-0 right-0 top-full mt-1.5 bg-card border border-border rounded-xl shadow-popover overflow-hidden z-[110] p-1 flex flex-col gap-0.5"
-          >
-            {options.map((opt) => (
-              <button
-                key={opt.value}
-                onClick={() => {
-                  onChange(opt.value);
-                  setIsOpen(false);
-                }}
-                className={`w-full flex items-center px-3 py-2 text-xs font-medium rounded-lg transition-colors text-left ${
-                  value === opt.value
-                    ? "bg-primary text-primary-foreground font-semibold shadow-xs"
-                    : "text-muted hover:bg-surface hover:text-foreground"
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
-
-const WorkspaceSelect = React.memo(WorkspaceSelectInner) as typeof WorkspaceSelectInner;
 
 function SegmentedThemeToggle({ theme, setTheme }: { theme: string | undefined; setTheme: (theme: string) => void }) {
   const [mounted, setMounted] = useState(false);
@@ -364,9 +276,13 @@ function NavigationInner() {
 
   const showSelectors =
     pathname === "/resources" ||
+    pathname.startsWith("/resources") ||
     pathname === "/syllabus" ||
     pathname === "/gpa" ||
-    pathname.startsWith("/resources");
+    pathname === "/ask" ||
+    pathname.startsWith("/ask") ||
+    pathname === "/planner" ||
+    pathname.startsWith("/planner");
 
   const renderNavLink = useCallback((link: NavLinkItem) => {
     const currentParams = searchParamsRef.current;
@@ -468,22 +384,13 @@ function NavigationInner() {
                 <p className="text-xs font-extrabold tracking-widest uppercase text-muted/80">
                   Workspace Filters
                 </p>
-                <div className="flex gap-1.5">
-                  <WorkspaceSelect
-                    label="Branch"
-                    value={branch}
-                    options={BRANCH_OPTIONS}
-                    onChange={(val) => updateUrl(val, semester)}
-                    icon={Calendar}
-                  />
-                  <WorkspaceSelect
-                    label="Sem"
-                    value={semester}
-                    options={SEMESTER_OPTIONS}
-                    onChange={(val) => updateUrl(branch, Number(val))}
-                    icon={BookOpen}
-                  />
-                </div>
+                <ScopeSelector
+                  branch={branch}
+                  semester={semester}
+                  variant="sidebar"
+                  onBranchChange={(val) => updateUrl(val, semester)}
+                  onSemesterChange={(val) => updateUrl(branch, val)}
+                />
               </div>
             </motion.div>
           )}

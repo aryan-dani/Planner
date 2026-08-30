@@ -1,17 +1,13 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { PlaybackToolbar } from "@/components/visualize/PlaybackToolbar";
 import { MetricsPanel } from "@/components/visualize/MetricsPanel";
 import { StepExplanation } from "@/components/visualize/StepExplanation";
-import {
-  GhostAction,
-  HappeningNow,
-  PrimaryAction,
-  Stage,
-  StudyFold,
-} from "@/components/visualize/LessonChrome";
+import { GhostAction, PrimaryAction } from "@/components/visualize/LessonChrome";
+import { WorkspaceShell } from "@/components/visualize/WorkspaceShell";
 import { useVisualizerPlayback } from "@/lib/visualize/useVisualizerPlayback";
+import { usePendingPlay } from "@/lib/visualize/usePendingPlay";
 import { generateNQueensSteps } from "@/lib/visualize/engines/nQueens";
 import { CspState } from "@/lib/visualize/csp";
 import { AlgorithmStep } from "@/lib/visualize/types";
@@ -34,18 +30,11 @@ export function CspWorkspace({ algorithmId }: CspWorkspaceProps) {
   const [n, setN] = useState(4);
   const [steps, setSteps] = useState<AlgorithmStep<CspState>[]>([]);
   const [hasGenerated, setHasGenerated] = useState(false);
-  const [pendingPlay, setPendingPlay] = useState(false);
 
   const playback = useVisualizerPlayback(steps, algorithmId);
+  const { setPendingPlay } = usePendingPlay(steps, playback);
   const activeState = playback.currentStep?.state ?? null;
   const boardN = activeState?.n ?? n;
-
-  const play = playback.play;
-  useEffect(() => {
-    if (!pendingPlay || steps.length === 0) return;
-    play();
-    setPendingPlay(false);
-  }, [pendingPlay, steps.length, play]);
 
   const handleWatch = () => {
     setSteps(generateNQueensSteps(n));
@@ -91,24 +80,53 @@ export function CspWorkspace({ algorithmId }: CspWorkspaceProps) {
         </label>
       )}
 
-      <Stage
-        label="Board"
-        live={hasGenerated && playback.isPlaying}
+      <WorkspaceShell
+        stageLabel="Board"
+        hasGenerated={hasGenerated}
+        playback={playback}
+        happeningIdle="Each step is a try, a place, or an undo."
         dock={
-          <div className="flex flex-col items-center gap-3 min-h-[12.5rem]">
-            {!hasGenerated ? (
-              <PrimaryAction flat onClick={handleWatch}>Watch it run</PrimaryAction>
-            ) : (
-              <>
-                <PlaybackToolbar playback={playback} />
-                <GhostAction onClick={handleReset}>Change board size</GhostAction>
-              </>
-            )}
-            <HappeningNow
-              text={playback.currentStep?.description ?? null}
-              idle="Each step is a try, a place, or an undo."
+          !hasGenerated ? (
+            <PrimaryAction flat onClick={handleWatch}>
+              Watch it run
+            </PrimaryAction>
+          ) : (
+            <>
+              <PlaybackToolbar playback={playback} />
+              <GhostAction onClick={handleReset}>Change board size</GhostAction>
+            </>
+          )
+        }
+        metricsContent={
+          hasGenerated ? (
+            <MetricsPanel
+              metrics={playback.currentStep?.metrics ?? null}
+              frontierLabel="Rows still empty"
+              pathLabel="Queens placed"
             />
-          </div>
+          ) : (
+            <p className="text-sm text-muted">Watch it run to see counts.</p>
+          )
+        }
+        stepsContent={
+          <StepExplanation
+            step={playback.currentStep}
+            emptyMessage="Run the solver to highlight a line."
+            extra={
+              activeState ? (
+                <p className="text-sm text-muted mb-3">
+                  {activeState.status === "conflict"
+                    ? "This square is illegal."
+                    : activeState.status === "backtrack"
+                      ? "That try failed, so the last queen comes off."
+                      : activeState.status === "solution"
+                        ? "Every row has a safe queen."
+                        : "Still searching."}
+                </p>
+              ) : null
+            }
+            pseudocode={NQUEENS_PSEUDOCODE}
+          />
         }
       >
         <div
@@ -149,41 +167,7 @@ export function CspWorkspace({ algorithmId }: CspWorkspaceProps) {
             );
           })}
         </div>
-      </Stage>
-
-      <div>
-        <StudyFold summary="Counts from this step">
-          {hasGenerated ? (
-            <MetricsPanel
-              metrics={playback.currentStep?.metrics ?? null}
-              frontierLabel="Rows still empty"
-              pathLabel="Queens placed"
-            />
-          ) : (
-            <p className="text-sm text-muted">Watch it run to see counts.</p>
-          )}
-        </StudyFold>
-        <StudyFold summary="Plain-language steps">
-          <StepExplanation
-            step={playback.currentStep}
-            emptyMessage="Run the solver to highlight a line."
-            extra={
-              activeState ? (
-                <p className="text-sm text-muted mb-3">
-                  {activeState.status === "conflict"
-                    ? "This square is illegal."
-                    : activeState.status === "backtrack"
-                      ? "That try failed, so the last queen comes off."
-                      : activeState.status === "solution"
-                        ? "Every row has a safe queen."
-                        : "Still searching."}
-                </p>
-              ) : null
-            }
-            pseudocode={NQUEENS_PSEUDOCODE}
-          />
-        </StudyFold>
-      </div>
+      </WorkspaceShell>
     </div>
   );
 }

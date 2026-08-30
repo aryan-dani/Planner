@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { easeOut, fadeUp, stagger } from "@/components/visualize/motion";
+import { Button } from "@/components/ui/Button";
 
 export function HowToUse({ steps }: { steps: readonly [string, string, string] }) {
   return (
@@ -93,19 +94,16 @@ export function PrimaryAction({
   flat?: boolean;
 }) {
   return (
-    <motion.button
+    <Button
       type={type}
       onClick={onClick}
       disabled={disabled}
-      whileHover={disabled || flat ? undefined : { y: -1 }}
-      whileTap={disabled ? undefined : { scale: 0.98 }}
-      transition={{ duration: 0.18, ease: easeOut }}
-      className={`min-h-11 px-5 bg-foreground text-background text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed rounded-md ${
-        flat ? "" : "shadow-[0_10px_24px_-12px_rgb(var(--foreground)/0.55)]"
-      }`}
+      variant="primary"
+      size="md"
+      className={flat ? "shadow-none" : undefined}
     >
       {children}
-    </motion.button>
+    </Button>
   );
 }
 
@@ -113,7 +111,6 @@ export function GhostAction({
   children,
   onClick,
   disabled,
-  flat = false,
 }: {
   children: ReactNode;
   onClick?: () => void;
@@ -121,16 +118,15 @@ export function GhostAction({
   flat?: boolean;
 }) {
   return (
-    <motion.button
+    <Button
       type="button"
       onClick={onClick}
       disabled={disabled}
-      whileHover={disabled || flat ? undefined : { y: -1 }}
-      whileTap={disabled ? undefined : { scale: 0.98 }}
-      className="min-h-11 px-4 text-sm text-muted hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed"
+      variant="ghost"
+      size="md"
     >
       {children}
-    </motion.button>
+    </Button>
   );
 }
 

@@ -1,12 +1,8 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
-import { GridWorkspace } from "@/components/visualize/GridWorkspace";
-import { SearchTreeWorkspace } from "@/components/visualize/SearchTreeWorkspace";
-import { GameTreeWorkspace } from "@/components/visualize/GameTreeWorkspace";
-import { OptimizationWorkspace } from "@/components/visualize/OptimizationWorkspace";
-import { CspWorkspace } from "@/components/visualize/CspWorkspace";
 import { StructureToggle } from "@/components/visualize/StructureToggle";
 import { VisualizeStructure } from "@/lib/visualize/structure";
 import { HowToUse } from "@/components/visualize/LessonChrome";
@@ -18,6 +14,46 @@ import { fetchSavedGrid } from "@/lib/visualize/client";
 import { SavedGridData } from "@/lib/visualize/grid";
 import { auth } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
+
+const GridWorkspace = dynamic(
+  () =>
+    import("@/components/visualize/GridWorkspace").then((m) => m.GridWorkspace),
+  { loading: () => <WorkspaceLoading /> },
+);
+
+const SearchTreeWorkspace = dynamic(
+  () =>
+    import("@/components/visualize/SearchTreeWorkspace").then(
+      (m) => m.SearchTreeWorkspace,
+    ),
+  { loading: () => <WorkspaceLoading /> },
+);
+
+const GameTreeWorkspace = dynamic(
+  () =>
+    import("@/components/visualize/GameTreeWorkspace").then(
+      (m) => m.GameTreeWorkspace,
+    ),
+  { loading: () => <WorkspaceLoading /> },
+);
+
+const OptimizationWorkspace = dynamic(
+  () =>
+    import("@/components/visualize/OptimizationWorkspace").then(
+      (m) => m.OptimizationWorkspace,
+    ),
+  { loading: () => <WorkspaceLoading /> },
+);
+
+const CspWorkspace = dynamic(
+  () =>
+    import("@/components/visualize/CspWorkspace").then((m) => m.CspWorkspace),
+  { loading: () => <WorkspaceLoading /> },
+);
+
+function WorkspaceLoading() {
+  return <p className="text-sm text-muted py-8">Loading workspace…</p>;
+}
 
 interface VisualizerWorkspaceProps {
   algorithm: AlgorithmMeta;

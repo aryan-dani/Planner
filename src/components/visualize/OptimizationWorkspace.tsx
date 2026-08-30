@@ -1,17 +1,13 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { PlaybackToolbar } from "@/components/visualize/PlaybackToolbar";
 import { MetricsPanel } from "@/components/visualize/MetricsPanel";
 import { StepExplanation } from "@/components/visualize/StepExplanation";
-import {
-  GhostAction,
-  HappeningNow,
-  PrimaryAction,
-  Stage,
-  StudyFold,
-} from "@/components/visualize/LessonChrome";
+import { GhostAction, PrimaryAction } from "@/components/visualize/LessonChrome";
+import { WorkspaceShell } from "@/components/visualize/WorkspaceShell";
 import { useVisualizerPlayback } from "@/lib/visualize/useVisualizerPlayback";
+import { usePendingPlay } from "@/lib/visualize/usePendingPlay";
 import {
   getLandscapeY,
   OPTIMIZATION_DOMAIN,
@@ -49,17 +45,10 @@ export function OptimizationWorkspace({
   const [initialX, setInitialX] = useState(2);
   const [steps, setSteps] = useState<AlgorithmStep<OptimizationState>[]>([]);
   const [hasGenerated, setHasGenerated] = useState(false);
-  const [pendingPlay, setPendingPlay] = useState(false);
 
   const playback = useVisualizerPlayback(steps, algorithmId);
+  const { setPendingPlay } = usePendingPlay(steps, playback);
   const isGenetic = algorithmId === "genetic-algorithm";
-
-  const play = playback.play;
-  useEffect(() => {
-    if (!pendingPlay || steps.length === 0) return;
-    play();
-    setPendingPlay(false);
-  }, [pendingPlay, steps.length, play]);
 
   const handleWatch = () => {
     const newSteps = isGenetic
@@ -158,26 +147,42 @@ export function OptimizationWorkspace({
         </label>
       )}
 
-      <Stage
-        label="Landscape"
-        live={hasGenerated && playback.isPlaying}
+      <WorkspaceShell
+        stageLabel="Landscape"
+        hasGenerated={hasGenerated}
+        playback={playback}
+        happeningIdle="The narration follows the moving mark on the curve."
         dock={
-          <div className="flex flex-col items-center gap-3 min-h-[12.5rem]">
-            {!hasGenerated ? (
-              <PrimaryAction flat onClick={handleWatch}>Watch it run</PrimaryAction>
-            ) : (
-              <>
-                <PlaybackToolbar playback={playback} />
-                <GhostAction onClick={handleReset}>
-                  {isGenetic ? "Run again" : "Choose a new start"}
-                </GhostAction>
-              </>
-            )}
-            <HappeningNow
-              text={playback.currentStep?.description ?? null}
-              idle="The narration follows the moving mark on the curve."
+          !hasGenerated ? (
+            <PrimaryAction flat onClick={handleWatch}>
+              Watch it run
+            </PrimaryAction>
+          ) : (
+            <>
+              <PlaybackToolbar playback={playback} />
+              <GhostAction onClick={handleReset}>
+                {isGenetic ? "Run again" : "Choose a new start"}
+              </GhostAction>
+            </>
+          )
+        }
+        metricsContent={
+          hasGenerated ? (
+            <MetricsPanel
+              metrics={playback.currentStep?.metrics ?? null}
+              frontierLabel={isGenetic ? "Swarm size" : "Neighbors checked"}
+              pathLabel="Best height"
             />
-          </div>
+          ) : (
+            <p className="text-sm text-muted">Watch it run to see counts.</p>
+          )
+        }
+        stepsContent={
+          <StepExplanation
+            step={playback.currentStep}
+            emptyMessage="Run the search to highlight a line."
+            pseudocode={isGenetic ? GA_PSEUDOCODE : HILL_PSEUDOCODE}
+          />
         }
       >
         <svg
@@ -264,28 +269,7 @@ export function OptimizationWorkspace({
             {currentMathY.toFixed(2)}
           </motion.text>
         </svg>
-      </Stage>
-
-      <div>
-        <StudyFold summary="Counts from this step">
-          {hasGenerated ? (
-            <MetricsPanel
-              metrics={playback.currentStep?.metrics ?? null}
-              frontierLabel={isGenetic ? "Swarm size" : "Neighbors checked"}
-              pathLabel="Best height"
-            />
-          ) : (
-            <p className="text-sm text-muted">Watch it run to see counts.</p>
-          )}
-        </StudyFold>
-        <StudyFold summary="Plain-language steps">
-          <StepExplanation
-            step={playback.currentStep}
-            emptyMessage="Run the search to highlight a line."
-            pseudocode={isGenetic ? GA_PSEUDOCODE : HILL_PSEUDOCODE}
-          />
-        </StudyFold>
-      </div>
+      </WorkspaceShell>
     </div>
   );
 }

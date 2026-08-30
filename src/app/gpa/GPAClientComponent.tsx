@@ -15,12 +15,12 @@ import {
   Printer,
   AlertTriangle,
   CheckCircle2,
-  ChevronDown
 } from 'lucide-react';
 import { FadeIn, ScaleButton, StaggerContainer, StaggerItem } from '@/components/Animations';
 import Link from 'next/link';
 import { useAcademicStore } from '@/store/academicStore';
 import { getAidsGpaData } from '@/lib/syllabusData';
+import { Button, Input, Segmented, Select } from '@/components/ui';
 
 interface Subject {
   id: string;
@@ -178,7 +178,15 @@ export default function GPAClient() {
   });
   const [targetCGPA, setTargetCGPA] = useState<number>(8.5);
   const [targetSemester, setTargetSemester] = useState<number>(8);
-  const [isTargetSemOpen, setIsTargetSemOpen] = useState(false);
+
+  const targetSemesterOptions = useMemo(
+    () =>
+      [1, 2, 3, 4, 5, 6, 7, 8].map((num) => ({
+        value: num,
+        label: `Semester ${num}`,
+      })),
+    [],
+  );
   const [hydrated, setHydrated] = useState(false);
 
   const currentBranch = useMemo(
@@ -550,33 +558,18 @@ export default function GPAClient() {
           </div>
 
           {/* Premium Tab Bar */}
-          <div className="flex border-b border-border mb-8">
-            <button
-              type="button"
-              role="tab"
-              aria-selected={activeTab === 'semester'}
-              onClick={() => setActiveTab('semester')}
-              className={`pb-4 px-6 text-sm font-black uppercase tracking-widest border-b-2 transition-colors focus-visible:outline-offset-[-2px] rounded-t-md ${
-                activeTab === 'semester'
-                  ? 'border-foreground text-foreground'
-                  : 'border-transparent text-muted hover:text-foreground'
-              }`}
-            >
-              Semester Strategy
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={activeTab === 'roadmap'}
-              onClick={() => setActiveTab('roadmap')}
-              className={`pb-4 px-6 text-sm font-black uppercase tracking-widest border-b-2 transition-colors focus-visible:outline-offset-[-2px] rounded-t-md ${
-                activeTab === 'roadmap'
-                  ? 'border-foreground text-foreground'
-                  : 'border-transparent text-muted hover:text-foreground'
-              }`}
-            >
-              Cumulative CGPA Roadmap
-            </button>
+          <div className="mb-8">
+            <Segmented
+              value={activeTab}
+              onChange={setActiveTab}
+              size="md"
+              aria-label="GPA calculator mode"
+              className="w-fit"
+              options={[
+                { value: 'semester', label: 'Semester Strategy' },
+                { value: 'roadmap', label: 'Cumulative CGPA Roadmap' },
+              ]}
+            />
           </div>
 
           {/* TAB 1: Semester Strategy */}
@@ -923,46 +916,16 @@ export default function GPAClient() {
                     />
                   </div>
 
-                  <div className="p-6 space-y-2 bg-card relative">
+                  <div className="p-6 space-y-2 bg-card">
                     <label className="text-[10px] font-black uppercase tracking-widest text-muted block pl-1">
                       Target Semester Horizon
                     </label>
-                    <div className="relative">
-                      <button
-                        onClick={() => setIsTargetSemOpen(!isTargetSemOpen)}
-                        className="w-full bg-surface border border-border rounded-xl px-4 py-3 text-sm font-bold text-foreground outline-none focus:border-foreground/50 transition-all flex justify-between items-center"
-                      >
-                        Semester {targetSemester}
-                        <ChevronDown className={`w-4 h-4 text-muted transition-transform ${isTargetSemOpen ? 'rotate-180' : ''}`} />
-                      </button>
-                      
-                      {isTargetSemOpen && (
-                        <>
-                          <div 
-                            className="fixed inset-0 z-40" 
-                            onClick={() => setIsTargetSemOpen(false)}
-                          />
-                          <div className="absolute top-full left-0 right-0 mt-2 bg-card border border-border rounded-xl shadow-2xl z-50 overflow-hidden flex flex-col max-h-[250px] overflow-y-auto">
-                            {[1, 2, 3, 4, 5, 6, 7, 8].map(num => (
-                              <button
-                                key={num}
-                                onClick={() => {
-                                  setTargetSemester(num);
-                                  setIsTargetSemOpen(false);
-                                }}
-                                className={`text-left px-4 py-3 text-sm font-bold transition-colors border-b border-border/50 last:border-0 ${
-                                  targetSemester === num 
-                                    ? 'bg-surface text-foreground' 
-                                    : 'text-muted hover:bg-surface hover:text-foreground'
-                                }`}
-                              >
-                                Semester {num}
-                              </button>
-                            ))}
-                          </div>
-                        </>
-                      )}
-                    </div>
+                    <Select
+                      value={targetSemester}
+                      options={targetSemesterOptions}
+                      onChange={setTargetSemester}
+                      size="lg"
+                    />
                   </div>
                 </div>
               </div>
@@ -993,46 +956,39 @@ export default function GPAClient() {
                             <h3 className="font-black text-sm uppercase text-foreground">
                               Semester {semNum}
                             </h3>
-                            <button
-                              onClick={() => handleSemesterActiveToggle(semNum)}
-                              className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${
-                                sem.active 
-                                  ? 'bg-foreground text-background scale-105' 
-                                  : 'bg-surface border border-border text-muted hover:border-foreground/30'
-                              }`}
-                            >
-                              {sem.active ? 'Active' : 'Inactive'}
-                            </button>
+                            <Segmented
+                              size="sm"
+                              value={sem.active ? 'active' : 'inactive'}
+                              onChange={(v) => {
+                                if (v === 'active' && !sem.active) handleSemesterActiveToggle(semNum);
+                                if (v === 'inactive' && sem.active) handleSemesterActiveToggle(semNum);
+                              }}
+                              options={[
+                                { value: 'inactive', label: 'Inactive' },
+                                { value: 'active', label: 'Active' },
+                              ]}
+                              aria-label={`Semester ${semNum} active state`}
+                            />
                           </div>
 
                           {/* Render Details if Active */}
                           {sem.active ? (
                             <div className="space-y-4">
                               {/* Status completed vs planned selector */}
-                              <div className="flex gap-1 bg-surface border border-border rounded-xl p-0.5">
-                                <button
-                                  onClick={() => handleSemesterCompletedToggle(semNum, true)}
-                                  disabled={isSyncedSem}
-                                  className={`flex-1 py-2 min-h-11 rounded-lg text-xs font-black uppercase tracking-wider transition-all ${
-                                    sem.completed 
-                                      ? 'bg-card text-foreground shadow-sm' 
-                                      : 'text-muted hover:text-foreground'
-                                  } ${isSyncedSem ? 'cursor-not-allowed opacity-50' : ''}`}
-                                >
-                                  Completed
-                                </button>
-                                <button
-                                  onClick={() => handleSemesterCompletedToggle(semNum, false)}
-                                  disabled={isSyncedSem}
-                                  className={`flex-1 py-2 min-h-11 rounded-lg text-xs font-black uppercase tracking-wider transition-all ${
-                                    !sem.completed 
-                                      ? 'bg-card text-foreground shadow-sm' 
-                                      : 'text-muted hover:text-foreground'
-                                  } ${isSyncedSem ? 'cursor-not-allowed opacity-50' : ''}`}
-                                >
-                                  Planned
-                                </button>
-                              </div>
+                              <Segmented
+                                size="sm"
+                                value={sem.completed ? 'completed' : 'planned'}
+                                disabled={isSyncedSem}
+                                onChange={(v) =>
+                                  handleSemesterCompletedToggle(semNum, v === 'completed')
+                                }
+                                options={[
+                                  { value: 'completed', label: 'Completed' },
+                                  { value: 'planned', label: 'Planned' },
+                                ]}
+                                aria-label={`Semester ${semNum} completion status`}
+                                className="w-full"
+                              />
 
                               {/* Credits field */}
                               <div className="space-y-1">

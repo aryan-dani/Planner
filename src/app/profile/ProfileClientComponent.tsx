@@ -24,9 +24,9 @@ import {
   Link as LinkIcon,
   Save,
   LogOut,
-  ChevronDown,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { ScopeSelector } from "@/components/academic/ScopeSelector";
 
 // Helper to generate self-contained SVG base64 Data URLs for monochrome avatars
 function generateAvatarDataUrl(emoji: string, gradientStart: string, gradientEnd: string): string {
@@ -90,28 +90,9 @@ export default function ProfileClientComponent() {
   const [selectedBranch, setSelectedBranch] = useState<Branch>("AIDS");
   const [selectedSemester, setSelectedSemester] = useState<Semester>(DEFAULT_SEMESTER);
 
-  // Custom dropdown states
-  const [branchOpen, setBranchOpen] = useState(false);
-  const [semesterOpen, setSemesterOpen] = useState(false);
-
-  // Refs for click outside
-  const branchRef = useRef<HTMLDivElement>(null);
-  const semesterRef = useRef<HTMLDivElement>(null);
   const mergingRef = useRef(false);
   const workspaceRef = useRef({ branch, semester });
   workspaceRef.current = { branch, semester };
-
-  // Options configurations
-  const branchOptions: { value: Branch; label: string }[] = [
-    { value: "AIDS", label: "Artificial Intelligence & Data Science (AIDS)" },
-    { value: "CSE", label: "Computer Science & Engineering (CSE)" },
-    { value: "ECE", label: "Electronics & Communication Engineering (ECE)" },
-  ];
-
-  const semesterOptions = [1, 2, 3, 4, 5, 6, 7, 8].map((sem) => ({
-    value: sem as Semester,
-    label: `Semester ${sem}`,
-  }));
 
   // Authentication & Initial data loading
   useEffect(() => {
@@ -189,20 +170,6 @@ export default function ProfileClientComponent() {
     return () => {
       cancelled = true;
     };
-  }, []);
-
-  // Click outside to close dropdowns
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (branchRef.current && !branchRef.current.contains(event.target as Node)) {
-        setBranchOpen(false);
-      }
-      if (semesterRef.current && !semesterRef.current.contains(event.target as Node)) {
-        setSemesterOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   const handleSave = async (e: React.FormEvent) => {
@@ -545,101 +512,13 @@ export default function ProfileClientComponent() {
                 Curriculum & Branch Settings
               </h3>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                {/* Custom Branch Selector */}
-                <div className="flex flex-col gap-2 relative" ref={branchRef}>
-                  <label className="text-xs font-bold text-foreground">
-                    Branch / Major
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setBranchOpen(!branchOpen);
-                      setSemesterOpen(false);
-                    }}
-                    className="w-full flex items-center justify-between bg-background border border-border/95 rounded-xl px-4 py-3 text-sm text-foreground hover:bg-surface-hover/50 transition-all text-left"
-                  >
-                    <span>{branchOptions.find((o) => o.value === selectedBranch)?.label}</span>
-                    <ChevronDown className={`w-4 h-4 text-muted transition-transform duration-200 ${branchOpen ? "rotate-180" : ""}`} />
-                  </button>
-                  <AnimatePresence>
-                    {branchOpen && (
-                      <motion.div
-                        initial={{ opacity: 0, y: -4 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -4 }}
-                        transition={{ duration: 0.1 }}
-                        className="absolute top-full left-0 right-0 mt-1.5 bg-card border border-border rounded-xl shadow-popover overflow-hidden z-50 p-1 flex flex-col gap-0.5"
-                      >
-                        {branchOptions.map((opt) => (
-                          <button
-                            key={opt.value}
-                            type="button"
-                            onClick={() => {
-                              setSelectedBranch(opt.value);
-                              setBranchOpen(false);
-                            }}
-                            className={`px-3 py-2.5 text-xs font-semibold rounded-lg text-left transition-colors ${
-                              selectedBranch === opt.value
-                                ? "bg-foreground text-background font-bold"
-                                : "text-foreground hover:bg-surface"
-                            }`}
-                          >
-                            {opt.label}
-                          </button>
-                        ))}
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-
-                {/* Custom Semester Selector */}
-                <div className="flex flex-col gap-2 relative" ref={semesterRef}>
-                  <label className="text-xs font-bold text-foreground">
-                    Current Semester
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSemesterOpen(!semesterOpen);
-                      setBranchOpen(false);
-                    }}
-                    className="w-full flex items-center justify-between bg-background border border-border/95 rounded-xl px-4 py-3 text-sm text-foreground hover:bg-surface-hover/50 transition-all text-left"
-                  >
-                    <span>Semester {selectedSemester}</span>
-                    <ChevronDown className={`w-4 h-4 text-muted transition-transform duration-200 ${semesterOpen ? "rotate-180" : ""}`} />
-                  </button>
-                  <AnimatePresence>
-                    {semesterOpen && (
-                      <motion.div
-                        initial={{ opacity: 0, y: -4 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -4 }}
-                        transition={{ duration: 0.1 }}
-                        className="absolute top-full left-0 right-0 mt-1.5 bg-card border border-border rounded-xl shadow-popover overflow-hidden z-50 p-1 grid grid-cols-4 gap-1"
-                      >
-                        {semesterOptions.map((opt) => (
-                          <button
-                            key={opt.value}
-                            type="button"
-                            onClick={() => {
-                              setSelectedSemester(opt.value);
-                              setSemesterOpen(false);
-                            }}
-                            className={`py-2 text-xs font-semibold rounded-lg text-center transition-colors ${
-                              selectedSemester === opt.value
-                                ? "bg-foreground text-background font-bold"
-                                : "text-foreground hover:bg-surface"
-                            }`}
-                          >
-                            {opt.value}
-                          </button>
-                        ))}
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-              </div>
+              <ScopeSelector
+                variant="settings"
+                branch={selectedBranch}
+                semester={selectedSemester}
+                onBranchChange={setSelectedBranch}
+                onSemesterChange={setSelectedSemester}
+              />
               <p className="text-[10px] text-muted-hover leading-relaxed">
                 Saving these settings automatically syncs your layout, schedules, resources, and syllabus checklist.
               </p>

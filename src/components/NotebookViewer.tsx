@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Check, Copy } from "lucide-react";
+import { Button } from "@/components/ui";
 
 type NotebookOutput = {
   output_type?: string;
@@ -39,7 +40,9 @@ function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
 
   return (
-    <button
+    <Button
+      variant="ghost"
+      size="sm"
       type="button"
       onClick={async () => {
         try {
@@ -50,16 +53,16 @@ function CopyButton({ text }: { text: string }) {
           /* ignore */
         }
       }}
-      className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-lg text-[10px] font-bold uppercase tracking-wide text-zinc-400 hover:text-zinc-100 hover:bg-white/5 border border-transparent hover:border-white/10 transition-colors"
+      className="h-7 px-2.5 text-[10px] font-bold uppercase tracking-wide min-h-0 hover:bg-surface/80 hover:border-border"
       title="Copy cell"
     >
       {copied ? (
-        <Check className="h-3.5 w-3.5 text-emerald-400" />
+        <Check className="h-3.5 w-3.5 text-foreground" />
       ) : (
         <Copy className="h-3.5 w-3.5" />
       )}
       {copied ? "Copied" : "Copy"}
-    </button>
+    </Button>
   );
 }
 
@@ -67,7 +70,7 @@ function CellOutputs({ outputs }: { outputs: NotebookOutput[] }) {
   if (!outputs?.length) return null;
 
   return (
-    <div className="border-t border-white/5 bg-[#0a0a0c]">
+    <div className="border-t border-border/50 bg-background-subtle">
       {outputs.map((output, idx) => {
         if (output.output_type === "stream") {
           const text = mimeText(output.text);
@@ -75,7 +78,7 @@ function CellOutputs({ outputs }: { outputs: NotebookOutput[] }) {
           return (
             <pre
               key={idx}
-              className="px-4 py-3 text-[12px] leading-relaxed font-mono text-zinc-300 whitespace-pre-wrap overflow-x-auto"
+              className="px-4 py-3 text-[12px] leading-relaxed font-mono text-foreground-subtle whitespace-pre-wrap overflow-x-auto"
             >
               {text}
             </pre>
@@ -99,7 +102,7 @@ function CellOutputs({ outputs }: { outputs: NotebookOutput[] }) {
                 <img
                   src={`data:image/png;base64,${png}`}
                   alt="Notebook output"
-                  className="max-w-full rounded-lg border border-white/10 bg-white"
+                  className="max-w-full rounded-lg border border-border bg-card"
                 />
               )}
               {!png && jpeg && (
@@ -107,21 +110,21 @@ function CellOutputs({ outputs }: { outputs: NotebookOutput[] }) {
                 <img
                   src={`data:image/jpeg;base64,${jpeg}`}
                   alt="Notebook output"
-                  className="max-w-full rounded-lg border border-white/10 bg-white"
+                  className="max-w-full rounded-lg border border-border bg-card"
                 />
               )}
               {html && plain && (
-                <pre className="text-[12px] leading-relaxed font-mono text-zinc-300 whitespace-pre-wrap">
+                <pre className="text-[12px] leading-relaxed font-mono text-foreground-subtle whitespace-pre-wrap">
                   {plain}
                 </pre>
               )}
               {html && !plain && (
-                <pre className="text-[12px] leading-relaxed font-mono text-zinc-400 whitespace-pre-wrap opacity-80">
+                <pre className="text-[12px] leading-relaxed font-mono text-muted whitespace-pre-wrap opacity-80">
                   [HTML output omitted for security]
                 </pre>
               )}
               {!png && !jpeg && !html && plain && (
-                <pre className="text-[12px] leading-relaxed font-mono text-zinc-300 whitespace-pre-wrap">
+                <pre className="text-[12px] leading-relaxed font-mono text-foreground-subtle whitespace-pre-wrap">
                   {plain}
                 </pre>
               )}
@@ -133,7 +136,7 @@ function CellOutputs({ outputs }: { outputs: NotebookOutput[] }) {
           return (
             <pre
               key={idx}
-              className="px-4 py-3 text-[12px] leading-relaxed font-mono text-red-300 whitespace-pre-wrap overflow-x-auto"
+              className="px-4 py-3 text-[12px] leading-relaxed font-mono text-destructive whitespace-pre-wrap overflow-x-auto"
             >
               {output.ename}: {output.evalue}
               {"\n"}
@@ -160,14 +163,14 @@ export default function NotebookViewer({ content }: { content: string }) {
 
   if (!cells) {
     return (
-      <div className="h-full flex items-center justify-center text-sm text-zinc-400">
+      <div className="h-full flex items-center justify-center text-sm text-muted">
         Could not parse this notebook.
       </div>
     );
   }
 
   return (
-    <div className="h-full w-full overflow-auto bg-[#0c0c0e]">
+    <div className="h-full w-full overflow-auto bg-background-subtle">
       <div className="max-w-4xl mx-auto py-6 px-3 sm:px-6 space-y-4">
         {cells.map((cell, index) => {
           const source = joinSource(cell.source);
@@ -176,9 +179,9 @@ export default function NotebookViewer({ content }: { content: string }) {
             return (
               <div
                 key={index}
-                className="rounded-xl border border-white/10 bg-[#121216] px-4 py-4 sm:px-5"
+                className="rounded-xl border border-border bg-card px-4 py-4 sm:px-5"
               >
-                <div className="prose prose-invert prose-sm max-w-none prose-headings:text-zinc-100 prose-p:text-zinc-300 prose-strong:text-zinc-100 prose-a:text-sky-300 prose-code:text-zinc-200 prose-pre:bg-black/40">
+                <div className="prose prose-invert prose-sm max-w-none prose-headings:text-foreground prose-p:text-foreground-subtle prose-strong:text-foreground prose-a:text-primary prose-code:text-foreground prose-pre:bg-surface">
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>
                     {source}
                   </ReactMarkdown>
@@ -193,15 +196,15 @@ export default function NotebookViewer({ content }: { content: string }) {
             return (
               <div
                 key={index}
-                className="rounded-xl border border-white/10 overflow-hidden bg-[#101014]"
+                className="rounded-xl border border-border overflow-hidden bg-surface"
               >
-                <div className="flex items-center justify-between gap-2 px-3 py-1.5 border-b border-white/5 bg-black/30">
-                  <span className="text-[10px] font-mono font-bold text-sky-400/90 tracking-wide">
+                <div className="flex items-center justify-between gap-2 px-3 py-1.5 border-b border-border/50 bg-background/80">
+                  <span className="text-[10px] font-mono font-bold text-primary/90 tracking-wide">
                     In {exec}
                   </span>
                   <CopyButton text={source} />
                 </div>
-                <pre className="px-4 py-3 text-[12px] sm:text-[13px] leading-relaxed font-mono text-zinc-200 whitespace-pre-wrap overflow-x-auto">
+                <pre className="px-4 py-3 text-[12px] sm:text-[13px] leading-relaxed font-mono text-foreground whitespace-pre-wrap overflow-x-auto">
                   <code>{source}</code>
                 </pre>
                 <CellOutputs outputs={cell.outputs || []} />

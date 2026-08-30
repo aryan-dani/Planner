@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build --webpack",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint src",
+    "analyze": "cross-env ANALYZE=true npm run build",
     "sync-drive": "node runtime/tools/sync-drive.mjs",
     "index-content": "node runtime/index.mjs index",
     "sync-all": "node runtime/index.mjs sync && node runtime/index.mjs index",
@@ -38,11 +39,13 @@
     "node-domexception": "file:./scripts/domexception-shim"
   },
   "devDependencies": {
+    "@next/bundle-analyzer": "^16.2.6",
     "@tailwindcss/typography": "^0.5.19",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "autoprefixer": "^10.5.0",
+    "cross-env": "^7.0.3",
     "eslint": "^9.19.0",
     "eslint-config-next": "^16.2.6",
     "postcss": "^8.5.14",

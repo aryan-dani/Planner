@@ -1,8 +1,12 @@
 import { Suspense } from "react";
-import AskClient from "./AskClientComponent";
+import dynamic from "next/dynamic";
 import { getResourcesFromDB, getSubjectsFromDB } from "@/lib/dataFetcher";
 import { resolveWorkspace } from "@/lib/workspace";
 import PageSkeleton from "@/components/PageSkeleton";
+
+const AskClient = dynamic(() => import("./AskClientComponent"), {
+  loading: () => <PageSkeleton variant="simple" />,
+});
 
 export const revalidate = 600;
 

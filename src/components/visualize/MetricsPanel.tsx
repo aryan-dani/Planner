@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import { AlgorithmMetrics } from "@/lib/visualize/types";
 
 export interface MetricsPanelProps {
@@ -8,7 +9,7 @@ export interface MetricsPanelProps {
   pathLabel?: string;
 }
 
-export function MetricsPanel({
+function MetricsPanelInner({
   metrics,
   frontierLabel = "Still to try",
   pathLabel = "Path length",
@@ -39,3 +40,5 @@ export function MetricsPanel({
     </dl>
   );
 }
+
+export const MetricsPanel = memo(MetricsPanelInner);

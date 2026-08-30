@@ -1,12 +1,12 @@
 import { create } from "zustand";
+import type { Branch, Semester } from "@/lib/academic/scope";
 import {
   DEFAULT_BRANCH,
   DEFAULT_SEMESTER,
   writeStoredWorkspace,
 } from "@/lib/workspace";
 
-export type Branch = "AIDS" | "CSE" | "ECE";
-export type Semester = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
+export type { Branch, Semester };
 
 interface AcademicState {
   branch: Branch;

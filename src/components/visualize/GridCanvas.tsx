@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useCallback } from "react";
+import React, { memo, useState, useMemo, useCallback } from "react";
 import { GridState, Position } from "@/lib/visualize/grid";
 
 export interface GridCanvasProps {
@@ -12,7 +12,7 @@ export interface GridCanvasProps {
   showRunLegend?: boolean;
 }
 
-export function GridCanvas({
+function GridCanvasInner({
   gridState,
   onToggleWall,
   onMoveStart,
@@ -211,3 +211,5 @@ export function GridCanvas({
     </div>
   );
 }
+
+export const GridCanvas = memo(GridCanvasInner);

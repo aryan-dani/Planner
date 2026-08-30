@@ -42,6 +42,7 @@ import Link from 'next/link';
 import { buildResourcesHref } from '@/lib/resourceUrl';
 import type { ResourceItem } from '@/lib/dataFetcher';
 import type { Branch, Semester } from '@/store/academicStore';
+import { Button, Select } from '@/components/ui';
 
 const SUGGESTED_PROMPTS = [
   'Explain overfitting vs underfitting in Machine Learning with examples',
@@ -60,13 +61,15 @@ function CopyButton({ text }: { text: string }) {
     setTimeout(() => setCopied(false), 2000);
   };
   return (
-    <button
+    <Button
+      variant="ghost"
+      size="sm"
       onClick={copy}
-      className="opacity-100 md:opacity-0 md:group-hover:opacity-100 p-2 min-h-11 min-w-11 md:p-1 md:min-h-0 md:min-w-0 rounded text-muted hover:text-foreground active:bg-surface transition-all inline-flex items-center justify-center"
+      className="opacity-100 md:opacity-0 md:group-hover:opacity-100 min-h-11 min-w-11 md:min-h-0 md:min-w-0 md:p-1"
       title="Copy"
     >
       {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
-    </button>
+    </Button>
   );
 }
 
@@ -292,8 +295,16 @@ export default function AskClient({
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [showScrollDown, setShowScrollDown] = useState(false);
 
-  const [isFocusDropdownOpen, setIsFocusDropdownOpen] = useState(false);
-  const focusDropdownRef = useRef<HTMLDivElement>(null);
+  const focusOptions = useMemo(
+    () => [
+      { value: 'all' as const, label: 'Entire Library (RAG Search)' },
+      ...resources.map((res) => ({
+        value: res.id,
+        label: res.title,
+      })),
+    ],
+    [resources],
+  );
 
   useEffect(() => {
     const mq = window.matchMedia("(min-width: 768px)");
@@ -301,16 +312,6 @@ export default function AskClient({
     apply();
     mq.addEventListener("change", apply);
     return () => mq.removeEventListener("change", apply);
-  }, []);
-
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (focusDropdownRef.current && !focusDropdownRef.current.contains(event.target as Node)) {
-        setIsFocusDropdownOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   // Flashcard state
@@ -934,21 +935,25 @@ export default function AskClient({
               <div className="p-3.5 border-b border-border flex items-center justify-between gap-2">
                 <span className="text-xs uppercase font-bold text-muted tracking-wider">Chat History</span>
                 <div className="flex items-center gap-1">
-                <button
+                <Button
+                  variant="secondary"
+                  size="sm"
                   onClick={handleNewChat}
-                  className="tap-target rounded-lg border border-border bg-card hover:bg-surface-hover text-muted hover:text-foreground transition-all"
+                  className="tap-target shrink-0"
                   title="New Chat"
                 >
                   <Plus className="w-3.5 h-3.5" />
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
                   onClick={() => setSidebarOpen(false)}
-                  className="tap-target rounded-lg border border-border bg-card hover:bg-surface-hover text-muted hover:text-foreground transition-all md:hidden"
+                  className="tap-target md:hidden shrink-0"
                   title="Close history"
                   aria-label="Close chat history"
                 >
                   <X className="w-3.5 h-3.5" />
-                </button>
+                </Button>
                 </div>
               </div>
               <div className="flex-1 overflow-y-auto p-2 space-y-1 custom-scrollbar">
@@ -966,20 +971,24 @@ export default function AskClient({
                     >
                       <span className="truncate min-w-0 flex-1 mr-2">{s.title}</span>
                       <div className="flex items-center gap-1 opacity-100 md:opacity-0 md:group-hover/session:opacity-100 transition-opacity shrink-0">
-                        <button
+                        <Button
+                          variant="ghost"
+                          size="sm"
                           onClick={(e) => handleRenameSession(s.id, s.title, e)}
-                          className={`p-2 min-h-11 min-w-11 md:p-1 md:min-h-0 md:min-w-0 rounded-md transition-colors inline-flex items-center justify-center ${isActive ? 'text-foreground/75 hover:bg-surface-hover hover:text-foreground' : 'hover:bg-surface-hover text-muted hover:text-foreground'}`}
+                          className={`min-h-11 min-w-11 md:min-h-0 md:min-w-0 md:p-1 ${isActive ? 'text-foreground/75' : ''}`}
                           title="Rename Chat"
                         >
                           <Plus className="w-3 h-3 rotate-45" />
-                        </button>
-                        <button
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
                           onClick={(e) => handleDeleteSession(s.id, e)}
-                          className={`p-2 min-h-11 min-w-11 md:p-1 md:min-h-0 md:min-w-0 rounded-md transition-colors inline-flex items-center justify-center ${isActive ? 'text-foreground/75 hover:bg-surface-hover hover:text-red-400' : 'hover:bg-surface-hover text-muted hover:text-red-500'}`}
+                          className={`min-h-11 min-w-11 md:min-h-0 md:min-w-0 md:p-1 hover:text-destructive ${isActive ? 'text-foreground/75' : ''}`}
                           title="Delete Chat"
                         >
                           <Trash2 className="w-3 h-3" />
-                        </button>
+                        </Button>
                       </div>
                     </div>
                   );
@@ -995,68 +1004,29 @@ export default function AskClient({
             {/* Top Toolbar: Sidebar toggle & grounded document selector */}
             <div className="flex items-center justify-between gap-2 flex-wrap border-b border-border px-3 sm:px-4 py-2.5 bg-surface/30 shrink-0">
               <div className="flex items-center gap-2 min-w-0 flex-1">
-                <button
+                <Button
+                  variant="secondary"
+                  size="sm"
                   onClick={() => setSidebarOpen(!sidebarOpen)}
-                  className="tap-target rounded-lg border border-border bg-card hover:bg-surface text-muted hover:text-foreground transition-all shrink-0"
+                  className="tap-target shrink-0"
                   title={sidebarOpen ? "Hide chat history" : "Show chat history"}
                 >
                   <ChevronLeft className={`w-3.5 h-3.5 transition-transform ${sidebarOpen ? '' : 'rotate-180'}`} />
-                </button>
+                </Button>
                 
                 <div className="h-4 w-px bg-border mx-1 hidden sm:block shrink-0" />
 
                 {/* Grounded Document Selector */}
-                <div className="flex items-center gap-2 relative min-w-0 flex-1" ref={focusDropdownRef}>
+                <div className="flex items-center gap-2 min-w-0 flex-1">
                   <span className="text-xs uppercase font-bold text-muted select-none hidden sm:inline shrink-0">AI Focus:</span>
-                  <button
-                    onClick={() => setIsFocusDropdownOpen(!isFocusDropdownOpen)}
-                    className="flex items-center justify-between gap-2 text-xs font-semibold bg-card border border-border rounded-xl px-3 py-2 min-h-11 text-foreground outline-none cursor-pointer w-full max-w-full sm:max-w-[240px] hover:border-border-strong transition-colors shadow-xs"
-                  >
-                    <span className="truncate">
-                      {selectedResourceId === 'all' ? (
-                        <span className="flex items-center gap-1.5">
-                          <Globe className="w-3.5 h-3.5 text-muted shrink-0 animate-pulse" />
-                          <span>Entire Library (RAG)</span>
-                        </span>
-                      ) : (
-                        <span className="flex items-center gap-1.5">
-                          <FileText className="w-3.5 h-3.5 text-muted shrink-0" />
-                          <span className="truncate text-foreground font-semibold">{resources.find(r => r.id === selectedResourceId)?.title || 'Unknown'}</span>
-                        </span>
-                      )}
-                    </span>
-                    <ChevronLeft className={`w-3.5 h-3.5 text-muted shrink-0 transition-transform ${isFocusDropdownOpen ? 'rotate-90' : '-rotate-90'}`} />
-                  </button>
-                  
-                  {isFocusDropdownOpen && (
-                    <div className="absolute top-full left-0 sm:left-auto sm:right-0 mt-1.5 w-full min-w-[16rem] max-w-[min(280px,calc(100vw-2rem))] bg-card border border-border shadow-popover rounded-2xl overflow-hidden z-50 flex flex-col max-h-[300px]">
-                      <div className="overflow-y-auto p-1.5 flex flex-col gap-0.5">
-                        <button
-                          onClick={() => { setSelectedResourceId('all'); setIsFocusDropdownOpen(false); }}
-                          className={`w-full flex items-center gap-2 text-left px-3 py-2.5 min-h-11 text-xs font-semibold rounded-lg transition-colors ${selectedResourceId === 'all' ? 'bg-surface text-foreground' : 'text-muted hover:bg-surface-hover hover:text-foreground'}`}
-                        >
-                          <Globe className="w-3.5 h-3.5 text-muted shrink-0" />
-                          <span className="truncate">Entire Library (RAG Search)</span>
-                        </button>
-                        {resources.length > 0 && (
-                          <div className="px-3 py-1.5 mt-1 border-t border-border/40">
-                            <span className="text-xs uppercase font-bold tracking-wider text-muted">Specific Documents</span>
-                          </div>
-                        )}
-                        {resources.map((res) => (
-                          <button
-                            key={res.id}
-                            onClick={() => { setSelectedResourceId(res.id); setIsFocusDropdownOpen(false); }}
-                            className={`w-full flex items-center gap-2 text-left px-3 py-2.5 min-h-11 text-xs font-semibold rounded-lg transition-colors ${selectedResourceId === res.id ? 'bg-surface text-foreground' : 'text-muted hover:bg-surface-hover hover:text-foreground'}`}
-                            title={res.title}
-                          >
-                            <FileText className="w-3.5 h-3.5 text-muted shrink-0" />
-                            <span className="truncate">{res.title}</span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                  <Select
+                    value={selectedResourceId}
+                    options={focusOptions}
+                    onChange={setSelectedResourceId}
+                    icon={selectedResourceId === 'all' ? Globe : FileText}
+                    size="md"
+                    className="w-full max-w-full sm:max-w-[240px]"
+                  />
                 </div>
               </div>
 
@@ -1161,20 +1131,24 @@ export default function AskClient({
             <div className="border-t border-border px-4 sm:px-6 py-4 shrink-0 safe-bottom">
               {messages.length > 0 && (
                 <div className="flex items-center gap-4 mb-2">
-                  <button
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={() => regenerate()}
-                    className="inline-flex items-center gap-1.5 text-[11px] text-muted hover:text-foreground transition-colors"
+                    className="text-[11px] h-auto min-h-0 px-0"
                   >
                     <RotateCw className="w-3 h-3" />
                     Regenerate
-                  </button>
-                  <button
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={() => setMessages([])}
-                    className="inline-flex items-center gap-1.5 text-[11px] text-muted hover:text-foreground transition-colors"
+                    className="text-[11px] h-auto min-h-0 px-0 hover:text-destructive"
                   >
                     <Trash2 className="w-3 h-3" />
                     Clear chat
-                  </button>
+                  </Button>
                 </div>
               )}
 
