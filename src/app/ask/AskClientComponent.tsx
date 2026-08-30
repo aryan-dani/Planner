@@ -2,7 +2,7 @@
 
 import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport } from 'ai';
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef, useMemo, memo } from 'react';
 import { 
   Send, 
   Trash2, 
@@ -23,6 +23,7 @@ import {
   ChevronRight,
   BookOpen,
   Plus,
+  Pencil,
   Mic,
   Globe,
   FileText,
@@ -73,9 +74,18 @@ function CopyButton({ text }: { text: string }) {
   );
 }
 
+/** Close an unclosed fenced code block so streaming markdown does not swallow the rest of the reply. */
+function stabilizeStreamingMarkdown(content: string): string {
+  const fenceCount = content.match(/```/g)?.length ?? 0;
+  if (fenceCount % 2 === 1) {
+    return `${content}\n\`\`\``;
+  }
+  return content;
+}
+
 /* Professional markdown renderer using react-markdown */
-function MessageContent({ content, showCursor }: { content: string, showCursor?: boolean }) {
-  const displayContent = showCursor ? content + ' ▋' : content;
+const MessageContent = memo(function MessageContent({ content, showCursor }: { content: string, showCursor?: boolean }) {
+  const markdown = showCursor ? stabilizeStreamingMarkdown(content) : content;
   return (
     <div className="prose prose-sm dark:prose-invert max-w-none prose-p:leading-relaxed prose-pre:bg-surface prose-pre:border prose-pre:border-border prose-pre:rounded-lg prose-code:text-primary prose-code:bg-primary/5 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:before:content-none prose-code:after:content-none">
       <ReactMarkdown
@@ -135,11 +145,17 @@ function MessageContent({ content, showCursor }: { content: string, showCursor?:
           ),
         }}
       >
-        {displayContent}
+        {markdown}
       </ReactMarkdown>
+      {showCursor ? (
+        <span
+          className="inline-block w-[2px] h-[1em] ml-0.5 align-text-bottom bg-foreground animate-pulse"
+          aria-hidden
+        />
+      ) : null}
     </div>
   );
-}
+});
 
 function getMessageContent(m: any): string {
   if (m.content) return m.content;
@@ -290,9 +306,9 @@ export default function AskClient({
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Chat refs & state
-  const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const stickToBottomRef = useRef(true);
   const [showScrollDown, setShowScrollDown] = useState(false);
 
   const focusOptions = useMemo(
@@ -650,6 +666,7 @@ export default function AskClient({
       return;
     }
 
+    stickToBottomRef.current = true;
     sendMessage({ 
       role: 'user',
       content: input,
@@ -658,27 +675,48 @@ export default function AskClient({
     setInput('');
   };
 
-  // Auto-scroll to bottom for chat
-  useEffect(() => {
-    if (messagesEndRef.current && activeTab === 'chat') {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [messages, activeTab]);
-
-  // Track scroll position for chat
+  // Keep the transcript pinned to the chat scroller — never the window.
   useEffect(() => {
     const container = scrollContainerRef.current;
     if (!container || activeTab !== 'chat') return;
+
     const handleScroll = () => {
-      const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 100;
-      setShowScrollDown(!isNearBottom && messages.length > 0);
+      const gap = container.scrollHeight - container.scrollTop - container.clientHeight;
+      const atBottom = gap < 96;
+      stickToBottomRef.current = atBottom;
+      setShowScrollDown(!atBottom && container.scrollHeight > container.clientHeight);
     };
-    container.addEventListener('scroll', handleScroll);
+
+    container.addEventListener('scroll', handleScroll, { passive: true });
     return () => container.removeEventListener('scroll', handleScroll);
-  }, [messages.length, activeTab]);
+  }, [activeTab]);
+
+  useLayoutEffect(() => {
+    if (activeTab !== 'chat') return;
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    const content = container.querySelector('[data-chat-log]');
+    if (!content) return;
+
+    const snap = () => {
+      if (!stickToBottomRef.current) return;
+      container.scrollTop = container.scrollHeight;
+    };
+
+    snap();
+    const observer = new ResizeObserver(snap);
+    observer.observe(content);
+    return () => observer.disconnect();
+  }, [activeTab, messages.length]);
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    stickToBottomRef.current = true;
+    const container = scrollContainerRef.current;
+    if (container) {
+      container.scrollTop = container.scrollHeight;
+    }
+    setShowScrollDown(false);
   };
 
   const handleSuggestion = (prompt: string) => {
@@ -849,7 +887,7 @@ export default function AskClient({
   };
 
   return (
-    <div className="flex-1 w-full mx-auto flex flex-col md:h-screen h-[calc(100dvh-3.5rem-env(safe-area-inset-top))] page-gutter">
+    <div className="flex-1 min-h-0 w-full mx-auto flex flex-col overflow-hidden overscroll-none h-[calc(100dvh-3.5rem-env(safe-area-inset-top))] md:h-dvh page-gutter">
       {/* Top Navigation Tabs */}
       <div className="border-b border-border px-4 sm:px-6 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
         <div className="flex flex-col gap-2 min-w-0">
@@ -920,7 +958,7 @@ export default function AskClient({
 
       {/* Tab 1: Chat Assistant */}
       {activeTab === 'chat' && (
-        <div className="flex-1 flex overflow-hidden w-full relative">
+        <div className="flex-1 min-h-0 flex overflow-hidden w-full relative">
           
           {/* Chat Sessions — overlay drawer on mobile, inline rail on md+ */}
           {sidebarOpen && (
@@ -931,7 +969,7 @@ export default function AskClient({
                 onClick={() => setSidebarOpen(false)}
                 className="absolute inset-0 bg-black/50 z-30 md:hidden"
               />
-              <div className="absolute md:relative inset-y-0 left-0 z-40 md:z-auto w-[min(16rem,85vw)] md:w-64 border-r border-border bg-background-subtle flex flex-col shrink-0 shadow-popover md:shadow-none">
+              <div className="absolute md:relative inset-y-0 left-0 z-40 md:z-auto w-[min(16rem,85vw)] md:w-64 min-h-0 border-r border-border bg-background-subtle flex flex-col shrink-0 shadow-popover md:shadow-none">
               <div className="p-3.5 border-b border-border flex items-center justify-between gap-2">
                 <span className="text-xs uppercase font-bold text-muted tracking-wider">Chat History</span>
                 <div className="flex items-center gap-1">
@@ -977,8 +1015,9 @@ export default function AskClient({
                           onClick={(e) => handleRenameSession(s.id, s.title, e)}
                           className={`min-h-11 min-w-11 md:min-h-0 md:min-w-0 md:p-1 ${isActive ? 'text-foreground/75' : ''}`}
                           title="Rename Chat"
+                          aria-label="Rename chat"
                         >
-                          <Plus className="w-3 h-3 rotate-45" />
+                          <Pencil className="w-3.5 h-3.5" />
                         </Button>
                         <Button
                           variant="ghost"
@@ -999,7 +1038,7 @@ export default function AskClient({
           )}
 
           {/* Main Chat Area */}
-          <div className="flex-1 flex flex-col overflow-hidden">
+          <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
             
             {/* Top Toolbar: Sidebar toggle & grounded document selector */}
             <div className="flex items-center justify-between gap-2 flex-wrap border-b border-border px-3 sm:px-4 py-2.5 bg-surface/30 shrink-0">
@@ -1025,7 +1064,9 @@ export default function AskClient({
                     onChange={setSelectedResourceId}
                     icon={selectedResourceId === 'all' ? Globe : FileText}
                     size="md"
-                    className="w-full max-w-full sm:max-w-[240px]"
+                    searchable
+                    searchPlaceholder="Search documents…"
+                    className="w-full max-w-full sm:max-w-xs"
                   />
                 </div>
               </div>
@@ -1037,7 +1078,7 @@ export default function AskClient({
               )}
             </div>
 
-            <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-4 sm:px-6 py-6 relative">
+            <div ref={scrollContainerRef} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain px-4 sm:px-6 py-6 relative [overflow-anchor:none]">
               {messages.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center text-center px-4">
                   <div className="w-16 h-16 bg-surface border border-border flex items-center justify-center mb-6 rounded-2xl shadow-sm">
@@ -1059,7 +1100,7 @@ export default function AskClient({
                   </div>
                 </div>
               ) : (
-                <div className="space-y-6">
+                <div className="space-y-6" data-chat-log>
                   {messages.map((m: any) => (
                     <div
                       key={m.id}
@@ -1075,7 +1116,7 @@ export default function AskClient({
                         className={`max-w-[85%] ${
                           m.role === 'user'
                             ? 'bg-foreground text-background rounded-2xl rounded-br-md px-4 py-2.5 shadow-sm'
-                            : 'bg-card border border-border/80 rounded-2xl px-5 py-4 shadow-xs relative overflow-hidden group/bubble'
+                            : 'bg-card border border-border/80 rounded-2xl px-5 py-4 shadow-xs relative group/bubble'
                         }`}
                       >
                         {m.role === 'user' ? (
@@ -1114,7 +1155,6 @@ export default function AskClient({
                     </div>
                   )}
 
-                  <div ref={messagesEndRef} />
                 </div>
               )}
 
@@ -1211,7 +1251,7 @@ export default function AskClient({
 
       {/* Tab 2: Flashcards */}
       {activeTab === 'flashcards' && (
-        <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-6 flex flex-col items-center">
+        <div className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 py-6 flex flex-col items-center">
           <div className="w-full max-w-2xl mb-8">
             <form onSubmit={handleGenerateFlashcards} className="flex gap-2">
               <input
@@ -1444,7 +1484,7 @@ export default function AskClient({
 
       {/* Tab 3: Practice Quiz */}
       {activeTab === 'quiz' && (
-        <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-6 flex flex-col items-center">
+        <div className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 py-6 flex flex-col items-center">
           <div className="w-full max-w-2xl mb-8">
             <form onSubmit={handleGenerateQuiz} className="flex gap-2">
               <input
