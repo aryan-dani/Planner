@@ -6,6 +6,7 @@ import Navigation from '@/components/Navigation';
 import ConditionalFooter from '@/components/ConditionalFooter';
 import { Providers } from '@/components/Providers';
 import InstallPrompt from '@/components/pwa/InstallPrompt';
+import { SpeedInsights } from '@vercel/speed-insights/next';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -94,6 +95,7 @@ export default function RootLayout({
           </div>
           <InstallPrompt />
         </Providers>
+        <SpeedInsights />
       </body>
     </html>
   );
