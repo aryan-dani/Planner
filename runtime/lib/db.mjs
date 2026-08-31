@@ -162,3 +162,49 @@ export async function upsert(table, data, onConflict) {
     throw new Error(`upsert("${table}"): ${err.message}`);
   }
 }
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+function isQuotaError(err) {
+  const msg = err?.message || String(err);
+  return msg.includes("RESOURCE_EXHAUSTED") || msg.includes("Quota exceeded");
+}
+
+/** Batch-write documents with merge, pausing between batches to avoid quota spikes. */
+export async function upsertBatch(table, items, options = {}) {
+  const batchSize = options.batchSize ?? 400;
+  const pauseMs = options.pauseMs ?? 400;
+  const maxRetries = options.maxRetries ?? 6;
+
+  for (let i = 0; i < items.length; i += batchSize) {
+    const slice = items.slice(i, i + batchSize);
+    let attempt = 0;
+
+    while (attempt < maxRetries) {
+      try {
+        const batch = db.batch();
+        for (const item of slice) {
+          const id = item.id;
+          if (!id) throw new Error(`upsertBatch("${table}"): missing id`);
+          const clean = { ...item };
+          delete clean.id;
+          batch.set(db.collection(table).doc(id), clean, { merge: true });
+        }
+        await batch.commit();
+        break;
+      } catch (err) {
+        attempt++;
+        if (isQuotaError(err) && attempt < maxRetries) {
+          const delay = Math.min(60_000, 2000 * 2 ** attempt);
+          await sleep(delay);
+          continue;
+        }
+        throw new Error(`upsertBatch("${table}"): ${err.message}`);
+      }
+    }
+
+    if (i + batchSize < items.length) await sleep(pauseMs);
+  }
+
+  return items.length;
+}

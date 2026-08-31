@@ -5,6 +5,8 @@
 
 import "./dom-polyfill.mjs";
 import * as pdfjs from "pdfjs-dist/legacy/build/pdf.mjs";
+import * as pdfParse from "pdf-parse";
+const { PDFParse } = pdfParse;
 import { pathToFileURL } from "url";
 import path from "path";
 import { unzipSync } from "fflate";
@@ -14,19 +16,26 @@ import { join } from "path";
 import { tmpdir } from "os";
 import { randomUUID } from "crypto";
 
+const PDFJS_ROOT = path.join(process.cwd(), "node_modules", "pdfjs-dist");
+const WORKER_PATH = path.join(PDFJS_ROOT, "legacy", "build", "pdf.worker.mjs");
+const CMAP_URL = pathToFileURL(path.join(PDFJS_ROOT, "cmaps")).href + "/";
+const STANDARD_FONT_URL =
+  pathToFileURL(path.join(PDFJS_ROOT, "standard_fonts")).href + "/";
+
 try {
-  const workerPath = path.join(
-    process.cwd(),
-    "node_modules",
-    "pdfjs-dist",
-    "legacy",
-    "build",
-    "pdf.worker.mjs",
-  );
-  pdfjs.GlobalWorkerOptions.workerSrc = pathToFileURL(workerPath).toString();
+  pdfjs.GlobalWorkerOptions.workerSrc = pathToFileURL(WORKER_PATH).toString();
 } catch (e) {
-  console.warn("⚠️ Failed to resolve pdf.worker.mjs path:", e);
+  console.warn("⚠️ Failed to resolve pdf.worker.mjs path:", e.message);
 }
+
+/** Shared pdf.js document options — fixes cMap / standardFont warnings. */
+const PDF_LOAD_OPTIONS = {
+  cMapUrl: CMAP_URL,
+  cMapPacked: true,
+  standardFontDataUrl: STANDARD_FONT_URL,
+  verbosity: pdfjs.VerbosityLevel?.ERRORS ?? 0,
+  disableFontFace: true,
+};
 
 /**
  * @typedef {{ text: string, sectionLabel: string, sectionIndex: number, heading?: string }} ExtractUnit
@@ -64,9 +73,9 @@ export async function extractText(buffer, extension) {
   };
 }
 
-async function extractPdf(buffer) {
+async function extractPdfWithPdfjs(buffer) {
   const data = new Uint8Array(buffer);
-  const doc = await pdfjs.getDocument({ data }).promise;
+  const doc = await pdfjs.getDocument({ data, ...PDF_LOAD_OPTIONS }).promise;
   /** @type {ExtractUnit[]} */
   const units = [];
 
@@ -87,8 +96,49 @@ async function extractPdf(buffer) {
     });
   }
 
+  const pageCount = doc.numPages;
+  await doc.destroy();
   const fullText = units.map((u) => u.text).join("\n\n");
-  return { units, pages: doc.numPages, fullText };
+  return { units, pages: pageCount, fullText };
+}
+
+/** Fallback for scanned/image PDFs where pdf.js returns empty text. */
+async function extractPdfWithPdfParse(buffer) {
+  const parser = new PDFParse({ data: buffer });
+  try {
+    const info = await parser.getInfo();
+    const textResult = await parser.getText();
+    const text = (textResult.text || "").replace(/\s+/g, " ").trim();
+    if (!text) return null;
+    return {
+      units: [
+        {
+          text,
+          sectionLabel: "Document",
+          sectionIndex: 1,
+          heading: text.split(/\s+/).slice(0, 8).join(" "),
+        },
+      ],
+      pages: info.total || 1,
+      fullText: text,
+    };
+  } finally {
+    await parser.destroy();
+  }
+}
+
+async function extractPdf(buffer) {
+  try {
+    const result = await extractPdfWithPdfjs(buffer);
+    if (result.units.length > 0) return result;
+  } catch {
+    /* fall through to pdf-parse */
+  }
+
+  const fallback = await extractPdfWithPdfParse(buffer);
+  if (fallback) return fallback;
+
+  return { units: [], pages: 0, fullText: "" };
 }
 
 function extractXmlTextRuns(xml) {

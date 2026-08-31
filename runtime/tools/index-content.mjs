@@ -4,7 +4,7 @@
  */
 
 import crypto from "crypto";
-import { select, upsert, remove } from "../lib/db.mjs";
+import { select, upsert, upsertBatch, remove } from "../lib/db.mjs";
 import { downloadFile } from "../lib/storage.mjs";
 import { extractStructured } from "../lib/extractor.mjs";
 import { getDrive } from "../lib/drive.mjs";
@@ -16,6 +16,7 @@ import { FieldValue } from "firebase-admin/firestore";
 
 const SUPPORTED_EXTS = [".pdf", ".docx", ".pptx", ".xlsx"];
 const PAGE_SIZE = 500;
+const RESOURCE_CONCURRENCY = 2;
 
 function hashBuffer(buffer) {
   return crypto.createHash("sha256").update(buffer).digest("hex");
@@ -82,6 +83,15 @@ async function deleteStaleChunks(resourceId, keepCount) {
 export default async function indexContent() {
   console.log("\n🔍 Starting Hybrid Content Indexing…\n");
 
+  const hasGemini = Boolean(process.env.GEMINI_API_KEY);
+  if (!hasGemini) {
+    console.warn(
+      "⚠️  GEMINI_API_KEY not set — embeddings skipped (lexical/BM25 search only).\n",
+    );
+  }
+
+  const stats = { ok: 0, skipped: 0, failed: 0, chunksWritten: 0 };
+
   try {
     const resources = await fetchAll("resources");
     const indexable = resources.filter((r) => {
@@ -146,6 +156,7 @@ export default async function indexContent() {
         const { units, pages, fullText } = await extractStructured(buffer, ext);
         if (!fullText?.trim() && units.length === 0) {
           console.warn(`   ⚠️  No text extracted, skipping.`);
+          stats.skipped++;
           return;
         }
 
@@ -193,13 +204,11 @@ export default async function indexContent() {
         }
 
         const skipHashes = chunkHashMap.get(res.id) || new Set();
-        if (process.env.GEMINI_API_KEY) {
+        if (hasGemini) {
           await embedChunks(chunks, skipHashes);
-        } else {
-          console.warn("   ⚠️  GEMINI_API_KEY not set — skipping embeddings (lexical search only).");
         }
 
-        for (const chunk of chunks) {
+        const chunkPayloads = chunks.map((chunk) => {
           const docId = `${res.id}_${chunk.chunk_index}`;
           const payload = {
             id: docId,
@@ -221,13 +230,17 @@ export default async function indexContent() {
             content_hash: chunk.content_hash,
             last_indexed: new Date().toISOString(),
           };
-
           if (chunk.embedding?.length) {
             payload.embedding = FieldValue.vector(chunk.embedding);
           }
+          return payload;
+        });
 
-          await upsert("resource_chunks", payload, "resource_id");
-        }
+        await upsertBatch("resource_chunks", chunkPayloads, {
+          batchSize: 400,
+          pauseMs: 500,
+        });
+        stats.chunksWritten += chunkPayloads.length;
 
         await deleteStaleChunks(res.id, chunks.length);
 
@@ -237,18 +250,19 @@ export default async function indexContent() {
         );
 
         console.log(`   ✅ ${chunks.length} chunks, ${pages} pages`);
+        stats.ok++;
       } catch (err) {
         console.error(`   ❌ ${res.title}: ${err.message}`);
+        stats.failed++;
       }
     }
 
-    // Process with concurrency 5
     const executing = new Set();
     for (let i = 0; i < toIndex.length; i++) {
       const p = processResource(toIndex[i], i);
       executing.add(p);
       p.finally(() => executing.delete(p));
-      if (executing.size >= 5) await Promise.race(executing);
+      if (executing.size >= RESOURCE_CONCURRENCY) await Promise.race(executing);
     }
     await Promise.all(executing);
 
@@ -268,7 +282,13 @@ export default async function indexContent() {
       updated_at: new Date().toISOString(),
     });
 
-    console.log(`\n✨ Indexing complete. ${allChunksForStats.length} total chunks in corpus.\n`);
+    console.log(
+      `\n✨ Indexing complete. ${allChunksForStats.length} total chunks in corpus.`,
+    );
+    console.log(
+      `   Resources: ${stats.ok} indexed, ${stats.skipped} skipped (no text), ${stats.failed} failed.`,
+    );
+    console.log(`   Wrote ${stats.chunksWritten} chunk documents this run.\n`);
   } catch (error) {
     console.error(`\n❌ Indexing error: ${error.message}`);
     throw error;

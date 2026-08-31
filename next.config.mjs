@@ -31,8 +31,16 @@ const config = isDev
       disable: false,
       register: true,
       skipWaiting: true,
+      cacheOnFrontEndNav: false,
+      aggressiveFrontEndNavCaching: false,
       workboxOptions: {
         skipWaiting: true,
+        navigateFallbackDenylist: [
+          /^\/resources/,
+          /^\/ask/,
+          /^\/admin/,
+          /^\/api/,
+        ],
       },
       fallback: {
         document: '/~offline',
