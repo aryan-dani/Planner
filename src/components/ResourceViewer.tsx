@@ -18,6 +18,7 @@ import { ResourceItem } from "@/lib/dataFetcher";
 import {
   getFileExtension,
   getDriveFileId,
+  getDriveEmbedUrl,
   isCodeExtension,
   isNotebookExtension,
   isCsvExtension,
@@ -50,10 +51,10 @@ interface ResourceViewerProps {
 
 function getViewerUrl(resource: ResourceItem) {
   const extension = getFileExtension(resource.title, resource.file_url);
+  const driveId = getDriveFileId(resource.file_url);
 
-  // Drive files are proxied or opened externally — never embedded via drive.google.com iframe.
-  if (resource.file_url.includes("drive.google.com")) {
-    return null;
+  if (driveId) {
+    return getDriveEmbedUrl(driveId);
   }
 
   if (extension === "pdf") {
@@ -99,7 +100,7 @@ export default function ResourceViewer({
     !isImage &&
     (isCodeExtension(extension) || resource.category === "codes");
   const isTextFetch = isCode || isCsv || isNotebook;
-  const viewerUrl = useMemo(() => getViewerUrl(resource), [resource]);
+  const embedUrl = useMemo(() => getViewerUrl(resource), [resource]);
   const downloadUrl = useMemo(() => getDirectUrl(resource), [resource]);
   const driveId = useMemo(
     () => getDriveFileId(resource.file_url),
@@ -109,16 +110,8 @@ export default function ResourceViewer({
     ? `https://drive.google.com/file/d/${driveId}/view`
     : resource.file_url;
 
-  const usesDriveBlobPreview = isDrive && isPdf && !!driveId;
-  const usesDriveExternalFallback =
-    isDrive && !usesDriveBlobPreview && !isTextFetch && !isNotebook && !isImage;
-  const usesDirectIframe =
-    !usesDriveExternalFallback &&
-    !usesDriveBlobPreview &&
-    !isTextFetch &&
-    !isNotebook &&
-    !isImage &&
-    !!viewerUrl;
+  const usesIframePreview =
+    !isTextFetch && !isNotebook && !isImage && !!embedUrl;
   const colabUrl = driveId
     ? `https://colab.research.google.com/drive/${driveId}`
     : null;
@@ -171,6 +164,7 @@ export default function ResourceViewer({
   const [loadError, setLoadError] = useState(false);
   const [codeContent, setCodeContent] = useState<string | null>(null);
   const [blobPreviewUrl, setBlobPreviewUrl] = useState<string | null>(null);
+  const activeIframeSrc = blobPreviewUrl ?? embedUrl;
 
   useEffect(() => {
     setMounted(true);
@@ -181,7 +175,7 @@ export default function ResourceViewer({
     setLoadError(false);
     setCodeContent(null);
     setBlobPreviewUrl(null);
-  }, [viewerUrl, resource.file_url, resource.id]);
+  }, [embedUrl, resource.file_url, resource.id]);
 
   useEffect(() => {
     if (!isTextFetch) return;
@@ -233,64 +227,43 @@ export default function ResourceViewer({
   }, [isTextFetch, resource.file_url, driveId]);
 
   useEffect(() => {
-    if (usesDriveExternalFallback) {
-      setIsLoading(false);
-      setLoadError(false);
-    }
-  }, [usesDriveExternalFallback, resource.id]);
-
-  useEffect(() => {
-    if (!usesDriveBlobPreview || !driveId) return;
+    if (!loadError || !isPdf || !driveId || blobPreviewUrl) return;
 
     let cancelled = false;
     let objectUrl: string | null = null;
 
-    async function loadDrivePreview() {
-      setIsLoading(true);
-      setLoadError(false);
+    async function loadProxyFallback() {
       try {
-        const user = auth.currentUser;
-        const headers: HeadersInit = {};
-        if (user) {
-          headers.Authorization = `Bearer ${await user.getIdToken()}`;
-        }
         const res = await fetch(
           `/api/resources/preview?id=${driveId}&ext=pdf`,
-          { headers },
         );
-        if (res.status === 413) {
-          throw new Error("File too large to preview in-app");
-        }
-        if (!res.ok) throw new Error("Failed to load preview");
+        if (res.status === 413) throw new Error("too large");
+        if (!res.ok) throw new Error("preview failed");
         const blob = await res.blob();
         if (cancelled) return;
         objectUrl = URL.createObjectURL(blob);
         setBlobPreviewUrl(objectUrl);
+        setLoadError(false);
         setIsLoading(false);
       } catch {
-        if (!cancelled) {
-          setLoadError(true);
-          setIsLoading(false);
-        }
+        /* keep loadError — overlay shows open-in-drive link */
       }
     }
 
-    loadDrivePreview();
+    loadProxyFallback();
     return () => {
       cancelled = true;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [usesDriveBlobPreview, driveId, resource.id]);
+  }, [loadError, isPdf, driveId, blobPreviewUrl, resource.id]);
 
-  // 15s timeout only for iframe previews still loading (not text/image/notebook fetch paths)
-  const usesIframePreview = usesDirectIframe || usesDriveBlobPreview;
   useEffect(() => {
     if (!usesIframePreview || !isLoading) return;
     const timer = setTimeout(() => {
       setLoadError(true);
-    }, 15000);
+    }, 20000);
     return () => clearTimeout(timer);
-  }, [usesIframePreview, isLoading, viewerUrl]);
+  }, [usesIframePreview, isLoading, activeIframeSrc]);
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
@@ -444,7 +417,7 @@ export default function ResourceViewer({
         )}
         <a
           ref={externalRef}
-          href={resource.file_url}
+          href={isDrive ? driveViewUrl : resource.file_url}
           target="_blank"
           rel="noopener noreferrer"
           className="flex h-8 w-8 items-center justify-center rounded-lg text-muted transition-colors hover:bg-surface hover:text-foreground"
@@ -626,42 +599,36 @@ export default function ResourceViewer({
                 </div>
               )}
             </div>
-          ) : usesDriveExternalFallback ? (
-            <div className="h-full w-full flex flex-col items-center justify-center gap-4 p-8 text-center bg-background">
-              <FileIcon className="h-12 w-12 text-muted" />
-              <div className="max-w-md space-y-2">
-                <p className="text-sm font-medium text-foreground">
-                  Google Drive preview cannot be embedded here
-                </p>
-                <p className="text-xs text-muted leading-relaxed">
-                  Google blocks in-app previews on third-party sites. Open this
-                  file directly in Google Drive instead.
-                </p>
-              </div>
-              <a
-                href={driveViewUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 h-10 px-4 rounded-xl bg-foreground text-background text-sm font-semibold hover:opacity-90 transition-opacity"
-              >
-                Open in Google Drive
-                <ExternalLink className="h-4 w-4" />
-              </a>
-            </div>
-          ) : usesDirectIframe || (usesDriveBlobPreview && blobPreviewUrl) ? (
-            <iframe
-              src={usesDriveBlobPreview ? blobPreviewUrl! : viewerUrl!}
-              title={resource.title}
-              className="h-full w-full bg-background"
-              loading="eager"
-              referrerPolicy="no-referrer"
-              onLoad={() => setIsLoading(false)}
-            />
+          ) : usesIframePreview && activeIframeSrc ? (
+            <>
+              <iframe
+                src={activeIframeSrc}
+                title={resource.title}
+                className="h-full w-full bg-background"
+                loading="eager"
+                allow="autoplay; encrypted-media"
+                referrerPolicy="no-referrer-when-downgrade"
+                onLoad={() => setIsLoading(false)}
+              />
+              {!isLoading && loadError && !blobPreviewUrl && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-center text-muted bg-background/90 z-10 p-6">
+                  <p className="text-sm">Preview is taking longer than usual.</p>
+                  <a
+                    href={isDrive ? driveViewUrl : resource.file_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-foreground underline underline-offset-4 text-sm inline-flex items-center gap-1"
+                  >
+                    Open file <ExternalLink className="h-3 w-3" />
+                  </a>
+                </div>
+              )}
+            </>
           ) : (
             <div className="h-full w-full flex flex-col items-center justify-center gap-3 text-center text-muted">
               <p className="text-sm">Preview not available in-app.</p>
               <a
-                href={resource.file_url}
+                href={isDrive ? driveViewUrl : resource.file_url}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-foreground underline underline-offset-4 text-sm inline-flex items-center gap-1"

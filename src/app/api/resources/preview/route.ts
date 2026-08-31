@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { isAuthFailure, requireUser } from "@/lib/apiAuth";
 import {
   getDriveClient,
   isAllowedDriveFile,
@@ -8,11 +7,8 @@ import {
 
 const MAX_PREVIEW_BYTES = 32 * 1024 * 1024; // 32 MB
 
-/** Stream a Drive file for in-app preview (PDF, images). Auth required. */
+/** Stream a catalog Drive file for in-app preview when iframe embed fails. */
 export async function GET(request: Request) {
-  const auth = await requireUser(request);
-  if (isAuthFailure(auth)) return auth;
-
   const { searchParams } = new URL(request.url);
   const fileId = searchParams.get("id");
   const ext = (searchParams.get("ext") || "pdf").toLowerCase();
