@@ -7,4 +7,4 @@ export const EMBED_DIMS = 768;
 export const EMBED_MODEL = "gemini-embedding-001";
 export const EMBED_BATCH_SIZE = 100;
 export const EMBED_CONCURRENCY = 2;
-export const MAX_DOC_FREQ_TERMS = 20_000;
+export const MAX_DOC_FREQ_TERMS = 5_000;
