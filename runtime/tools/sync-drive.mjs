@@ -211,8 +211,8 @@ async function syncDrive() {
       console.log(
         `  🗑️ Deleting ${staleResourceIds.length} stale resources...`,
       );
-      // Firestore batch limit is 500 ops; each resource deletes 2 docs
-      const chunkSize = 200;
+      // Keep batches small — each resource deletes 2 docs; stay well under 500 ops / 10 MiB
+      const chunkSize = 50;
       for (let i = 0; i < staleResourceIds.length; i += chunkSize) {
         const chunk = staleResourceIds.slice(i, i + chunkSize);
         const batch = db.batch();
@@ -221,6 +221,11 @@ async function syncDrive() {
           batch.delete(db.collection("resource_content").doc(id));
         }
         await batch.commit();
+        if (staleResourceIds.length > chunkSize) {
+          console.log(
+            `     … deleted ${Math.min(i + chunkSize, staleResourceIds.length)}/${staleResourceIds.length}`,
+          );
+        }
       }
       stats.deletedResources = staleResourceIds.length;
     }
@@ -236,7 +241,7 @@ async function syncDrive() {
 
     if (staleSubjectIds.length > 0) {
       console.log(`  🗑️ Deleting ${staleSubjectIds.length} stale subjects...`);
-      const chunkSize = 400;
+      const chunkSize = 200;
       for (let i = 0; i < staleSubjectIds.length; i += chunkSize) {
         const chunk = staleSubjectIds.slice(i, i + chunkSize);
         const batch = db.batch();
