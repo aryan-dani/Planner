@@ -1,5 +1,7 @@
 import { adminDb } from "./firebaseAdmin";
 import { unstable_cache } from "next/cache";
+import { matchesAcademicYear } from "@/lib/academic/scope";
+import type { AcademicYear } from "@/lib/academic/scope";
 
 // ─── Interfaces ───────────────────────────────────────────────────────────────
 
@@ -107,6 +109,7 @@ export function getResourceCategory(
 // ─── Fetchers ─────────────────────────────────────────────────────────────────
 
 async function fetchSubjectsFromDB(
+  academicYear: AcademicYear,
   branch: string,
   semester: number,
 ): Promise<SubjectItem[]> {
@@ -117,15 +120,22 @@ async function fetchSubjectsFromDB(
       .where("semester", "==", semester)
       .get();
 
-    const subjects: SubjectItem[] = snapshot.docs.map(doc => {
-      const d = doc.data();
-      return {
-        id: doc.id,
-        name: d.name || "",
-        branch: d.branch || "",
-        semester: Number(d.semester || 0)
-      };
-    });
+    const subjects: SubjectItem[] = snapshot.docs
+      .filter((doc) =>
+        matchesAcademicYear(
+          doc.data().academic_year as string | undefined,
+          academicYear,
+        ),
+      )
+      .map((doc) => {
+        const d = doc.data();
+        return {
+          id: doc.id,
+          name: d.name || "",
+          branch: d.branch || "",
+          semester: Number(d.semester || 0),
+        };
+      });
 
     // Sort alphabetically by name
     subjects.sort((a, b) => a.name.localeCompare(b.name));
@@ -144,6 +154,7 @@ async function fetchSubjectsFromDB(
 }
 
 async function fetchResourcesFromDB(
+  academicYear: AcademicYear,
   branch: string,
   semester: number,
 ): Promise<ResourceItem[]> {
@@ -163,6 +174,11 @@ async function fetchResourcesFromDB(
 
     subjectsSnapshot.docs.forEach(doc => {
       const d = doc.data();
+      if (
+        !matchesAcademicYear(d.academic_year as string | undefined, academicYear)
+      ) {
+        return;
+      }
       if (d.name?.toUpperCase() !== "SYLLABUS") {
         subjectsMap.set(doc.id, d.name || "");
         subjectIds.push(doc.id);
@@ -250,6 +266,7 @@ async function fetchResourcesFromDB(
 }
 
 async function fetchSyllabusFile(
+  academicYear: AcademicYear,
   branch: string,
   semester: number,
 ): Promise<string | null> {
@@ -261,11 +278,17 @@ async function fetchSyllabusFile(
       .where("branch", "==", branch)
       .where("semester", "==", semester)
       .where("name", "==", "Syllabus")
-      .limit(1)
+      .limit(5)
       .get();
 
-    if (subjectsSnapshot.empty) return null;
-    const syllabusSubjectId = subjectsSnapshot.docs[0].id;
+    const syllabusDoc = subjectsSnapshot.docs.find((doc) =>
+      matchesAcademicYear(
+        doc.data().academic_year as string | undefined,
+        academicYear,
+      ),
+    );
+    if (!syllabusDoc) return null;
+    const syllabusSubjectId = syllabusDoc.id;
 
     // 2. Find resource matching this subject
     const resourcesSnapshot = await db.collection("resources")
@@ -283,20 +306,32 @@ async function fetchSyllabusFile(
 
 // ─── Exported Cache-Wrapped API ───────────────────────────────────────────────
 
-export const getSubjectsFromDB = (branch: string, semester: number) => unstable_cache(
-  () => fetchSubjectsFromDB(branch, semester),
-  ["subjects-cache", branch, semester.toString()],
+export const getSubjectsFromDB = (
+  academicYear: AcademicYear,
+  branch: string,
+  semester: number,
+) => unstable_cache(
+  () => fetchSubjectsFromDB(academicYear, branch, semester),
+  ["subjects-cache", academicYear, branch, semester.toString()],
   { revalidate: 600, tags: ["subjects"] }
 )();
 
-export const getResourcesFromDB = (branch: string, semester: number) => unstable_cache(
-  () => fetchResourcesFromDB(branch, semester),
-  ["resources-cache", branch, semester.toString()],
+export const getResourcesFromDB = (
+  academicYear: AcademicYear,
+  branch: string,
+  semester: number,
+) => unstable_cache(
+  () => fetchResourcesFromDB(academicYear, branch, semester),
+  ["resources-cache", academicYear, branch, semester.toString()],
   { revalidate: 600, tags: ["resources"] }
 )();
 
-export const getSyllabusFile = (branch: string, semester: number) => unstable_cache(
-  () => fetchSyllabusFile(branch, semester),
-  ["syllabus-cache", branch, semester.toString()],
+export const getSyllabusFile = (
+  academicYear: AcademicYear,
+  branch: string,
+  semester: number,
+) => unstable_cache(
+  () => fetchSyllabusFile(academicYear, branch, semester),
+  ["syllabus-cache", academicYear, branch, semester.toString()],
   { revalidate: 3600, tags: ["syllabus", "resources"] }
 )();

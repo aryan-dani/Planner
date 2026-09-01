@@ -16,7 +16,9 @@
     "sync-all": "node runtime/index.mjs sync && node runtime/index.mjs index",
     "rename-drive-files": "node runtime/tools/rename-drive-files.mjs --dry-run",
     "rename-drive-files:apply": "node runtime/tools/rename-drive-files.mjs --apply",
-    "audit-drive-site": "node runtime/tools/audit-drive-site.mjs"
+    "audit-drive-site": "node runtime/tools/audit-drive-site.mjs",
+    "restructure-drive-years": "node runtime/tools/restructure-drive-years.mjs",
+    "restructure-drive-years:apply": "node runtime/tools/restructure-drive-years.mjs --apply"
   },
   "dependencies": {
     "@ai-sdk/groq": "^3.0.39",

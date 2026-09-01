@@ -12,8 +12,9 @@ import {
   getPendingMergeStep,
 } from "@/lib/firebaseAuth";
 import { doc, setDoc, getDoc } from "firebase/firestore";
-import { useAcademicStore, Branch, Semester } from "@/store/academicStore";
-import { DEFAULT_SEMESTER } from "@/lib/workspace";
+import { useAcademicStore, AcademicYear, Branch, Semester } from "@/store/academicStore";
+import { DEFAULT_ACADEMIC_YEAR, DEFAULT_SEMESTER } from "@/lib/workspace";
+import { isAcademicYear } from "@/lib/academic/scope";
 import { toast } from "sonner";
 import Link from "next/link";
 import {
@@ -74,7 +75,7 @@ const AVATAR_PRESETS: AvatarPreset[] = [
 
 export default function ProfileClientComponent() {
   const router = useRouter();
-  const { branch, semester, setBranch, setSemester } = useAcademicStore();
+  const { academicYear, branch, semester, setAcademicYear, setBranch, setSemester } = useAcademicStore();
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -87,12 +88,13 @@ export default function ProfileClientComponent() {
   const [displayName, setDisplayName] = useState("");
   const [photoURL, setPhotoURL] = useState("");
   const [tempPhotoUrl, setTempPhotoUrl] = useState(""); // Holds manual text inputs
+  const [selectedAcademicYear, setSelectedAcademicYear] = useState<AcademicYear>(DEFAULT_ACADEMIC_YEAR);
   const [selectedBranch, setSelectedBranch] = useState<Branch>("AIDS");
   const [selectedSemester, setSelectedSemester] = useState<Semester>(DEFAULT_SEMESTER);
 
   const mergingRef = useRef(false);
-  const workspaceRef = useRef({ branch, semester });
-  workspaceRef.current = { branch, semester };
+  const workspaceRef = useRef({ academicYear, branch, semester });
+  workspaceRef.current = { academicYear, branch, semester };
 
   // Authentication & Initial data loading
   useEffect(() => {
@@ -114,6 +116,11 @@ export default function ProfileClientComponent() {
         const snap = await getDoc(userPrefsRef);
         if (snap.exists()) {
           const data = snap.data();
+          if (data.academic_year && isAcademicYear(data.academic_year)) {
+            setSelectedAcademicYear(data.academic_year);
+          } else {
+            setSelectedAcademicYear(workspaceRef.current.academicYear);
+          }
           if (data.branch) {
             setSelectedBranch(data.branch as Branch);
           } else {
@@ -126,6 +133,7 @@ export default function ProfileClientComponent() {
           }
         } else {
           // If no doc, match the current store settings
+          setSelectedAcademicYear(workspaceRef.current.academicYear);
           setSelectedBranch(workspaceRef.current.branch);
           setSelectedSemester(workspaceRef.current.semester);
         }
@@ -194,6 +202,7 @@ export default function ProfileClientComponent() {
           displayName: displayName.trim() || currentUser.email?.split("@")[0] || "Student",
           photoURL: photoURL.trim() || "",
           provider: providerLabel,
+          academic_year: selectedAcademicYear,
           branch: selectedBranch,
           semester: Number(selectedSemester),
           updatedAt: new Date().toISOString(),
@@ -203,6 +212,7 @@ export default function ProfileClientComponent() {
       );
 
       // 3. Sync Client Store Preferences
+      setAcademicYear(selectedAcademicYear);
       setBranch(selectedBranch);
       setSemester(selectedSemester);
 
@@ -514,8 +524,10 @@ export default function ProfileClientComponent() {
 
               <ScopeSelector
                 variant="settings"
+                academicYear={selectedAcademicYear}
                 branch={selectedBranch}
                 semester={selectedSemester}
+                onAcademicYearChange={setSelectedAcademicYear}
                 onBranchChange={setSelectedBranch}
                 onSemesterChange={setSelectedSemester}
               />

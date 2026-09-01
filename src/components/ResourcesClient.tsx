@@ -54,6 +54,7 @@ const SummaryModal = dynamic(() => import("./SummaryModal"), { ssr: false });
 
 interface ResourcesClientProps {
   initialResources: ResourceItem[];
+  academicYear: string;
   branch: string;
   semester: number;
   initialSubject?: string | null;
@@ -86,6 +87,7 @@ function filterLabel(filter: ResourceFilter): string | null {
 
 export default function ResourcesClient({
   initialResources,
+  academicYear,
   branch,
   semester,
   initialSubject = null,
@@ -117,7 +119,7 @@ export default function ResourcesClient({
   const lastUserSubjectRef = useRef<string | null>(null);
   const [isSubjectPending, setIsSubjectPending] = useState(false);
   const [isScopeLoading, setIsScopeLoading] = useState(false);
-  const scopeKey = `${branch}:${semester}`;
+  const scopeKey = `${academicYear}:${branch}:${semester}`;
   const prevScopeRef = useRef(scopeKey);
   const subjectPendingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchRequestId = useRef(0);
@@ -709,14 +711,14 @@ export default function ResourcesClient({
         )}
         <span className="hidden sm:inline mx-2 text-border">|</span>
         <Link
-          href={`/syllabus?branch=${branch}&semester=${semester}`}
+          href={`/syllabus?year=${encodeURIComponent(academicYear)}&branch=${branch}&semester=${semester}`}
           className="hidden sm:inline hover:text-foreground transition-colors"
         >
           Syllabus
         </Link>
         <span className="hidden sm:inline text-border">·</span>
         <Link
-          href={`/ask?branch=${branch}&semester=${semester}`}
+          href={`/ask?year=${encodeURIComponent(academicYear)}&branch=${branch}&semester=${semester}`}
           className="hidden sm:inline hover:text-foreground transition-colors"
         >
           Ask AI

@@ -7,6 +7,7 @@
  */
 import { env } from "../lib/env.mjs";
 import { getDrive } from "../lib/drive.mjs";
+import { listDriveScopes } from "../lib/academicYear.mjs";
 
 const dryRun = process.argv.includes("--dry-run");
 const drive = getDrive(["https://www.googleapis.com/auth/drive"]);
@@ -53,13 +54,17 @@ async function normalize() {
   if (!rootId) throw new Error("Missing GOOGLE_DRIVE_FOLDER_ID");
   console.log(`\n🔧 Normalizing Drive folder names${dryRun ? " (dry-run)" : ""}...\n`);
 
-  const branches = (await listChildren(rootId)).filter(
-    (f) => f.mimeType === "application/vnd.google-apps.folder",
-  );
+  const scopes = await listDriveScopes(listChildren, rootId);
 
-  for (const branch of branches) {
-    const branchName = branch.name.toUpperCase();
-    console.log(`📁 ${branch.name}`);
+  for (const scope of scopes) {
+    const yearLabel = scope.academicYear ? `${scope.academicYear}/` : "";
+    const branches = (await listChildren(scope.containerId)).filter(
+      (f) => f.mimeType === "application/vnd.google-apps.folder",
+    );
+
+    for (const branch of branches) {
+      const branchName = branch.name.toUpperCase();
+      console.log(`📁 ${yearLabel}${branch.name}`);
 
     const semFolders = (await listChildren(branch.id)).filter(
       (f) => f.mimeType === "application/vnd.google-apps.folder",
@@ -107,6 +112,7 @@ async function normalize() {
           }
         }
       }
+    }
     }
   }
 

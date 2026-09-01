@@ -1,3 +1,6 @@
+import { matchesAcademicYear } from "@/lib/academic/scope";
+import type { AcademicYear } from "@/lib/academic/scope";
+import { LEGACY_ACADEMIC_YEAR } from "@/lib/academic/scope";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { FieldValue } from "firebase-admin/firestore";
 import {
@@ -58,6 +61,7 @@ function cleanQuery(raw: string): string {
 
 async function lexicalCandidates(
   queryTerms: string[],
+  academicYear?: string,
   branch?: string,
   semester?: number,
   resourceId?: string,
@@ -72,6 +76,7 @@ async function lexicalCandidates(
   if (resourceId) {
     ref = ref.where("resource_id", "==", resourceId);
   } else {
+    if (academicYear) ref = ref.where("academic_year", "==", academicYear);
     if (branch) ref = ref.where("branch", "==", branch);
     if (semester != null) ref = ref.where("semester", "==", semester);
     if (terms.length > 0) {
@@ -80,14 +85,24 @@ async function lexicalCandidates(
   }
 
   const snap = await ref.limit(BM25_CANDIDATE_LIMIT).get();
-  return snap.docs.map((doc: FirebaseFirestore.QueryDocumentSnapshot) => ({
-    id: doc.id,
-    ...doc.data(),
-  } as ChunkRecord));
+  return (
+    snap.docs.map((doc: FirebaseFirestore.QueryDocumentSnapshot) => ({
+      id: doc.id,
+      ...doc.data(),
+    })) as ChunkRecord[]
+  ).filter((chunk: ChunkRecord) =>
+    academicYear
+      ? matchesAcademicYear(
+          chunk.academic_year,
+          academicYear as AcademicYear,
+        )
+      : true,
+  );
 }
 
 async function vectorCandidates(
   queryVector: number[],
+  academicYear?: string,
   branch?: string,
   semester?: number,
   resourceId?: string,
@@ -99,6 +114,7 @@ async function vectorCandidates(
   if (resourceId) {
     ref = ref.where("resource_id", "==", resourceId);
   } else {
+    if (academicYear) ref = ref.where("academic_year", "==", academicYear);
     if (branch) ref = ref.where("branch", "==", branch);
     if (semester != null) ref = ref.where("semester", "==", semester);
   }
@@ -112,11 +128,20 @@ async function vectorCandidates(
       distanceResultField: "_distance",
     });
     const snap = await vectorQuery.get();
-    return snap.docs.map((doc: FirebaseFirestore.QueryDocumentSnapshot) => ({
-      id: doc.id,
-      ...doc.data(),
-      _distance: doc.get("_distance") as number | undefined,
-    })) as Array<ChunkRecord & { _distance?: number }>;
+    return (
+      snap.docs.map((doc: FirebaseFirestore.QueryDocumentSnapshot) => ({
+        id: doc.id,
+        ...doc.data(),
+        _distance: doc.get("_distance") as number | undefined,
+      })) as Array<ChunkRecord & { _distance?: number }>
+    ).filter((chunk) =>
+      academicYear
+        ? matchesAcademicYear(
+            chunk.academic_year,
+            academicYear as AcademicYear,
+          )
+        : true,
+    );
   } catch (err) {
     console.warn("Vector search unavailable, lexical only:", err);
     return [];
@@ -242,6 +267,7 @@ function buildContext(
 export async function retrieve(params: RetrieveParams): Promise<RetrievalResult> {
   const {
     query,
+    academicYear = LEGACY_ACADEMIC_YEAR,
     branch,
     semester,
     resourceId,
@@ -256,14 +282,27 @@ export async function retrieve(params: RetrieveParams): Promise<RetrievalResult>
     ? categoryBoostIn
     : detectCategoryBoost(query);
 
-  const cacheKey = JSON.stringify({ cleaned, branch, semester, resourceId, limit });
+  const cacheKey = JSON.stringify({
+    cleaned,
+    academicYear,
+    branch,
+    semester,
+    resourceId,
+    limit,
+  });
   const cached = getRetrievalCache(cacheKey);
   if (cached) return cached;
 
   const stats = await loadCorpusStats();
   let widened = false;
 
-  let lexical = await lexicalCandidates(queryTerms, branch, semester, resourceId);
+  let lexical = await lexicalCandidates(
+    queryTerms,
+    academicYear,
+    branch,
+    semester,
+    resourceId,
+  );
   let queryVector: number[] | null = null;
 
   if (process.env.GEMINI_API_KEY && cleaned.length > 2) {
@@ -276,14 +315,32 @@ export async function retrieve(params: RetrieveParams): Promise<RetrievalResult>
 
   let vector: Array<ChunkRecord & { _distance?: number }> = [];
   if (queryVector?.length) {
-    vector = await vectorCandidates(queryVector, branch, semester, resourceId);
+    vector = await vectorCandidates(
+      queryVector,
+      academicYear,
+      branch,
+      semester,
+      resourceId,
+    );
   }
 
   if (lexical.length === 0 && vector.length === 0 && branch && !resourceId) {
     widened = true;
-    lexical = await lexicalCandidates(queryTerms, branch, undefined, resourceId);
+    lexical = await lexicalCandidates(
+      queryTerms,
+      academicYear,
+      branch,
+      undefined,
+      resourceId,
+    );
     if (queryVector?.length) {
-      vector = await vectorCandidates(queryVector, branch, undefined, resourceId);
+      vector = await vectorCandidates(
+        queryVector,
+        academicYear,
+        branch,
+        undefined,
+        resourceId,
+      );
     }
   }
 

@@ -11,6 +11,7 @@
 import { writeFileSync } from "fs";
 import { getEnv } from "../lib/env.mjs";
 import { getDrive } from "../lib/drive.mjs";
+import { listDriveScopes } from "../lib/academicYear.mjs";
 
 const args = process.argv.slice(2);
 const apply = args.includes("--apply");
@@ -441,82 +442,87 @@ async function renameFile(fileId, newName, label) {
 }
 
 /**
- * Walk: branch / Sem_N_BRANCH / category / subject [/ year] / file
+ * Walk: [YEAR/]branch / Sem_N_BRANCH / category / subject [/ year] / file
  */
 async function walk() {
   const results = [];
-  const branches = (await listChildren(rootId)).filter(
-    (f) => f.mimeType === FOLDER_MIME,
-  );
+  const scopes = await listDriveScopes(listChildren, rootId);
 
-  for (const branch of branches) {
-    const branchName = branch.name.toUpperCase();
-    if (branchFilter && branchName !== branchFilter) continue;
-    console.log(`\n📁 ${branch.name}`);
-
-    const semFolders = (await listChildren(branch.id)).filter(
+  for (const scope of scopes) {
+    const branches = (await listChildren(scope.containerId)).filter(
       (f) => f.mimeType === FOLDER_MIME,
     );
 
-    for (const sem of semFolders) {
-      const semMatch = sem.name.match(SEM_RE);
-      if (!semMatch) {
-        console.log(`  ⚠️  Skipping non-semester folder: ${sem.name}`);
-        continue;
-      }
-      const semNum = semMatch[1];
-      console.log(`  📁 ${sem.name}`);
+    for (const branch of branches) {
+      const branchName = branch.name.toUpperCase();
+      if (branchFilter && branchName !== branchFilter) continue;
+      const branchPath = scope.pathPrefix
+        ? `${scope.pathPrefix}/${branch.name}`
+        : branch.name;
+      console.log(`\n📁 ${branchPath}`);
 
-      const children = await listChildren(sem.id);
-      for (const child of children) {
-        if (child.mimeType !== FOLDER_MIME) {
-          // Syllabus or loose file at sem root
-          await classifyAndQueue(results, child, {
-            path: `${branch.name}/${sem.name}/${child.name}`,
-            branch: branchName,
-            semNum,
-            category: null,
-            subject: null,
-            yearHint: null,
-          });
+      const semFolders = (await listChildren(branch.id)).filter(
+        (f) => f.mimeType === FOLDER_MIME,
+      );
+
+      for (const sem of semFolders) {
+        const semMatch = sem.name.match(SEM_RE);
+        if (!semMatch) {
+          console.log(`  ⚠️  Skipping non-semester folder: ${sem.name}`);
           continue;
         }
+        const semNum = semMatch[1];
+        console.log(`  📁 ${sem.name}`);
 
-        const catMatch = child.name.match(CAT_RE);
-        const category = catMatch ? catMatch[2] : null;
-        if (!category) {
-          console.log(`    ⚠️  Unknown category folder: ${child.name}`);
-          // Still scan files inside for junk
-          await walkUnknownFolder(results, child, {
-            pathPrefix: `${branch.name}/${sem.name}/${child.name}`,
-            branch: branchName,
-            semNum,
-          });
-          continue;
-        }
-
-        const subjects = await listChildren(child.id);
-        for (const subj of subjects) {
-          if (subj.mimeType !== FOLDER_MIME) {
-            await classifyAndQueue(results, subj, {
-              path: `${branch.name}/${sem.name}/${child.name}/${subj.name}`,
+        const children = await listChildren(sem.id);
+        for (const child of children) {
+          if (child.mimeType !== FOLDER_MIME) {
+            await classifyAndQueue(results, child, {
+              path: `${branchPath}/${sem.name}/${child.name}`,
               branch: branchName,
               semNum,
-              category,
-              subject: "General",
+              category: null,
+              subject: null,
               yearHint: null,
             });
             continue;
           }
 
-          const subjectName = subj.name;
-          await walkSubjectFolder(results, subj, {
-            pathPrefix: `${branch.name}/${sem.name}/${child.name}/${subjectName}`,
-            branch: branchName,
-            semNum,
-            category,
-            subject: subjectName,
-          });
+          const catMatch = child.name.match(CAT_RE);
+          const category = catMatch ? catMatch[2] : null;
+          if (!category) {
+            console.log(`    ⚠️  Unknown category folder: ${child.name}`);
+            await walkUnknownFolder(results, child, {
+              pathPrefix: `${branchPath}/${sem.name}/${child.name}`,
+              branch: branchName,
+              semNum,
+            });
+            continue;
+          }
+
+          const subjects = await listChildren(child.id);
+          for (const subj of subjects) {
+            if (subj.mimeType !== FOLDER_MIME) {
+              await classifyAndQueue(results, subj, {
+                path: `${branchPath}/${sem.name}/${child.name}/${subj.name}`,
+                branch: branchName,
+                semNum,
+                category,
+                subject: "General",
+                yearHint: null,
+              });
+              continue;
+            }
+
+            const subjectName = subj.name;
+            await walkSubjectFolder(results, subj, {
+              pathPrefix: `${branchPath}/${sem.name}/${child.name}/${subjectName}`,
+              branch: branchName,
+              semNum,
+              category,
+              subject: subjectName,
+            });
+          }
         }
       }
     }

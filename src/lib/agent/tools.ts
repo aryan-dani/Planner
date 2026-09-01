@@ -8,6 +8,7 @@ import type { RetrievalResult } from "@/lib/rag/types";
 import { adminDb } from "@/lib/firebaseAdmin";
 
 export interface ToolContext {
+  academicYear?: string;
   branch: string;
   semester: number;
   subjects: string[];
@@ -21,6 +22,7 @@ export async function searchNotes(
 ): Promise<RetrievalResult> {
   return retrieve({
     query,
+    academicYear: ctx.academicYear,
     branch: ctx.branch,
     semester: ctx.semester,
     resourceId: ctx.resourceId,
@@ -35,6 +37,7 @@ export async function findPyq(
 ): Promise<RetrievalResult> {
   return retrieve({
     query,
+    academicYear: ctx.academicYear,
     branch: ctx.branch,
     semester: ctx.semester,
     limit: 5,

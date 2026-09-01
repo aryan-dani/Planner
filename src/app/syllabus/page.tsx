@@ -13,6 +13,7 @@ export const revalidate = 3600;
 
 interface PageProps {
   searchParams: Promise<{
+    year?: string;
     branch?: string;
     semester?: string;
   }>;
@@ -20,18 +21,19 @@ interface PageProps {
 
 export default async function SyllabusPage({ searchParams }: PageProps) {
   const params = await searchParams;
-  const { branch, semester } = resolveWorkspace(params);
+  const { academicYear, branch, semester } = resolveWorkspace(params);
 
   const [subjects, syllabusUrl, resources] = await Promise.all([
-    getSubjectsFromDB(branch, semester),
-    getSyllabusFile(branch, semester),
-    getResourcesFromDB(branch, semester),
+    getSubjectsFromDB(academicYear, branch, semester),
+    getSyllabusFile(academicYear, branch, semester),
+    getResourcesFromDB(academicYear, branch, semester),
   ]);
 
   return (
     <Suspense fallback={<PageSkeleton variant="list" />}>
       <SyllabusClient
         subjects={subjects}
+        academicYear={academicYear}
         branch={branch}
         semester={semester}
         syllabusUrl={syllabusUrl}

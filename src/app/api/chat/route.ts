@@ -7,7 +7,7 @@ import {
 } from "ai";
 import { isAuthFailure, requireUser } from "@/lib/apiAuth";
 import { enforceUserRateLimit } from "@/lib/rateLimit";
-import { DEFAULT_BRANCH, DEFAULT_SEMESTER } from "@/lib/workspace";
+import { DEFAULT_ACADEMIC_YEAR, DEFAULT_BRANCH, DEFAULT_SEMESTER } from "@/lib/workspace";
 import { z } from "zod";
 import { routeQuery, compactHistory, stripInvalidCitations, validMarkerSet, modelForIntent } from "@/lib/agent/router";
 import { executeTool, pickTool, getSyllabusUnit } from "@/lib/agent/tools";
@@ -29,6 +29,7 @@ const chatMessageSchema = z.object({
 const chatSchema = z.object({
   messages: z.array(chatMessageSchema).min(1).max(20),
   context: z.object({
+    academicYear: z.string().max(16).optional(),
     branch: z.string().max(32).optional(),
     semester: z.number().int().min(1).max(8).optional(),
     subjects: z.array(z.string().max(120)).max(40).optional(),
@@ -132,13 +133,14 @@ export async function POST(req: Request) {
 
   const { messages, context } = parseResult.data;
   const lastMessage = messageText(messages[messages.length - 1]);
+  const academicYear = context?.academicYear || DEFAULT_ACADEMIC_YEAR;
   const branch = context?.branch || DEFAULT_BRANCH;
   const semester = context?.semester || DEFAULT_SEMESTER;
   const subjects = context?.subjects || [];
   const resourceId = context?.resourceId;
 
   const routed = routeQuery(lastMessage);
-  const toolCtx = { branch, semester, subjects, resourceId };
+  const toolCtx = { academicYear, branch, semester, subjects, resourceId };
 
   // Semantic cache (embedding-based)
   if (lastMessage.length > 5) {
@@ -146,6 +148,7 @@ export async function POST(req: Request) {
       const cached = await lookupSemanticCache({
         uid: auth.uid,
         query: lastMessage,
+        academicYear,
         branch,
         semester,
         resourceId,
@@ -251,6 +254,7 @@ export async function POST(req: Request) {
         await storeSemanticCache({
           uid: auth.uid,
           query: lastMessage,
+          academicYear,
           branch,
           semester,
           resourceId,

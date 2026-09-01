@@ -4,6 +4,7 @@
       "collectionGroup": "resource_chunks",
       "queryScope": "COLLECTION",
       "fields": [
+        { "fieldPath": "academic_year", "order": "ASCENDING" },
         { "fieldPath": "branch", "order": "ASCENDING" },
         { "fieldPath": "semester", "order": "ASCENDING" },
         { "fieldPath": "chunk_tokens", "arrayConfig": "CONTAINS" },
@@ -14,6 +15,7 @@
       "collectionGroup": "resource_chunks",
       "queryScope": "COLLECTION",
       "fields": [
+        { "fieldPath": "academic_year", "order": "ASCENDING" },
         { "fieldPath": "branch", "order": "ASCENDING" },
         { "fieldPath": "semester", "order": "ASCENDING" },
         { "fieldPath": "embedding", "vectorConfig": { "dimension": 768, "flat": {} } }
@@ -31,6 +33,7 @@
       "collectionGroup": "semantic_cache",
       "queryScope": "COLLECTION",
       "fields": [
+        { "fieldPath": "academic_year", "order": "ASCENDING" },
         { "fieldPath": "branch", "order": "ASCENDING" },
         { "fieldPath": "semester", "order": "ASCENDING" },
         { "fieldPath": "resource_id", "order": "ASCENDING" },

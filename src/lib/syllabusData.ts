@@ -9,6 +9,74 @@ export type SyllabusOfficialSubject = {
   modules: SyllabusModule[];
 };
 
+export const AIDS_SEM_3_SUBJECTS_2026: SyllabusOfficialSubject[] = [
+  {
+    id: 'aid-sem3-dbms',
+    code: 'DBMS',
+    name: 'Database Management Systems',
+    type: 'PM',
+    credits: 3,
+    modules: [
+      { title: 'Unit I: Introduction to DBMS', desc: 'Database system concepts, architecture, ER model, and relational data model.' },
+      { title: 'Unit II: SQL & Relational Algebra', desc: 'DDL, DML, constraints, joins, views, and relational algebra operations.' },
+      { title: 'Unit III: Normalization & Design', desc: 'Functional dependencies, normal forms, and schema design principles.' },
+      { title: 'Unit IV: Transactions & Recovery', desc: 'ACID properties, concurrency control, locking, and recovery techniques.' },
+    ],
+  },
+  {
+    id: 'aid-sem3-ds',
+    code: 'DS',
+    name: 'Data Structures',
+    type: 'PM',
+    credits: 3,
+    modules: [
+      { title: 'Unit I: Arrays, Stacks & Queues', desc: 'Linear data structures, applications, and complexity analysis.' },
+      { title: 'Unit II: Linked Lists & Trees', desc: 'Singly/doubly linked lists, binary trees, BST, and tree traversals.' },
+      { title: 'Unit III: Graphs & Hashing', desc: 'Graph representations, BFS/DFS, shortest paths, and hash tables.' },
+      { title: 'Unit IV: Sorting & Searching', desc: 'Classic sorting algorithms, search strategies, and performance trade-offs.' },
+    ],
+  },
+  {
+    id: 'aid-sem3-cnm',
+    code: 'CNM',
+    name: 'Computer Networks and Mobile Computing',
+    type: 'PM',
+    credits: 3,
+    modules: [
+      { title: 'Unit I: Network Fundamentals', desc: 'OSI/TCP-IP models, physical and data link layer concepts.' },
+      { title: 'Unit II: Network Layer', desc: 'IP addressing, routing algorithms, and subnetting.' },
+      { title: 'Unit III: Transport & Application Layer', desc: 'TCP/UDP, DNS, HTTP, and common application protocols.' },
+      { title: 'Unit IV: Mobile & Wireless Networks', desc: 'Wireless LANs, cellular basics, and mobile computing overview.' },
+    ],
+  },
+  {
+    id: 'aid-sem3-oop',
+    code: 'OOP',
+    name: 'Object Oriented Programming',
+    type: 'PM',
+    credits: 3,
+    modules: [
+      { title: 'Unit I: OOP Foundations', desc: 'Classes, objects, encapsulation, inheritance, and polymorphism.' },
+      { title: 'Unit II: Advanced OOP Concepts', desc: 'Abstraction, interfaces, exception handling, and design patterns intro.' },
+      { title: 'Unit III: STL & File I/O', desc: 'Standard template library containers, iterators, and file operations.' },
+      { title: 'Unit IV: Practical Applications', desc: 'Problem solving with OOP, mini projects, and code organization.' },
+    ],
+  },
+  {
+    id: 'aid-sem3-os',
+    code: 'OS',
+    name: 'Operating Systems',
+    type: 'PM',
+    credits: 3,
+    modules: [
+      { title: 'Unit I: OS Overview & Processes', desc: 'OS services, process concepts, scheduling, and inter-process communication.' },
+      { title: 'Unit II: Memory Management', desc: 'Paging, segmentation, virtual memory, and page replacement.' },
+      { title: 'Unit III: Storage & File Systems', desc: 'Disk scheduling, file system structure, and allocation methods.' },
+      { title: 'Unit IV: Synchronization & Deadlocks', desc: 'Critical sections, semaphores, monitors, and deadlock handling.' },
+    ],
+  },
+];
+
 export const AIDS_SEM_4_SUBJECTS: SyllabusOfficialSubject[] = [
   {
     id: 'aid30010',

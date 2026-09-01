@@ -1,8 +1,10 @@
 "use client";
 
-import { GraduationCap, BookOpen } from "lucide-react";
-import type { Branch, Semester } from "@/lib/academic/scope";
+import { GraduationCap, BookOpen, CalendarRange } from "lucide-react";
+import type { AcademicYear, Branch, Semester } from "@/lib/academic/scope";
 import {
+  ACADEMIC_YEAR_OPTIONS,
+  ACADEMIC_YEAR_OPTIONS_SHORT,
   BRANCH_OPTIONS,
   BRANCH_OPTIONS_LONG,
   SEMESTER_OPTIONS,
@@ -14,8 +16,10 @@ import { cn } from "@/lib/cn";
 export type ScopeSelectorVariant = "sidebar" | "inline" | "settings";
 
 export interface ScopeSelectorProps {
+  academicYear: AcademicYear;
   branch: Branch;
   semester: Semester;
+  onAcademicYearChange: (year: AcademicYear) => void;
   onBranchChange: (branch: Branch) => void;
   onSemesterChange: (semester: Semester) => void;
   variant?: ScopeSelectorVariant;
@@ -24,8 +28,10 @@ export interface ScopeSelectorProps {
 }
 
 export function ScopeSelector({
+  academicYear,
   branch,
   semester,
+  onAcademicYearChange,
   onBranchChange,
   onSemesterChange,
   variant = "sidebar",
@@ -34,7 +40,17 @@ export function ScopeSelector({
 }: ScopeSelectorProps) {
   if (variant === "settings") {
     return (
-      <div className={cn("grid grid-cols-1 sm:grid-cols-2 gap-4", className)}>
+      <div className={cn("grid grid-cols-1 sm:grid-cols-3 gap-4", className)}>
+        <div className="space-y-2">
+          <label className="text-xs font-medium text-muted">Academic year</label>
+          <Select<AcademicYear>
+            value={academicYear}
+            options={ACADEMIC_YEAR_OPTIONS}
+            onChange={onAcademicYearChange}
+            disabled={disabled}
+            size="lg"
+          />
+        </div>
         <div className="space-y-2">
           <label className="text-xs font-medium text-muted">Branch</label>
           <Select<Branch>
@@ -68,6 +84,14 @@ export function ScopeSelector({
           className,
         )}
       >
+        <Select<AcademicYear>
+          value={academicYear}
+          options={ACADEMIC_YEAR_OPTIONS_SHORT}
+          onChange={onAcademicYearChange}
+          disabled={disabled}
+          size="sm"
+          className="min-w-[5.5rem]"
+        />
         <Select<Branch>
           value={branch}
           options={BRANCH_OPTIONS}
@@ -89,25 +113,36 @@ export function ScopeSelector({
   }
 
   return (
-    <div className={cn("flex gap-2", className)}>
-      <Select<Branch>
-        value={branch}
-        options={BRANCH_OPTIONS}
-        onChange={onBranchChange}
+    <div className={cn("flex flex-col gap-2", className)}>
+      <Select<AcademicYear>
+        value={academicYear}
+        options={ACADEMIC_YEAR_OPTIONS}
+        onChange={onAcademicYearChange}
         disabled={disabled}
         size="md"
-        icon={GraduationCap}
-        className="flex-1 min-w-0"
+        icon={CalendarRange}
+        className="w-full min-w-0"
       />
-      <Select<Semester>
-        value={semester}
-        options={SEMESTER_OPTIONS}
-        onChange={onSemesterChange}
-        disabled={disabled}
-        size="md"
-        icon={BookOpen}
-        className="flex-1 min-w-0"
-      />
+      <div className="flex gap-2">
+        <Select<Branch>
+          value={branch}
+          options={BRANCH_OPTIONS}
+          onChange={onBranchChange}
+          disabled={disabled}
+          size="md"
+          icon={GraduationCap}
+          className="flex-1 min-w-0"
+        />
+        <Select<Semester>
+          value={semester}
+          options={SEMESTER_OPTIONS}
+          onChange={onSemesterChange}
+          disabled={disabled}
+          size="md"
+          icon={BookOpen}
+          className="flex-1 min-w-0"
+        />
+      </div>
     </div>
   );
 }

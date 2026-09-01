@@ -5,7 +5,7 @@ import { adminDb } from '@/lib/firebaseAdmin';
 import { performRAGSearch } from '@/lib/ragSearch';
 import { isAuthFailure, requireUser } from '@/lib/apiAuth';
 import { enforceUserRateLimit } from '@/lib/rateLimit';
-import { DEFAULT_BRANCH, DEFAULT_SEMESTER } from '@/lib/workspace';
+import { DEFAULT_ACADEMIC_YEAR, DEFAULT_BRANCH, DEFAULT_SEMESTER } from '@/lib/workspace';
 import { z } from 'zod';
 
 const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -14,6 +14,7 @@ const studySchema = z.object({
   type: z.enum(['flashcards', 'quiz']),
   topic: z.string().min(2).max(500),
   context: z.object({
+    academicYear: z.string().max(16).optional(),
     branch: z.string().max(32).optional(),
     semester: z.number().int().min(1).max(8).optional(),
   }).optional(),
@@ -46,6 +47,7 @@ export async function POST(req: Request) {
 
     const { type, topic, context } = parseResult.data;
 
+    const academicYear = context?.academicYear || DEFAULT_ACADEMIC_YEAR;
     const branch = context?.branch || DEFAULT_BRANCH;
     const branchName = branch === 'AIDS' 
       ? 'Artificial Intelligence & Data Science Engineering' 
@@ -55,7 +57,7 @@ export async function POST(req: Request) {
     const semester = context?.semester || DEFAULT_SEMESTER;
 
     const cleanTopic = topic.trim().toLowerCase().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?]/g, "").replace(/\s+/g, " ");
-    const cacheKey = `study_${auth.uid}_${type}_${cleanTopic}_${branch}_${semester}`.trim();
+    const cacheKey = `study_${auth.uid}_${type}_${cleanTopic}_${academicYear}_${branch}_${semester}`.trim();
 
     try {
       const db = adminDb();
@@ -93,7 +95,7 @@ export async function POST(req: Request) {
 
     let snippets: string[] = [];
     if (topic && topic.length > 2) {
-      const finalResults = await performRAGSearch(topic, 5, undefined, { branch, semester });
+      const finalResults = await performRAGSearch(topic, 5, undefined, { academicYear, branch, semester });
       snippets = finalResults.map((r) => `[SOURCE: ${r.title} | SUBJECT: ${r.subject_name}]: ${r.snippet}`);
     }
 

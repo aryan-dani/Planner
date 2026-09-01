@@ -18,13 +18,14 @@ export async function performRAGSearch(
   query: string,
   limit: number = 3,
   resourceId?: string,
-  scope?: { branch?: string; semester?: number },
+  scope?: { academicYear?: string; branch?: string; semester?: number },
 ): Promise<RAGSearchResult[]> {
   try {
     const result = await retrieve({
       query,
       limit,
       resourceId,
+      academicYear: scope?.academicYear,
       branch: scope?.branch,
       semester: scope?.semester,
     });

@@ -6,12 +6,13 @@ import { resolveWorkspace } from '@/lib/workspace';
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const { branch, semester } = resolveWorkspace({
+    const { academicYear, branch, semester } = resolveWorkspace({
+      year: searchParams.get('year'),
       branch: searchParams.get('branch'),
       semester: searchParams.get('semester'),
     });
 
-    const resources = await getResourcesFromDB(branch, semester);
+    const resources = await getResourcesFromDB(academicYear, branch, semester);
 
     return NextResponse.json(
       { resources },

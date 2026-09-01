@@ -30,6 +30,7 @@ import { logActivity } from '@/lib/activity';
 import { NotesDisclaimer } from '@/components/NotesDisclaimer';
 import { isSubjectMatch } from '@/lib/subjectMatcher';
 import {
+  AIDS_SEM_3_SUBJECTS_2026,
   AIDS_SEM_4_SUBJECTS,
   AIDS_SEM_5_SUBJECTS,
 } from '@/lib/syllabusData';
@@ -45,6 +46,7 @@ import { Button, Card, Badge, Input, Select, Segmented, Modal } from '@/componen
 
 interface SyllabusClientProps {
   subjects: SubjectItem[];
+  academicYear: string;
   branch: string;
   semester: number;
   syllabusUrl?: string | null;
@@ -253,7 +255,7 @@ function getModulesForSubject(name: string) {
   ];
 }
 
-export default function SyllabusClient({ subjects, branch, semester, syllabusUrl, initialResources }: SyllabusClientProps) {
+export default function SyllabusClient({ subjects, academicYear, branch, semester, syllabusUrl, initialResources }: SyllabusClientProps) {
   const { searchQuery } = useAcademicStore();
   const [expandedSubject, setExpandedSubject] = useState<string | null>(null);
   const [progressMap, setProgressMap] = useState<Record<string, boolean | string>>({});
@@ -371,10 +373,12 @@ export default function SyllabusClient({ subjects, branch, semester, syllabusUrl
     setSchedulingModule(null);
   };
 
-  // Merge DB subjects with official syllabus subjects for AIDS Sem 4 / Sem 5
+  // Merge DB subjects with official syllabus subjects for AIDS Sem 3 (2026-27) / Sem 4 / Sem 5
   const displaySubjects = useMemo(() => {
     const officialList =
-      branch === 'AIDS' && semester === 4
+      branch === 'AIDS' && academicYear === '2026-2027' && semester === 3
+        ? AIDS_SEM_3_SUBJECTS_2026
+        : branch === 'AIDS' && semester === 4
         ? AIDS_SEM_4_SUBJECTS
         : branch === 'AIDS' && semester === 5
           ? AIDS_SEM_5_SUBJECTS
@@ -410,7 +414,7 @@ export default function SyllabusClient({ subjects, branch, semester, syllabusUrl
         modules,
       };
     });
-  }, [subjects, branch, semester]);
+  }, [subjects, academicYear, branch, semester]);
 
   const matchingResourcesMap = useMemo(() => {
     const map = new Map<string, ResourceItemExt[]>();
@@ -738,6 +742,7 @@ export default function SyllabusClient({ subjects, branch, semester, syllabusUrl
                                       const unit = parseUnitKey(file.title) || parseUnitKey(mod.title);
                                       const folder = unit ? unitFolderId(unit.num, subject.name) : null;
                                       const href = buildResourcesHref({
+                                        academicYear,
                                         branch,
                                         semester,
                                         subject: subject.name,
@@ -852,6 +857,7 @@ export default function SyllabusClient({ subjects, branch, semester, syllabusUrl
                           <div className="flex items-center gap-3">
                             <Link
                               href={buildResourcesHref({
+                                academicYear,
                                 branch,
                                 semester,
                                 subject: subject.name,
@@ -904,7 +910,7 @@ export default function SyllabusClient({ subjects, branch, semester, syllabusUrl
             size="md"
             className="rounded-2xl shadow-sm hover:scale-[1.01] group"
             onClick={() => {
-              window.location.href = buildResourcesHref({ branch, semester });
+              window.location.href = buildResourcesHref({ academicYear, branch, semester });
             }}
           >
             <Layers className="w-4 h-4 text-primary" />

@@ -164,6 +164,7 @@ export default async function indexContent() {
         const subjectName = subject?.name || "";
         const branch = subject?.branch || "";
         const semester = subject?.semester ?? null;
+        const academicYear = subject?.academic_year || "2025-2026";
 
         const cleanText = (fullText || units.map((u) => u.text).join("\n\n"))
           .replace(/\u0000/g, "")
@@ -186,6 +187,7 @@ export default async function indexContent() {
             snippet: cleanText.substring(0, 500),
             branch,
             semester,
+            academic_year: academicYear,
             search_tokens: legacyTokens,
             content_hash: contentHash,
           },
@@ -220,6 +222,7 @@ export default async function indexContent() {
             heading: chunk.heading || "",
             branch,
             semester,
+            academic_year: academicYear,
             subject_id: res.subject_id || "",
             subject_name: subjectName,
             category: res.category || "other",

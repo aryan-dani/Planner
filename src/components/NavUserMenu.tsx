@@ -7,7 +7,9 @@ import { AnimatePresence, motion } from "framer-motion";
 import { auth, db } from "@/lib/firebase";
 import { signOut, onIdTokenChanged } from "firebase/auth";
 import { doc, getDoc, setDoc } from "firebase/firestore";
-import type { Branch, Semester } from "@/store/academicStore";
+import type { AcademicYear, Branch, Semester } from "@/store/academicStore";
+import { DEFAULT_ACADEMIC_YEAR } from "@/lib/workspace";
+import { isAcademicYear } from "@/lib/academic/scope";
 
 type NavUser = {
   email: string | undefined;
@@ -17,26 +19,34 @@ type NavUser = {
 
 export default function NavUserMenu({
   collapsed,
+  academicYear,
   branch,
   semester,
+  setAcademicYear,
   setBranch,
   setSemester,
   onWorkspaceFromPrefs,
   onUserChange,
 }: {
   collapsed: boolean;
+  academicYear: AcademicYear;
   branch: Branch;
   semester: Semester;
+  setAcademicYear: (y: AcademicYear) => void;
   setBranch: (b: Branch) => void;
   setSemester: (s: Semester) => void;
-  onWorkspaceFromPrefs?: (branch: Branch, semester: Semester) => void;
+  onWorkspaceFromPrefs?: (
+    year: AcademicYear,
+    branch: Branch,
+    semester: Semester,
+  ) => void;
   onUserChange?: (user: NavUser | null) => void;
 }) {
   const [user, setUser] = useState<NavUser | null>(null);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
-  const workspaceRef = useRef({ branch, semester });
-  workspaceRef.current = { branch, semester };
+  const workspaceRef = useRef({ academicYear, branch, semester });
+  workspaceRef.current = { academicYear, branch, semester };
 
   useEffect(() => {
     const unsubscribe = onIdTokenChanged(auth, async (firebaseUser) => {
@@ -78,16 +88,27 @@ export default function NavUserMenu({
 
             if (snap.exists()) {
               const data = snap.data();
-              const prefBranch = (data.branch as Branch) || workspaceRef.current.branch;
-              const prefSemester = (data.semester as Semester) || workspaceRef.current.semester;
+              const rawYear = data.academic_year as string | undefined;
+              const prefYear =
+                rawYear && isAcademicYear(rawYear)
+                  ? rawYear
+                  : workspaceRef.current.academicYear;
+              const prefBranch =
+                (data.branch as Branch) || workspaceRef.current.branch;
+              const prefSemester =
+                (data.semester as Semester) || workspaceRef.current.semester;
               if (onWorkspaceFromPrefs) {
-                onWorkspaceFromPrefs(prefBranch, prefSemester);
+                onWorkspaceFromPrefs(prefYear, prefBranch, prefSemester);
               } else {
+                if (rawYear && isAcademicYear(rawYear)) {
+                  setAcademicYear(rawYear);
+                }
                 if (data.branch) setBranch(data.branch as Branch);
                 if (data.semester) setSemester(data.semester as Semester);
               }
               await setDoc(userPrefsRef, updateData, { merge: true });
             } else {
+              updateData.academic_year = workspaceRef.current.academicYear;
               updateData.branch = workspaceRef.current.branch;
               updateData.semester = workspaceRef.current.semester;
               await setDoc(userPrefsRef, updateData, { merge: true });

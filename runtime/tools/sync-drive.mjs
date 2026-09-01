@@ -10,6 +10,10 @@ import path from "path";
 import { pathToFileURL } from "url";
 import { getEnv } from "../lib/env.mjs";
 import { getDrive } from "../lib/drive.mjs";
+import {
+  parseAcademicYearFromPath,
+  LEGACY_ACADEMIC_YEAR,
+} from "../lib/academicYear.mjs";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -88,6 +92,8 @@ async function syncDrive() {
       const parts = file.path.split("/");
       if (parts.length < 1) continue;
 
+      const academicYear = parseAcademicYearFromPath(parts);
+
       const semIndex = parts.findIndex((p) => p.match(/Sem_(\d+)_(\w+)/i));
 
       if (semIndex === -1) {
@@ -122,7 +128,7 @@ async function syncDrive() {
 
       // 1. Sync Subject to Firestore
       const subjectId = generateId(
-        `subject-${branch}-${semester}-${subjectName.toLowerCase()}`,
+        `subject-${academicYear}-${branch}-${semester}-${subjectName.toLowerCase()}`,
       );
       const subjectRef = db.collection("subjects").doc(subjectId);
       if (!syncedSubjectIds.has(subjectId)) {
@@ -131,6 +137,7 @@ async function syncDrive() {
             name: subjectName,
             branch: branch,
             semester: semester,
+            academic_year: academicYear,
           },
           { merge: true },
         );
@@ -172,6 +179,9 @@ async function syncDrive() {
           file_url: fileUrl,
           subject_id: subjectId,
           category: category,
+          academic_year: academicYear,
+          branch,
+          semester,
           created_at: file.updatedAt || new Date().toISOString(),
         },
         { merge: true },

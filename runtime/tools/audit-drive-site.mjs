@@ -9,6 +9,7 @@ import { writeFileSync } from "fs";
 import { db } from "../lib/firebase.mjs";
 import { getEnv } from "../lib/env.mjs";
 import { getDrive } from "../lib/drive.mjs";
+import { ACADEMIC_YEAR_PATH_RE } from "../lib/academicYear.mjs";
 
 const args = process.argv.slice(2);
 const branchFilter = (
@@ -82,6 +83,8 @@ function titleCaseSubject(name) {
 
 function parseDriveFile(file) {
   const parts = file.path.split("/");
+  const academicYear =
+    parts.length > 0 && ACADEMIC_YEAR_PATH_RE.test(parts[0]) ? parts[0] : null;
   const semIndex = parts.findIndex((p) => /Sem_(\d+)_(\w+)/i.test(p));
   if (semIndex === -1) {
     return { ok: false, reason: "no_sem_folder", path: file.path };
@@ -121,6 +124,7 @@ function parseDriveFile(file) {
     driveId: file.id,
     path: file.path,
     name: file.name,
+    academicYear,
     branch,
     semester,
     subject: subjectName,

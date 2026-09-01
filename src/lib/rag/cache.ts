@@ -44,6 +44,7 @@ export interface SemanticCacheHit {
 export async function lookupSemanticCache(params: {
   uid: string;
   query: string;
+  academicYear?: string;
   branch: string;
   semester: number;
   resourceId?: string;
@@ -57,6 +58,7 @@ export async function lookupSemanticCache(params: {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let ref: any = db
       .collection("semantic_cache")
+      .where("academic_year", "==", params.academicYear || "2026-2027")
       .where("branch", "==", params.branch)
       .where("semester", "==", params.semester);
 
@@ -98,6 +100,7 @@ export async function lookupSemanticCache(params: {
 export async function storeSemanticCache(params: {
   uid: string;
   query: string;
+  academicYear?: string;
   branch: string;
   semester: number;
   resourceId?: string;
@@ -119,6 +122,7 @@ export async function storeSemanticCache(params: {
     await db.collection("semantic_cache").add({
       uid: params.uid,
       prompt: params.query,
+      academic_year: params.academicYear || "2026-2027",
       branch: params.branch,
       semester: params.semester,
       resource_id: params.resourceId || null,

@@ -30,11 +30,13 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import dynamic from "next/dynamic";
-import { useAcademicStore, Branch, Semester } from "../store/academicStore";
+import { useAcademicStore, AcademicYear, Branch, Semester } from "../store/academicStore";
 import { startNavigationProgress } from "./NavigationProgress";
 import {
+  DEFAULT_ACADEMIC_YEAR,
   DEFAULT_BRANCH,
   DEFAULT_SEMESTER,
+  parseAcademicYear,
   parseBranch,
   parseSemester,
   readStoredWorkspace,
@@ -129,22 +131,27 @@ function NavigationInner() {
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const storeAcademicYear = useAcademicStore((s) => s.academicYear);
   const storeBranch = useAcademicStore((s) => s.branch);
   const storeSemester = useAcademicStore((s) => s.semester);
   const urlWorkspace = resolveWorkspace(
     {
+      year: searchParams.get("year"),
       branch: searchParams.get("branch"),
       semester: searchParams.get("semester"),
     },
     {
+      academicYear: storeAcademicYear,
       branch: storeBranch,
       semester: storeSemester,
     },
   );
+  const academicYear = urlWorkspace.academicYear;
   const branch = urlWorkspace.branch;
   const semester = urlWorkspace.semester;
 
   const {
+    setAcademicYear,
     setBranch,
     setSemester,
     setWorkspace,
@@ -166,12 +173,13 @@ function NavigationInner() {
     if (stored) {
       const resolved = resolveWorkspace(
         {
+          year: searchParams.get("year"),
           branch: searchParams.get("branch"),
           semester: searchParams.get("semester"),
         },
         stored,
       );
-      setWorkspace(resolved.branch, resolved.semester);
+      setWorkspace(resolved.academicYear, resolved.branch, resolved.semester);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- hydrate once from localStorage
   }, []);
@@ -191,15 +199,22 @@ function NavigationInner() {
   }, []);
 
   useEffect(() => {
+    const urlYear = searchParams.get("year");
     const urlBranch = searchParams.get("branch");
     const urlSemester = searchParams.get("semester");
-    if (!urlBranch && !urlSemester) return;
+    if (!urlYear && !urlBranch && !urlSemester) return;
     const fromUrl = resolveWorkspace({
+      year: urlYear,
       branch: urlBranch,
       semester: urlSemester,
     });
-    setWorkspace(fromUrl.branch, fromUrl.semester);
-  }, [searchParams.get("branch"), searchParams.get("semester"), setWorkspace]);
+    setWorkspace(fromUrl.academicYear, fromUrl.branch, fromUrl.semester);
+  }, [
+    searchParams.get("year"),
+    searchParams.get("branch"),
+    searchParams.get("semester"),
+    setWorkspace,
+  ]);
 
   const searchParamsRef = useRef(searchParams);
   useEffect(() => {
@@ -207,16 +222,21 @@ function NavigationInner() {
   }, [searchParams]);
 
   const updateUrl = useCallback(
-    (newBranch: string, newSem: number) => {
+    (newYear: AcademicYear, newBranch: string, newSem: number) => {
       const params = new URLSearchParams(searchParamsRef.current.toString());
+      params.set("year", newYear);
       params.set("branch", newBranch);
       params.set("semester", newSem.toString());
-      // Drop deep-link params that belong to the previous semester/branch
+      // Drop deep-link params that belong to the previous scope
       params.delete("subject");
       params.delete("filter");
       params.delete("view");
       params.delete("folder");
-      writeStoredWorkspace(newBranch as Branch, newSem as Semester);
+      writeStoredWorkspace(
+        newYear,
+        newBranch as Branch,
+        newSem as Semester,
+      );
       startNavigationProgress();
       startTransition(() => {
         router.push(`${pathname}?${params.toString()}`);
@@ -227,18 +247,20 @@ function NavigationInner() {
 
   /** Apply Firestore/local prefs into store + URL when URL lacks workspace params. */
   const applyPrefsToUrl = useCallback(
-    (prefBranch: Branch, prefSemester: Semester) => {
+    (prefYear: AcademicYear, prefBranch: Branch, prefSemester: Semester) => {
       if (prefsAppliedRef.current) return;
+      const hasYear = !!searchParamsRef.current.get("year");
       const hasBranch = !!searchParamsRef.current.get("branch");
       const hasSemester = !!searchParamsRef.current.get("semester");
-      if (hasBranch && hasSemester) {
+      if (hasYear && hasBranch && hasSemester) {
         prefsAppliedRef.current = true;
         return;
       }
-      setWorkspace(prefBranch, prefSemester);
-      writeStoredWorkspace(prefBranch, prefSemester);
+      setWorkspace(prefYear, prefBranch, prefSemester);
+      writeStoredWorkspace(prefYear, prefBranch, prefSemester);
       prefsAppliedRef.current = true;
       const params = new URLSearchParams(searchParamsRef.current.toString());
+      if (!hasYear) params.set("year", prefYear);
       if (!hasBranch) params.set("branch", prefBranch);
       if (!hasSemester) params.set("semester", String(prefSemester));
       const nextQs = params.toString();
@@ -286,13 +308,17 @@ function NavigationInner() {
 
   const renderNavLink = useCallback((link: NavLinkItem) => {
     const currentParams = searchParamsRef.current;
+    const yParam =
+      parseAcademicYear(currentParams.get("year")) ??
+      storeAcademicYear ??
+      DEFAULT_ACADEMIC_YEAR;
     const bParam =
       parseBranch(currentParams.get("branch")) ?? storeBranch ?? DEFAULT_BRANCH;
     const sParam =
       parseSemester(currentParams.get("semester")) ??
       storeSemester ??
       DEFAULT_SEMESTER;
-    const finalHref = `${link.href}?branch=${bParam}&semester=${sParam}`;
+    const finalHref = `${link.href}?year=${encodeURIComponent(yParam)}&branch=${bParam}&semester=${sParam}`;
     const active = isActive(link.href);
     return (
       <Link
@@ -385,11 +411,19 @@ function NavigationInner() {
                   Workspace Filters
                 </p>
                 <ScopeSelector
+                  academicYear={academicYear}
                   branch={branch}
                   semester={semester}
                   variant="sidebar"
-                  onBranchChange={(val) => updateUrl(val, semester)}
-                  onSemesterChange={(val) => updateUrl(branch, val)}
+                  onAcademicYearChange={(val) =>
+                    updateUrl(val, branch, semester)
+                  }
+                  onBranchChange={(val) =>
+                    updateUrl(academicYear, val, semester)
+                  }
+                  onSemesterChange={(val) =>
+                    updateUrl(academicYear, branch, val)
+                  }
                 />
               </div>
             </motion.div>
@@ -537,8 +571,10 @@ function NavigationInner() {
 
           <NavUserMenu
             collapsed={isCollapsed}
+            academicYear={academicYear}
             branch={branch}
             semester={semester}
+            setAcademicYear={setAcademicYear}
             setBranch={setBranch}
             setSemester={setSemester}
             onWorkspaceFromPrefs={applyPrefsToUrl}

@@ -11,20 +11,20 @@ const AskClient = dynamic(() => import("./AskClientComponent"), {
 export const revalidate = 600;
 
 interface PageProps {
-  searchParams: Promise<{ branch?: string; semester?: string }>;
+  searchParams: Promise<{ year?: string; branch?: string; semester?: string }>;
 }
 
 async function AskPageContent({ searchParams }: PageProps) {
   const params = await searchParams;
-  const { branch, semester } = resolveWorkspace(params);
+  const { academicYear, branch, semester } = resolveWorkspace(params);
   const [subjectItems, resources] = await Promise.all([
-    getSubjectsFromDB(branch, semester),
-    getResourcesFromDB(branch, semester),
+    getSubjectsFromDB(academicYear, branch, semester),
+    getResourcesFromDB(academicYear, branch, semester),
   ]);
 
   return (
     <AskClient
-      initialWorkspace={{ branch, semester }}
+      initialWorkspace={{ academicYear, branch, semester }}
       initialSubjects={subjectItems.map((s) => s.name)}
       initialResources={resources}
     />

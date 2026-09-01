@@ -10,6 +10,7 @@ export const revalidate = 600;
 
 interface PageProps {
   searchParams: Promise<{
+    year?: string;
     branch?: string;
     semester?: string;
     subject?: string;
@@ -21,18 +22,19 @@ interface PageProps {
 
 export default async function ResourcesPage({ searchParams }: PageProps) {
   const params = await searchParams;
-  const { branch, semester } = resolveWorkspace(params);
+  const { academicYear, branch, semester } = resolveWorkspace(params);
   const initialSubject = params.subject || null;
   const initialFilter = parseResourceFilter(params.filter);
   const initialView = params.view || null;
   const initialFolder = parseResourceFolder(params.folder);
 
-  const resources = await getResourcesFromDB(branch, semester);
+  const resources = await getResourcesFromDB(academicYear, branch, semester);
 
   return (
     <Suspense fallback={<PageSkeleton variant="split" />}>
       <ResourcesClient
         initialResources={resources}
+        academicYear={academicYear}
         branch={branch}
         semester={semester}
         initialSubject={initialSubject}

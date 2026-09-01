@@ -5,6 +5,7 @@ export interface ChunkRecord {
   text: string;
   section_label: string;
   heading?: string;
+  academic_year?: string;
   branch: string;
   semester: number | null;
   subject_id: string;
@@ -45,6 +46,7 @@ export interface RetrievalResult {
 
 export interface RetrieveParams {
   query: string;
+  academicYear?: string;
   branch?: string;
   semester?: number;
   resourceId?: string;

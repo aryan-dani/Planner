@@ -60,6 +60,7 @@ export function parseResourceFolder(
 }
 
 export function buildResourcesHref(opts: {
+  academicYear?: string;
   branch: string;
   semester: number | string;
   subject?: string | null;
@@ -68,6 +69,7 @@ export function buildResourcesHref(opts: {
   view?: string | null;
 }): string {
   const params = new URLSearchParams();
+  if (opts.academicYear) params.set("year", opts.academicYear);
   params.set("branch", opts.branch);
   params.set("semester", String(opts.semester));
   if (opts.subject) params.set("subject", subjectToSlug(opts.subject));

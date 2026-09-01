@@ -27,6 +27,7 @@ import {
   Waypoints,
 } from 'lucide-react';
 import { useAcademicStore } from '../store/academicStore';
+import { matchesAcademicYear } from '@/lib/academic/scope';
 import { db } from '../lib/firebase';
 import { collection, query as firestoreQuery, where, getDocs } from 'firebase/firestore';
 import { startNavigationProgress } from './NavigationProgress';
@@ -74,7 +75,7 @@ export default function CommandPalette() {
     startNavigationProgress();
     router.push(href);
   };
-  const { branch, semester, isCommandPaletteOpen, setCommandPaletteOpen, setSearchQuery } = useAcademicStore();
+  const { academicYear, branch, semester, isCommandPaletteOpen, setCommandPaletteOpen, setSearchQuery } = useAcademicStore();
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [isMac, setIsMac] = useState(true);
@@ -87,7 +88,7 @@ export default function CommandPalette() {
   useEffect(() => {
     if (!isCommandPaletteOpen) return;
 
-    const cacheKey = `${branch}:${semester}`;
+    const cacheKey = `${academicYear}:${branch}:${semester}`;
     const cached = subjectCache.get(cacheKey);
     if (cached && Date.now() - cached.fetchedAt < SUBJECT_CACHE_TTL_MS) {
       setDynamicSubjects(cached.subjects);
@@ -102,16 +103,18 @@ export default function CommandPalette() {
 
     getDocs(q)
       .then((snapshot) => {
-        const data = snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name as string }));
+        const data = snapshot.docs
+          .map(doc => ({ id: doc.id, name: doc.data().name as string, academic_year: doc.data().academic_year as string | undefined }))
+          .filter((s) => matchesAcademicYear(s.academic_year, academicYear));
         data.sort((a, b) => a.name.localeCompare(b.name));
-        const filtered = data.filter(s => s.name.toUpperCase() !== 'SYLLABUS');
+        const filtered = data.filter(s => s.name.toUpperCase() !== 'SYLLABUS').map(({ id, name }) => ({ id, name }));
         subjectCache.set(cacheKey, { fetchedAt: Date.now(), subjects: filtered });
         setDynamicSubjects(filtered);
       })
       .catch((error) => {
         console.error("Error fetching subjects in CommandPalette:", error);
       });
-  }, [branch, semester, isCommandPaletteOpen]);
+  }, [academicYear, branch, semester, isCommandPaletteOpen]);
 
   // Detect Mac vs Windows/Linux for accurate shortcut display
   useEffect(() => {

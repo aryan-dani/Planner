@@ -42,7 +42,7 @@ import AcademicBreadcrumb from '@/components/AcademicBreadcrumb';
 import Link from 'next/link';
 import { buildResourcesHref } from '@/lib/resourceUrl';
 import type { ResourceItem } from '@/lib/dataFetcher';
-import type { Branch, Semester } from '@/store/academicStore';
+import type { AcademicYear, Branch, Semester } from '@/store/academicStore';
 import { Button, Select } from '@/components/ui';
 import { SourceCardList } from '@/components/ask/SourceCard';
 import type { RetrievalSource } from '@/lib/rag/types';
@@ -277,7 +277,7 @@ export interface ChatSession {
 const EMPTY_ARRAY: any[] = [];
 
 interface AskClientProps {
-  initialWorkspace: { branch: Branch; semester: Semester };
+  initialWorkspace: { academicYear: AcademicYear; branch: Branch; semester: Semester };
   initialSubjects: string[];
   initialResources: ResourceItem[];
 }
@@ -287,7 +287,7 @@ export default function AskClient({
   initialSubjects,
   initialResources,
 }: AskClientProps) {
-  const { branch, semester } = useAcademicStore();
+  const { academicYear, branch, semester } = useAcademicStore();
   const [subjects, setSubjects] = useState<string[]>(initialSubjects);
   const [activeTab, setActiveTab] = useState<'chat' | 'flashcards' | 'quiz'>('chat');
 
@@ -352,6 +352,7 @@ export default function AskClient({
   // Refresh grounded context when workspace changes (skip duplicate mount fetch)
   useEffect(() => {
     if (
+      academicYear === initialWorkspace.academicYear &&
       branch === initialWorkspace.branch &&
       semester === initialWorkspace.semester
     ) {
@@ -361,7 +362,9 @@ export default function AskClient({
     }
 
     const abortController = new AbortController();
-    fetch(`/api/resources/list?branch=${branch}&semester=${semester}`, {
+    fetch(
+      `/api/resources/list?year=${encodeURIComponent(academicYear)}&branch=${branch}&semester=${semester}`,
+      {
       signal: abortController.signal,
     })
       .then(async (res) => {
@@ -385,7 +388,7 @@ export default function AskClient({
         }
       });
     return () => abortController.abort();
-  }, [branch, semester, initialWorkspace.branch, initialWorkspace.semester, initialSubjects, initialResources]);
+  }, [academicYear, branch, semester, initialWorkspace.academicYear, initialWorkspace.branch, initialWorkspace.semester, initialSubjects, initialResources]);
 
   // Initialize Speech Recognition
   useEffect(() => {
@@ -429,12 +432,13 @@ export default function AskClient({
 
   const chatBody = useMemo(() => ({
     context: { 
+      academicYear,
       branch, 
       semester, 
       subjects, 
       resourceId: selectedResourceId !== 'all' ? selectedResourceId : undefined 
     },
-  }), [branch, semester, subjects, selectedResourceId]);
+  }), [academicYear, branch, semester, subjects, selectedResourceId]);
 
   const chatTransport = useMemo(
     () =>
@@ -460,8 +464,8 @@ export default function AskClient({
   }, [sessions, activeSessionId]);
 
   const chatSessionKey = useMemo(() => {
-    return activeSessionId ? `${activeSessionId}-${selectedResourceId}-${branch}-${semester}` : undefined;
-  }, [activeSessionId, selectedResourceId, branch, semester]);
+    return activeSessionId ? `${activeSessionId}-${selectedResourceId}-${academicYear}-${branch}-${semester}` : undefined;
+  }, [activeSessionId, selectedResourceId, academicYear, branch, semester]);
 
   const initialMessages = useMemo(() => {
     if (!activeSessionId) return EMPTY_ARRAY;
@@ -807,7 +811,7 @@ export default function AskClient({
         body: JSON.stringify({
           type: 'flashcards',
           topic: flashcardTopic,
-          context: { branch, semester, subjects }
+          context: { academicYear, branch, semester, subjects }
         }),
       });
       if (res.status === 401) {
@@ -892,7 +896,7 @@ export default function AskClient({
         body: JSON.stringify({
           type: 'quiz',
           topic: quizTopic,
-          context: { branch, semester, subjects }
+          context: { academicYear, branch, semester, subjects }
         }),
       });
       if (res.status === 401) {
@@ -932,7 +936,7 @@ export default function AskClient({
               { label: "Ask AI" },
               {
                 label: "Vault",
-                href: buildResourcesHref({ branch, semester }),
+                href: buildResourcesHref({ academicYear, branch, semester }),
               },
             ]}
           />
@@ -983,7 +987,7 @@ export default function AskClient({
         </div>
 
         <Link
-          href={`/syllabus?branch=${branch}&semester=${semester}`}
+          href={`/syllabus?year=${encodeURIComponent(academicYear)}&branch=${branch}&semester=${semester}`}
           className="text-xs font-semibold text-muted hover:text-foreground active:bg-surface bg-surface px-2.5 py-2 min-h-11 rounded-md border border-border transition-colors self-start sm:self-auto inline-flex items-center"
         >
           Syllabus
