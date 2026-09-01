@@ -11,7 +11,7 @@
  *   node runtime/tools/restructure-drive-years.mjs --apply   # execute
  */
 import { getEnv } from "../lib/env.mjs";
-import { getDrive } from "../lib/drive.mjs";
+import { getWritableDrive, DRIVE_SHARED_OPTS } from "../lib/drive.mjs";
 import {
   ACADEMIC_YEAR_PATH_RE,
   isReservedRootFolder,
@@ -26,7 +26,12 @@ const OS_SUBJECT_RE = /^(OS|OSL|Operating Systems Laboratory)$/i;
 const apply = process.argv.includes("--apply");
 const dryRun = !apply;
 
-const drive = getDrive(["https://www.googleapis.com/auth/drive"]);
+const drive = getWritableDrive();
+const usingOAuth = Boolean(
+  getEnv("GOOGLE_CLIENT_ID") &&
+    getEnv("GOOGLE_CLIENT_SECRET") &&
+    getEnv("GOOGLE_REFRESH_TOKEN"),
+);
 const rootId = getEnv("GOOGLE_DRIVE_FOLDER_ID");
 
 const stats = {
@@ -46,8 +51,7 @@ async function listChildren(folderId) {
       pageSize: 100,
       pageToken,
       orderBy: "folder,name",
-      supportsAllDrives: true,
-      includeItemsFromAllDrives: true,
+      ...DRIVE_SHARED_OPTS,
     });
     out.push(...(res.data.files || []));
     pageToken = res.data.nextPageToken;
@@ -104,21 +108,51 @@ async function moveIntoParent(file, newParentId, label) {
   console.log(`  ➡️  Moved: ${label}`);
 }
 
+async function fileExistsInFolder(name, parentId) {
+  const cleanName = name.replace(/'/g, "\\'");
+  const res = await drive.files.list({
+    q: `name = '${cleanName}' and '${parentId}' in parents and mimeType != 'application/vnd.google-apps.folder' and trashed = false`,
+    fields: "files(id)",
+    pageSize: 1,
+    ...DRIVE_SHARED_OPTS,
+  });
+  return (res.data.files || []).length > 0;
+}
+
 async function copyFile(file, destParentId, label) {
+  if (!dryRun && (await fileExistsInFolder(file.name, destParentId))) {
+    return null;
+  }
+
   if (dryRun) {
     console.log(`  [dry-run] copy file: ${label}`);
     stats.filesCopied++;
     return null;
   }
 
-  const res = await drive.files.copy({
-    fileId: file.id,
-    requestBody: { name: file.name, parents: [destParentId] },
-    fields: "id",
-    supportsAllDrives: true,
-  });
-  stats.filesCopied++;
-  return res.data.id;
+  try {
+    const res = await drive.files.copy({
+      fileId: file.id,
+      requestBody: { name: file.name, parents: [destParentId] },
+      fields: "id",
+      supportsAllDrives: true,
+    });
+    stats.filesCopied++;
+    return res.data.id;
+  } catch (err) {
+    const msg = String(err?.message || err);
+    if (
+      !usingOAuth &&
+      (msg.includes("storage quota") || msg.includes("Service Accounts do not have"))
+    ) {
+      throw new Error(
+        "Drive copy failed: service accounts cannot copy files without Shared Drive quota. " +
+          "Set GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, and GOOGLE_REFRESH_TOKEN in .env.local " +
+          "(same as upload-drive.mjs) and re-run.",
+      );
+    }
+    throw err;
+  }
 }
 
 async function copyTreeRecursive(srcFolderId, destParentId, relPath = "") {
@@ -316,6 +350,11 @@ async function main() {
 
   console.log(
     `\n🗂️  Drive year restructure${dryRun ? " (DRY-RUN — pass --apply to execute)" : ""}\n`,
+  );
+  console.log(
+    usingOAuth
+      ? "🔐 Using OAuth user credentials for file copies.\n"
+      : "🔐 Using service account (copy may fail without Shared Drive quota).\n",
   );
 
   const rootChildren = await listChildren(rootId);
