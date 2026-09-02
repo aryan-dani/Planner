@@ -15,6 +15,8 @@ import { cn } from "@/lib/cn";
 export type SelectOption<T extends string | number> = {
   value: T;
   label: string;
+  /** Optional longer label used only inside the open menu. */
+  menuLabel?: string;
 };
 
 export type SelectSize = "sm" | "md" | "lg";
@@ -74,8 +76,9 @@ function SelectInner<T extends string | number>({
     if (!q) return options;
     return options.filter((o) => {
       const labelMatch = o.label.toLowerCase().includes(q);
+      const menuMatch = o.menuLabel?.toLowerCase().includes(q);
       const valueMatch = String(o.value).toLowerCase().includes(q);
-      return labelMatch || valueMatch;
+      return labelMatch || Boolean(menuMatch) || valueMatch;
     });
   }, [options, query]);
 
@@ -159,6 +162,7 @@ function SelectInner<T extends string | number>({
           if (isOpen) closeMenu();
           else openMenu();
         }}
+        title={selected?.label}
         className={cn(
           "w-full flex items-center justify-between gap-1.5",
           "bg-background border border-border text-foreground",
@@ -244,7 +248,7 @@ function SelectInner<T extends string | number>({
                       role="option"
                       aria-selected={isSelected}
                       data-active-option={isActive ? "true" : undefined}
-                      title={opt.label}
+                      title={opt.menuLabel ?? opt.label}
                       onMouseEnter={() => setHighlighted(idx)}
                       onClick={() => selectOption(opt.value)}
                       className={cn(
@@ -262,7 +266,7 @@ function SelectInner<T extends string | number>({
                       {optionsLayout === "grid-4" ? (
                         opt.label
                       ) : (
-                        <span className="truncate">{opt.label}</span>
+                        <span className="truncate">{opt.menuLabel ?? opt.label}</span>
                       )}
                     </button>
                   );

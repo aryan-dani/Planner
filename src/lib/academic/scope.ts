@@ -29,6 +29,12 @@ export const ACADEMIC_YEAR_OPTIONS_SHORT: { value: AcademicYear; label: string }
   { value: "2025-2026", label: "2025-26" },
 ];
 
+/** Sidebar trigger labels — year number only; current/archive is shown as a hint. */
+export const ACADEMIC_YEAR_OPTIONS_SIDEBAR: { value: AcademicYear; label: string; menuLabel: string }[] = [
+  { value: "2026-2027", label: "2026–2027", menuLabel: "2026–2027 · Current" },
+  { value: "2025-2026", label: "2025–2026", menuLabel: "2025–2026 · Archive" },
+];
+
 /** Short labels (sidebar, admin). */
 export const BRANCH_OPTIONS = BRANCHES.map((value) => ({
   value,

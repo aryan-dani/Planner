@@ -18,7 +18,6 @@ import {
   ChevronRight,
   ShieldCheck,
   Brain,
-  Calendar,
   Users,
   Layers,
   Download,
@@ -87,6 +86,32 @@ const SYSTEM_LINKS: NavLinkItem[] = [
   { href: "/support", label: "Support", Icon: Heart, desc: "Optional contribution" },
 ];
 
+const SIDEBAR_EXPANDED = "md:w-72";
+const SIDEBAR_COLLAPSED = "md:w-[4.25rem]";
+
+function NavSection({
+  title,
+  collapsed,
+  children,
+}: {
+  title: string;
+  collapsed: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-0.5">
+      {collapsed ? (
+        <div className="mx-2.5 my-2 border-t border-border/50" />
+      ) : (
+        <p className="px-2.5 mb-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted/55">
+          {title}
+        </p>
+      )}
+      {children}
+    </div>
+  );
+}
+
 function SegmentedThemeToggle({ theme, setTheme }: { theme: string | undefined; setTheme: (theme: string) => void }) {
   const [mounted, setMounted] = useState(false);
 
@@ -103,7 +128,7 @@ function SegmentedThemeToggle({ theme, setTheme }: { theme: string | undefined; 
   ] as const;
 
   return (
-    <div className="flex bg-surface/60 border border-border/70 p-0.5 rounded-xl w-full">
+    <div className="flex bg-background/70 border border-border/80 p-0.5 rounded-xl w-full">
       {options.map((opt) => {
         const Icon = opt.icon;
         const active = theme === opt.value;
@@ -327,51 +352,52 @@ function NavigationInner() {
         onClick={() => setSearchQuery("")}
         aria-label={link.label}
         title={collapsed ? link.label : undefined}
-        className={`flex items-center min-h-11 ${collapsed ? "justify-center" : "justify-between"} px-3 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all border group relative overflow-visible ${
+        className={`flex items-center min-h-10 ${collapsed ? "justify-center px-0" : "justify-between px-2.5"} py-2 rounded-lg text-[13px] font-medium tracking-tight transition-colors border group relative overflow-visible ${
           active
-            ? "bg-foreground/8 border-foreground/15 text-foreground font-bold shadow-xs"
-            : "text-muted hover:text-foreground hover:bg-surface/50 active:bg-surface/70 border-transparent"
+            ? "bg-card border-border text-foreground shadow-xs"
+            : "text-muted hover:text-foreground hover:bg-surface/60 active:bg-surface border-transparent"
         }`}
       >
         {active && (
           <motion.div
             layoutId="activeIndicator"
-            className="absolute left-0 top-2.5 bottom-2.5 w-[3px] rounded-full bg-foreground"
+            className="absolute left-0 top-1.5 bottom-1.5 w-[2.5px] rounded-full bg-foreground"
             transition={{ type: "spring", stiffness: 380, damping: 30 }}
           />
         )}
-        
+
         <span className="flex items-center gap-2.5 min-w-0">
-          <link.Icon className={`w-4 h-4 shrink-0 transition-transform ${active ? "text-foreground" : "text-muted group-hover:text-foreground"}`} />
+          <link.Icon className={`w-[17px] h-[17px] shrink-0 ${active ? "text-foreground" : "text-muted group-hover:text-foreground"}`} />
           {!collapsed && <span className="truncate">{link.label}</span>}
         </span>
         {!collapsed && link.featured && (
-          <span className="flex items-center px-1.5 py-0.5 rounded-md text-xs font-extrabold uppercase tracking-wider bg-foreground/10 text-foreground border border-foreground/20 shrink-0">
+          <span className="flex items-center px-1.5 py-px rounded-md text-[9px] font-bold uppercase tracking-[0.12em] bg-foreground text-background shrink-0">
             Core
           </span>
         )}
       </Link>
     );
-  }, [collapsed, isActive, setSearchQuery, storeBranch, storeSemester]);
+  }, [collapsed, isActive, setSearchQuery, storeAcademicYear, storeBranch, storeSemester]);
 
   const renderSidebarContent = (isMobile: boolean = false) => {
     const isCollapsed = collapsed && !isMobile;
     return (
       <div className="flex flex-col h-full select-none">
         {/* Brand / Logo */}
-        <div className={`p-4 flex ${isCollapsed ? "flex-col items-center justify-center gap-3" : "items-center justify-between"} border-b border-border/40 min-h-[60px]`}>
+        <div className={`px-3 py-3.5 flex ${isCollapsed ? "flex-col items-center justify-center gap-3" : "items-center justify-between gap-2"} border-b border-border/50 min-h-[3.75rem]`}>
           <Link
             href="/"
             onClick={() => setSearchQuery("")}
             aria-label="Utility OS Home"
-            className="text-base font-bold tracking-tight text-foreground flex items-center gap-2.5 group"
+            className="text-base font-bold tracking-tight text-foreground flex items-center gap-2.5 group min-w-0"
           >
-            <div className="flex items-center justify-center p-1.5 bg-foreground text-background rounded-xl transition-transform group-hover:scale-105 shrink-0">
+            <div className="flex items-center justify-center w-8 h-8 bg-foreground text-background rounded-lg transition-transform group-hover:scale-[1.03] shrink-0">
               <Layers className="w-4 h-4" />
             </div>
             {!isCollapsed && (
-              <span className="font-display text-lg tracking-tight text-foreground">
+              <span className="font-display text-[1.15rem] leading-none tracking-tight text-foreground truncate">
                 Utility
+                <span className="ml-1 text-[0.7em] font-sans font-semibold text-muted tracking-wide">OS</span>
               </span>
             )}
           </Link>
@@ -387,7 +413,7 @@ function NavigationInner() {
           ) : (
             <button
               onClick={handleCollapseToggle}
-              className={`tap-target rounded-lg hover:bg-surface active:bg-surface-hover border border-transparent text-muted hover:text-foreground transition-all shrink-0 hover:border-border/60 ${isCollapsed ? "" : "ml-2"}`}
+              className="tap-target w-8 h-8 rounded-lg hover:bg-surface active:bg-surface-hover border border-transparent text-muted hover:text-foreground hover:border-border/70 transition-all shrink-0 inline-flex items-center justify-center"
               title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
               aria-label={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
             >
@@ -396,39 +422,35 @@ function NavigationInner() {
           )}
         </div>
 
-        {/* Global Context / Selector Card */}
-        <AnimatePresence mode="wait">
-          {showSelectors && !isCollapsed && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.2 }}
-              className="px-3 overflow-visible relative z-50"
-            >
-              <div className="mt-3 bg-surface/40 border border-border/70 p-2.5 rounded-2xl flex flex-col gap-2 shadow-xs">
-                <p className="text-xs font-extrabold tracking-widest uppercase text-muted/80">
-                  Workspace Filters
+        {showSelectors && !isCollapsed && (
+          <div className="px-3 pt-3 overflow-visible relative z-50">
+            <div className="bg-card border border-border/80 p-3 rounded-2xl flex flex-col gap-2.5 shadow-xs">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-[10px] font-semibold tracking-[0.16em] uppercase text-muted/70">
+                  Workspace
                 </p>
-                <ScopeSelector
-                  academicYear={academicYear}
-                  branch={branch}
-                  semester={semester}
-                  variant="sidebar"
-                  onAcademicYearChange={(val) =>
-                    updateUrl(val, branch, semester)
-                  }
-                  onBranchChange={(val) =>
-                    updateUrl(academicYear, val, semester)
-                  }
-                  onSemesterChange={(val) =>
-                    updateUrl(academicYear, branch, val)
-                  }
-                />
+                <span className="text-2xs font-semibold text-muted tabular-nums truncate">
+                  {branch} · Sem {semester}
+                </span>
               </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+              <ScopeSelector
+                academicYear={academicYear}
+                branch={branch}
+                semester={semester}
+                variant="sidebar"
+                onAcademicYearChange={(val) =>
+                  updateUrl(val, branch, semester)
+                }
+                onBranchChange={(val) =>
+                  updateUrl(academicYear, val, semester)
+                }
+                onSemesterChange={(val) =>
+                  updateUrl(academicYear, branch, val)
+                }
+              />
+            </div>
+          </div>
+        )}
 
         {/* Global Search Button */}
         <div className="px-3 pt-3">
@@ -436,7 +458,7 @@ function NavigationInner() {
             <button
               onClick={() => setCommandPaletteOpen(true)}
               aria-label="Search resources"
-              className="w-full flex items-center justify-center min-h-11 p-2.5 bg-surface/50 border border-border/80 rounded-xl text-muted hover:text-foreground hover:border-border-strong active:bg-surface transition-all shadow-xs"
+              className="w-full flex items-center justify-center min-h-10 p-2 bg-card border border-border/80 rounded-xl text-muted hover:text-foreground hover:border-border-strong active:bg-surface transition-all"
               title="Search (Ctrl+K)"
             >
               <Search className="w-4 h-4 text-muted" />
@@ -445,13 +467,13 @@ function NavigationInner() {
             <button
               onClick={() => setCommandPaletteOpen(true)}
               aria-label="Search resources"
-              className="w-full flex items-center justify-between min-h-11 px-3 py-2 bg-surface/50 border border-border/80 rounded-xl text-xs text-muted hover:text-foreground hover:border-border-strong active:bg-surface transition-all shadow-xs group"
+              className="w-full flex items-center justify-between min-h-10 px-3 py-2 bg-card border border-border/80 rounded-xl text-xs text-muted hover:text-foreground hover:border-border-strong active:bg-surface transition-all group"
             >
               <span className="flex items-center gap-2 truncate">
-                <Search className="w-3.5 h-3.5 text-muted group-hover:text-primary transition-colors" />
-                <span className="font-medium">Search...</span>
+                <Search className="w-3.5 h-3.5 text-muted group-hover:text-foreground transition-colors" />
+                <span className="font-medium">Search…</span>
               </span>
-              <kbd className="hidden sm:inline-flex px-1.5 py-0.5 text-[9px] font-bold bg-background border border-border rounded-md shadow-xs text-muted">
+              <kbd className="hidden sm:inline-flex px-1.5 py-0.5 text-[10px] font-semibold bg-background border border-border rounded-md text-muted">
                 {isMac ? "⌘K" : "Ctrl+K"}
               </kbd>
             </button>
@@ -460,95 +482,45 @@ function NavigationInner() {
 
         {/* Navigation Sections */}
         <div className="flex-1 overflow-y-auto px-2 py-4 space-y-5 custom-scrollbar">
-          {/* Section 1: Academic Workspace */}
-          <div className="space-y-1">
-            {!isCollapsed ? (
-              <p className="px-3 text-xs font-extrabold tracking-widest uppercase text-muted/70 mb-1.5">
-                Academic Workspace
-              </p>
-            ) : (
-              <div className="border-t border-border/40 my-2" />
-            )}
-            <div className="space-y-0.5">
-              {ACADEMIC_LINKS.map(renderNavLink)}
-            </div>
-          </div>
+          <NavSection title="Academic" collapsed={isCollapsed}>
+            {ACADEMIC_LINKS.map(renderNavLink)}
+          </NavSection>
 
-          {/* Section: Campus */}
-          <div className="space-y-1">
-            {!isCollapsed ? (
-              <p className="px-3 text-xs font-extrabold tracking-widest uppercase text-muted/70 mb-1.5">
-                Campus
-              </p>
-            ) : (
-              <div className="border-t border-border/40 my-2" />
-            )}
-            <div className="space-y-0.5">
-              {CAMPUS_LINKS.map(renderNavLink)}
-            </div>
-          </div>
+          <NavSection title="Campus" collapsed={isCollapsed}>
+            {CAMPUS_LINKS.map(renderNavLink)}
+          </NavSection>
 
-          {/* Section 2: Productivity Apps */}
-          <div className="space-y-1">
-            {!isCollapsed ? (
-              <p className="px-3 text-xs font-extrabold tracking-widest uppercase text-muted/70 mb-1.5">
-                Productivity Tools
-              </p>
-            ) : (
-              <div className="border-t border-border/40 my-2" />
-            )}
-            <div className="space-y-0.5">
-              {PRODUCTIVITY_LINKS.map(renderNavLink)}
-            </div>
-          </div>
+          <NavSection title="Productivity" collapsed={isCollapsed}>
+            {PRODUCTIVITY_LINKS.map(renderNavLink)}
+          </NavSection>
 
-          {/* Section 3: Social & Connect */}
-          <div className="space-y-1">
-            {!isCollapsed ? (
-              <p className="px-3 text-xs font-extrabold tracking-widest uppercase text-muted/70 mb-1.5">
-                Connect
-              </p>
-            ) : (
-              <div className="border-t border-border/40 my-2" />
-            )}
-            <div className="space-y-0.5">
-              {SOCIAL_LINKS.map(renderNavLink)}
-            </div>
-          </div>
+          <NavSection title="Connect" collapsed={isCollapsed}>
+            {SOCIAL_LINKS.map(renderNavLink)}
+          </NavSection>
 
-          {/* Section 4: System */}
-          <div className="space-y-1">
-            {!isCollapsed ? (
-              <p className="px-3 text-xs font-extrabold tracking-widest uppercase text-muted/70 mb-1.5">
-                System
-              </p>
-            ) : (
-              <div className="border-t border-border/40 my-2" />
+          <NavSection title="System" collapsed={isCollapsed}>
+            {SYSTEM_LINKS.map(renderNavLink)}
+            {isAdmin && (
+              <Link
+                href="/admin"
+                onClick={() => setSearchQuery("")}
+                title={isCollapsed ? "Admin Dashboard" : undefined}
+                aria-label="Admin Dashboard"
+                className={`flex items-center min-h-10 ${isCollapsed ? "justify-center px-0" : "gap-2.5 px-2.5 py-2"} rounded-lg text-[13px] font-medium tracking-tight transition-colors border group ${
+                  isActive("/admin")
+                    ? "bg-primary/10 border-primary/20 text-primary shadow-xs"
+                    : "text-muted hover:text-foreground hover:bg-surface/60 active:bg-surface border-transparent"
+                }`}
+              >
+                <ShieldCheck className="w-[17px] h-[17px] text-muted group-hover:text-foreground" />
+                {!isCollapsed && <span>Admin Dashboard</span>}
+              </Link>
             )}
-            <div className="space-y-0.5">
-              {SYSTEM_LINKS.map(renderNavLink)}
-              {isAdmin && (
-                <Link
-                  href="/admin"
-                  onClick={() => setSearchQuery("")}
-                  title={isCollapsed ? "Admin Dashboard" : undefined}
-                  aria-label="Admin Dashboard"
-                  className={`flex items-center min-h-11 ${isCollapsed ? "justify-center" : "gap-2.5 px-3 py-2.5"} rounded-xl text-xs font-semibold tracking-wide transition-all border group ${
-                    isActive("/admin")
-                      ? "bg-primary/10 border-primary/20 text-primary font-bold shadow-xs"
-                      : "text-muted hover:text-foreground hover:bg-surface/50 active:bg-surface/70 border-transparent"
-                  }`}
-                >
-                  <ShieldCheck className="w-4 h-4 text-muted group-hover:text-foreground" />
-                  {!isCollapsed && <span>Admin Dashboard</span>}
-                </Link>
-              )}
-            </div>
-          </div>
+          </NavSection>
         </div>
 
         {/* Footer Controls */}
-        <div className="p-3 border-t border-border/40 space-y-3 bg-surface/10">
+        <div className="p-3 border-t border-border/50 space-y-2.5 bg-card/40">
           {/* Theme segment toggle or single cycle button */}
           {isCollapsed ? (
             <button
@@ -615,8 +587,8 @@ function NavigationInner() {
     <>
       {/* 1. Desktop Sticky Sidebar with collapse transition */}
       <aside
-        className={`h-screen sticky top-0 left-0 border-r border-border bg-background z-40 hidden md:flex flex-col shrink-0 transition-all duration-400 ease-[cubic-bezier(0.2,0.8,0.2,1)] w-0 overflow-hidden md:overflow-visible ${
-          collapsed ? "md:w-16" : "md:w-64"
+        className={`h-screen sticky top-0 left-0 border-r border-border/80 bg-background-subtle z-40 hidden md:flex flex-col shrink-0 transition-all duration-400 ease-[cubic-bezier(0.2,0.8,0.2,1)] w-0 overflow-hidden md:overflow-visible ${
+          collapsed ? SIDEBAR_COLLAPSED : SIDEBAR_EXPANDED
         }`}
         style={{ willChange: "width" }}
       >
@@ -664,7 +636,7 @@ function NavigationInner() {
               animate={{ x: 0 }}
               exit={{ x: "-100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 300, mass: 0.8 }}
-              className="fixed top-0 bottom-0 left-0 w-72 max-w-[85vw] bg-background border-r border-border shadow-popover z-[101] md:hidden flex flex-col pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]"
+              className="fixed top-0 bottom-0 left-0 w-80 max-w-[88vw] bg-background-subtle border-r border-border/80 shadow-popover z-[101] md:hidden flex flex-col pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]"
             >
               {renderSidebarContent(true)}
             </motion.aside>
@@ -679,7 +651,7 @@ export default function Navigation() {
   return (
     <Suspense
       fallback={
-        <div className="w-64 h-screen sticky top-0 left-0 border-r border-border bg-card z-40 hidden md:block" />
+        <div className="w-72 h-screen sticky top-0 left-0 border-r border-border/80 bg-background-subtle z-40 hidden md:block" />
       }
     >
       <NavigationInner />
