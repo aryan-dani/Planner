@@ -194,14 +194,14 @@ function SelectInner<T extends string | number>({
               "absolute top-full mt-1.5 z-dropdown",
               "bg-card border border-border rounded-xl shadow-popover overflow-hidden",
               enableSearch
-                ? "left-0 flex flex-col w-[min(22rem,calc(100vw-2rem))]"
+                ? "left-0 flex flex-col min-w-full w-max max-w-[min(22rem,calc(100vw-2rem))]"
                 : "left-0 right-0",
               optionsLayout === "grid-4" && "grid grid-cols-4 gap-1 p-1",
             )}
           >
             {enableSearch && (
               <div className="p-1.5 border-b border-border shrink-0">
-                <div className="flex items-center gap-1.5 rounded-lg bg-surface border border-border px-2 py-1.5">
+                <div className="flex items-center gap-1.5 rounded-lg bg-surface border border-border px-2 py-1.5 transition-[border-color,box-shadow] focus-within:border-foreground/45 focus-within:shadow-[0_0_0_3px_rgb(var(--foreground)/0.08)]">
                   <Search className="w-3.5 h-3.5 text-muted shrink-0" aria-hidden />
                   <input
                     ref={searchRef}
@@ -218,7 +218,7 @@ function SelectInner<T extends string | number>({
                     autoCorrect="off"
                     spellCheck={false}
                     autoFocus
-                    className="flex-1 min-w-0 bg-transparent text-xs font-medium text-foreground placeholder:text-muted/70 outline-none"
+                    className="flex-1 min-w-0 bg-transparent text-xs font-medium text-foreground placeholder:text-muted/70 outline-none focus:outline-none focus-visible:outline-none focus:shadow-none focus-visible:shadow-none"
                     aria-label={searchPlaceholder}
                   />
                 </div>

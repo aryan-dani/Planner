@@ -147,6 +147,7 @@ export function ScopeSelector({
             onChange={onSemesterChange}
             disabled={disabled}
             size="md"
+            searchable={false}
             className="w-full min-w-0"
           />
         </ScopeField>
