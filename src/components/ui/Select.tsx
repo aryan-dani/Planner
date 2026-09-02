@@ -264,7 +264,7 @@ function SelectInner<T extends string | number>({
                       )}
                     >
                       {optionsLayout === "grid-4" ? (
-                        opt.label
+                        String(opt.value)
                       ) : (
                         <span className="truncate">{opt.menuLabel ?? opt.label}</span>
                       )}

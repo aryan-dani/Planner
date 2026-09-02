@@ -13,10 +13,11 @@ import {
 } from "@/lib/firebaseAuth";
 import { doc, setDoc, getDoc } from "firebase/firestore";
 import { useAcademicStore, AcademicYear, Branch, Semester } from "@/store/academicStore";
-import { DEFAULT_ACADEMIC_YEAR, DEFAULT_SEMESTER } from "@/lib/workspace";
-import { isAcademicYear } from "@/lib/academic/scope";
+import { DEFAULT_ACADEMIC_YEAR, DEFAULT_SEMESTER, workspaceQuery } from "@/lib/workspace";
+import { BRANCH_OPTIONS_LONG, isAcademicYear } from "@/lib/academic/scope";
 import { toast } from "sonner";
 import Link from "next/link";
+import { useTheme } from "next-themes";
 import {
   ArrowLeft,
   Loader2,
@@ -25,8 +26,18 @@ import {
   Link as LinkIcon,
   Save,
   LogOut,
+  Sun,
+  Moon,
+  Monitor,
+  Palette,
+  BookOpen,
+  FileText,
+  Brain,
+  CalendarCheck,
+  ExternalLink,
+  CheckCircle2,
+  Sparkles,
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
 import { ScopeSelector } from "@/components/academic/ScopeSelector";
 
 // Helper to generate self-contained SVG base64 Data URLs for monochrome avatars
@@ -73,6 +84,49 @@ const AVATAR_PRESETS: AvatarPreset[] = [
   { emoji: "🐼", label: "Panda", start: "#1a1a1a", end: "#2a2a2a" },
 ];
 
+function ProfileThemeToggle() {
+  const { theme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => setMounted(true), []);
+
+  if (!mounted) {
+    return <div className="skeleton h-10 rounded-xl border border-border/80 w-full" aria-hidden />;
+  }
+
+  const options = [
+    { value: "light", icon: Sun, label: "Light" },
+    { value: "dark", icon: Moon, label: "Dark" },
+    { value: "system", icon: Monitor, label: "System" },
+  ] as const;
+
+  return (
+    <div className="flex bg-background/70 border border-border/80 p-0.5 rounded-xl w-full">
+      {options.map((opt) => {
+        const Icon = opt.icon;
+        const active = theme === opt.value;
+        return (
+          <button
+            key={opt.value}
+            type="button"
+            onClick={() => setTheme(opt.value)}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg text-xs font-medium transition-all ${
+              active
+                ? "bg-card border border-border/80 text-foreground shadow-xs font-semibold"
+                : "text-muted hover:text-foreground hover:bg-surface/30"
+            }`}
+            title={opt.label}
+            aria-label={`Switch to ${opt.label} theme`}
+          >
+            <Icon className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">{opt.label}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function ProfileClientComponent() {
   const router = useRouter();
   const { academicYear, branch, semester, setAcademicYear, setBranch, setSemester } = useAcademicStore();
@@ -91,6 +145,7 @@ export default function ProfileClientComponent() {
   const [selectedAcademicYear, setSelectedAcademicYear] = useState<AcademicYear>(DEFAULT_ACADEMIC_YEAR);
   const [selectedBranch, setSelectedBranch] = useState<Branch>("AIDS");
   const [selectedSemester, setSelectedSemester] = useState<Semester>(DEFAULT_SEMESTER);
+  const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
 
   const mergingRef = useRef(false);
   const workspaceRef = useRef({ academicYear, branch, semester });
@@ -130,6 +185,9 @@ export default function ProfileClientComponent() {
             setSelectedSemester(data.semester as Semester);
           } else {
             setSelectedSemester(workspaceRef.current.semester);
+          }
+          if (typeof data.updatedAt === "string") {
+            setLastSavedAt(data.updatedAt);
           }
         } else {
           // If no doc, match the current store settings
@@ -215,6 +273,7 @@ export default function ProfileClientComponent() {
       setAcademicYear(selectedAcademicYear);
       setBranch(selectedBranch);
       setSemester(selectedSemester);
+      setLastSavedAt(new Date().toISOString());
 
       toast.success("Profile and preferences updated successfully!");
     } catch (err: any) {
@@ -375,6 +434,43 @@ export default function ProfileClientComponent() {
       ? "GitHub Account"
       : "Email Account";
 
+  const workspaceQs = workspaceQuery(selectedAcademicYear, selectedBranch, selectedSemester);
+  const branchLabel =
+    BRANCH_OPTIONS_LONG.find((b) => b.value === selectedBranch)?.label ?? selectedBranch;
+  const memberSince = currentUser?.metadata?.creationTime
+    ? new Date(currentUser.metadata.creationTime).toLocaleDateString(undefined, {
+        month: "short",
+        year: "numeric",
+      })
+    : null;
+
+  const quickLinks = [
+    {
+      href: `/resources?${workspaceQs}`,
+      label: "Resources",
+      desc: "Subject files & notes",
+      icon: FileText,
+    },
+    {
+      href: `/syllabus?${workspaceQs}`,
+      label: "Syllabus",
+      desc: "Track your courses",
+      icon: BookOpen,
+    },
+    {
+      href: `/planner?${workspaceQs}`,
+      label: "Planner",
+      desc: "Schedules & study logs",
+      icon: CalendarCheck,
+    },
+    {
+      href: `/ask?${workspaceQs}`,
+      label: "Ask AI",
+      desc: "RAG study assistant",
+      icon: Brain,
+    },
+  ] as const;
+
   return (
     <div className="min-h-screen bg-background relative px-4 md:px-8 py-6 md:py-12 overflow-x-hidden">
       {/* Ambient background glow */}
@@ -393,24 +489,28 @@ export default function ProfileClientComponent() {
           Back to Workspace
         </Link>
 
-        {/* Title without Sparkles icon */}
-        <div className="flex flex-col gap-1 mb-8">
+        {/* Title */}
+        <div className="flex flex-col gap-2 mb-8">
+          <div className="inline-flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.18em] text-muted">
+            <Sparkles className="w-3.5 h-3.5" />
+            Your account
+          </div>
           <h1 className="text-3xl font-extrabold tracking-tight text-foreground">
             Profile Settings
           </h1>
-          <p className="text-sm text-muted">
-            Configure your academic settings, customize your avatar, and manage your account credentials.
+          <p className="text-sm text-muted max-w-2xl">
+            Personalize your avatar, set your academic workspace, and manage how you sign in across Utility.
           </p>
         </div>
 
         {/* Main Content Grid */}
         <form onSubmit={handleSave} className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left Side: Avatar Card */}
-          <div className="lg:col-span-1 flex flex-col gap-6">
+          {/* Left column */}
+          <div className="lg:col-span-1 flex flex-col gap-5">
             <div className="bg-card border border-border/80 rounded-2xl p-6 shadow-xs flex flex-col items-center text-center relative overflow-hidden">
               <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-primary/30 to-foreground/20" />
 
-              <div className="w-24 h-24 rounded-2xl bg-foreground text-background flex items-center justify-center text-3xl font-black shadow-md border border-border/70 overflow-hidden mb-4 shrink-0">
+              <div className="w-28 h-28 rounded-2xl bg-foreground text-background flex items-center justify-center text-4xl font-black shadow-md border border-border/70 overflow-hidden mb-4 shrink-0 ring-4 ring-background">
                 {photoURL ? (
                   <img
                     src={photoURL}
@@ -423,16 +523,58 @@ export default function ProfileClientComponent() {
                 )}
               </div>
 
-              <h2 className="text-sm font-bold text-foreground truncate max-w-full">
+              <h2 className="text-base font-bold text-foreground truncate max-w-full">
                 {displayName || currentUser.email?.split("@")[0] || "Student"}
               </h2>
-              <p className="text-[10px] text-muted font-mono mt-0.5 truncate max-w-full">
+              <p className="text-[11px] text-muted font-mono mt-0.5 truncate max-w-full">
                 {currentUser.email || "Private email"}
               </p>
 
-              <span className="inline-flex items-center mt-3 text-[9px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full bg-surface-hover/80 border border-border text-muted">
-                {providerLabel}
-              </span>
+              <div className="flex flex-wrap items-center justify-center gap-1.5 mt-3">
+                <span className="inline-flex items-center text-[9px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full bg-surface-hover/80 border border-border text-muted">
+                  {providerLabel}
+                </span>
+                {memberSince && (
+                  <span className="inline-flex items-center text-[9px] font-semibold px-2 py-0.5 rounded-full bg-surface/80 border border-border text-muted">
+                    Since {memberSince}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Workspace preview */}
+            <div className="bg-card border border-border/80 rounded-2xl p-5 shadow-xs flex flex-col gap-3">
+              <h3 className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                <GraduationCap className="w-3.5 h-3.5 text-muted" />
+                Active workspace
+              </h3>
+              <div className="rounded-xl border border-border/80 bg-surface/40 p-3.5 space-y-2">
+                <p className="text-sm font-bold text-foreground">{selectedAcademicYear}</p>
+                <p className="text-xs text-muted leading-relaxed">{branchLabel}</p>
+                <p className="text-xs font-semibold text-foreground">Semester {selectedSemester}</p>
+              </div>
+              <p className="text-[10px] text-muted leading-relaxed">
+                Resources, syllabus, and AI answers follow this scope after you save.
+              </p>
+              <Link
+                href={`/resources?${workspaceQs}`}
+                className="inline-flex items-center justify-center gap-1.5 text-xs font-semibold text-foreground hover:text-foreground/80 border border-border rounded-xl px-3 py-2.5 bg-background hover:bg-surface/50 transition-colors"
+              >
+                Open resources
+                <ExternalLink className="w-3 h-3" />
+              </Link>
+            </div>
+
+            {/* Appearance */}
+            <div className="bg-card border border-border/80 rounded-2xl p-5 shadow-xs flex flex-col gap-3">
+              <h3 className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                <Palette className="w-3.5 h-3.5 text-muted" />
+                Appearance
+              </h3>
+              <ProfileThemeToggle />
+              <p className="text-[10px] text-muted leading-relaxed">
+                Choose light, dark, or match your system preference.
+              </p>
             </div>
 
             {/* Custom Image Link Input */}
@@ -516,11 +658,16 @@ export default function ProfileClientComponent() {
             </div>
 
             {/* Academic Settings Card */}
-            <div className="bg-card border border-border/80 rounded-2xl p-6 shadow-xs flex flex-col gap-6">
-              <h3 className="text-sm font-bold text-foreground flex items-center gap-2 pb-3 border-b border-border/50">
-                <GraduationCap className="w-4 h-4 text-muted" />
-                Curriculum & Branch Settings
-              </h3>
+            <div className="bg-card border border-border/80 rounded-2xl p-6 shadow-xs flex flex-col gap-5">
+              <div className="flex items-start justify-between gap-3 pb-3 border-b border-border/50">
+                <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+                  <GraduationCap className="w-4 h-4 text-muted" />
+                  Academic workspace
+                </h3>
+                <span className="text-[10px] font-semibold text-muted bg-surface border border-border rounded-full px-2 py-0.5 shrink-0">
+                  Syncs app-wide
+                </span>
+              </div>
 
               <ScopeSelector
                 variant="settings"
@@ -531,89 +678,153 @@ export default function ProfileClientComponent() {
                 onBranchChange={setSelectedBranch}
                 onSemesterChange={setSelectedSemester}
               />
-              <p className="text-[10px] text-muted-hover leading-relaxed">
-                Saving these settings automatically syncs your layout, schedules, resources, and syllabus checklist.
+              <p className="text-[10px] text-muted leading-relaxed">
+                Pick your year, branch, and semester. Saving updates the sidebar, resources, syllabus tracker, and AI context.
               </p>
             </div>
 
+            {/* Quick links */}
+            <div className="bg-card border border-border/80 rounded-2xl p-6 shadow-xs flex flex-col gap-4">
+              <h3 className="text-sm font-bold text-foreground pb-3 border-b border-border/50">
+                Quick shortcuts
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {quickLinks.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className="group flex items-start gap-3 rounded-xl border border-border/80 bg-background/60 p-3.5 hover:border-border-strong hover:bg-surface/40 transition-colors"
+                    >
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border bg-surface text-foreground group-hover:border-border-strong">
+                        <Icon className="w-4 h-4" />
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block text-xs font-bold text-foreground">{item.label}</span>
+                        <span className="block text-[10px] text-muted mt-0.5">{item.desc}</span>
+                      </span>
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+
             {/* Connected accounts */}
-            {(!isGoogle || !isGithub || mergeStep) && (
-              <div className="bg-card border border-border/80 rounded-2xl p-6 shadow-xs flex flex-col gap-3">
-                <h3 className="text-sm font-bold text-foreground pb-3 border-b border-border/50">
-                  Connected accounts
-                </h3>
-                <p className="text-xs text-muted leading-relaxed">
-                  {mergeStep === "github"
-                    ? "Google is on another Utility account. Confirm GitHub in this tab so both logins share one profile and photo."
-                    : mergeStep === "google"
-                      ? "GitHub is on another Utility account. Confirm Google in this tab so both logins share one profile and photo."
-                      : "Link the other provider so Google and GitHub use the same profile and photo. If a popup is blocked, continue in this tab."}
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {mergeStep === "github" ? (
-                    <button
-                      type="button"
-                      onClick={handleConfirmGithubMerge}
-                      disabled={linking}
-                      className="bg-foreground text-background text-xs font-semibold px-4 py-2.5 rounded-xl hover:opacity-90 disabled:opacity-50 transition-opacity"
-                    >
-                      {linking ? "Linking…" : "Confirm GitHub"}
-                    </button>
-                  ) : mergeStep === "google" ? (
-                    <button
-                      type="button"
-                      onClick={handleConfirmGoogleMerge}
-                      disabled={linking}
-                      className="bg-foreground text-background text-xs font-semibold px-4 py-2.5 rounded-xl hover:opacity-90 disabled:opacity-50 transition-opacity"
-                    >
-                      {linking ? "Linking…" : "Confirm Google"}
-                    </button>
+            <div className="bg-card border border-border/80 rounded-2xl p-6 shadow-xs flex flex-col gap-4">
+              <h3 className="text-sm font-bold text-foreground pb-3 border-b border-border/50">
+                Connected accounts
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="flex items-center justify-between gap-3 rounded-xl border border-border/80 bg-background/50 px-3.5 py-3">
+                  <div>
+                    <p className="text-xs font-bold text-foreground">Google</p>
+                    <p className="text-[10px] text-muted mt-0.5">
+                      {isGoogle ? "Linked to this profile" : "Not linked"}
+                    </p>
+                  </div>
+                  {isGoogle ? (
+                    <CheckCircle2 className="w-4 h-4 text-foreground shrink-0" />
                   ) : (
-                    <>
-                      {!isGithub && (
-                        <button
-                          type="button"
-                          onClick={handleLinkGithub}
-                          disabled={linking}
-                          className="bg-foreground text-background text-xs font-semibold px-4 py-2.5 rounded-xl hover:opacity-90 disabled:opacity-50 transition-opacity"
-                        >
-                          {linking ? "Linking…" : "Link GitHub"}
-                        </button>
-                      )}
-                      {!isGoogle && (
-                        <button
-                          type="button"
-                          onClick={handleLinkGoogle}
-                          disabled={linking}
-                          className="bg-foreground text-background text-xs font-semibold px-4 py-2.5 rounded-xl hover:opacity-90 disabled:opacity-50 transition-opacity"
-                        >
-                          {linking ? "Linking…" : "Link Google"}
-                        </button>
-                      )}
-                    </>
+                    <span className="text-[9px] font-bold uppercase tracking-wide text-muted">Off</span>
+                  )}
+                </div>
+                <div className="flex items-center justify-between gap-3 rounded-xl border border-border/80 bg-background/50 px-3.5 py-3">
+                  <div>
+                    <p className="text-xs font-bold text-foreground">GitHub</p>
+                    <p className="text-[10px] text-muted mt-0.5">
+                      {isGithub ? "Linked to this profile" : "Not linked"}
+                    </p>
+                  </div>
+                  {isGithub ? (
+                    <CheckCircle2 className="w-4 h-4 text-foreground shrink-0" />
+                  ) : (
+                    <span className="text-[9px] font-bold uppercase tracking-wide text-muted">Off</span>
                   )}
                 </div>
               </div>
-            )}
+              {(!isGoogle || !isGithub || mergeStep) && (
+                <>
+                  <p className="text-xs text-muted leading-relaxed">
+                    {mergeStep === "github"
+                      ? "Google is on another Utility account. Confirm GitHub in this tab so both logins share one profile and photo."
+                      : mergeStep === "google"
+                        ? "GitHub is on another Utility account. Confirm Google in this tab so both logins share one profile and photo."
+                        : "Link the other provider so Google and GitHub use the same profile and photo. If a popup is blocked, continue in this tab."}
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {mergeStep === "github" ? (
+                      <button
+                        type="button"
+                        onClick={handleConfirmGithubMerge}
+                        disabled={linking}
+                        className="bg-foreground text-background text-xs font-semibold px-4 py-2.5 rounded-xl hover:opacity-90 disabled:opacity-50 transition-opacity"
+                      >
+                        {linking ? "Linking…" : "Confirm GitHub"}
+                      </button>
+                    ) : mergeStep === "google" ? (
+                      <button
+                        type="button"
+                        onClick={handleConfirmGoogleMerge}
+                        disabled={linking}
+                        className="bg-foreground text-background text-xs font-semibold px-4 py-2.5 rounded-xl hover:opacity-90 disabled:opacity-50 transition-opacity"
+                      >
+                        {linking ? "Linking…" : "Confirm Google"}
+                      </button>
+                    ) : (
+                      <>
+                        {!isGithub && (
+                          <button
+                            type="button"
+                            onClick={handleLinkGithub}
+                            disabled={linking}
+                            className="bg-foreground text-background text-xs font-semibold px-4 py-2.5 rounded-xl hover:opacity-90 disabled:opacity-50 transition-opacity"
+                          >
+                            {linking ? "Linking…" : "Link GitHub"}
+                          </button>
+                        )}
+                        {!isGoogle && (
+                          <button
+                            type="button"
+                            onClick={handleLinkGoogle}
+                            disabled={linking}
+                            className="bg-foreground text-background text-xs font-semibold px-4 py-2.5 rounded-xl hover:opacity-90 disabled:opacity-50 transition-opacity"
+                          >
+                            {linking ? "Linking…" : "Link Google"}
+                          </button>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
 
             {/* Save Buttons */}
-            <div className="flex items-center justify-between gap-4 mt-2">
-              <button
-                type="button"
-                onClick={async () => {
-                  await auth.signOut();
-                  router.push("/");
-                }}
-                className="flex items-center gap-2 text-xs font-bold text-destructive hover:bg-destructive/10 border border-destructive/20 hover:border-transparent px-4 py-3 rounded-xl transition-all"
-              >
-                <LogOut className="w-3.5 h-3.5" />
-                Sign out
-              </button>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mt-1 rounded-2xl border border-border/80 bg-card/80 p-4">
+              <div className="flex flex-col gap-2">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await auth.signOut();
+                    router.push("/");
+                  }}
+                  className="flex items-center gap-2 text-xs font-bold text-destructive hover:bg-destructive/10 border border-destructive/20 hover:border-transparent px-4 py-2.5 rounded-xl transition-all w-fit"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                  Sign out
+                </button>
+                {lastSavedAt && (
+                  <p className="text-[10px] text-muted">
+                    Last saved {new Date(lastSavedAt).toLocaleString()}
+                  </p>
+                )}
+              </div>
 
               <button
                 type="submit"
                 disabled={saving}
-                className="flex items-center gap-2 bg-foreground text-background font-bold text-sm px-6 py-3 rounded-xl hover:opacity-90 disabled:opacity-50 transition-all hover:scale-[1.01] active:scale-95 duration-150 shadow-md ml-auto"
+                className="flex items-center justify-center gap-2 bg-foreground text-background font-bold text-sm px-6 py-3 rounded-xl hover:opacity-90 disabled:opacity-50 transition-all hover:scale-[1.01] active:scale-95 duration-150 shadow-md sm:ml-auto"
               >
                 {saving ? (
                   <>

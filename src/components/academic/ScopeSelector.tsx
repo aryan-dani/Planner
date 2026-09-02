@@ -8,7 +8,6 @@ import {
   ACADEMIC_YEAR_OPTIONS_SIDEBAR,
   BRANCH_OPTIONS,
   BRANCH_OPTIONS_LONG,
-  SEMESTER_OPTIONS,
   SEMESTER_OPTIONS_SHORT,
 } from "@/lib/academic/scope";
 import { Select } from "@/components/ui/Select";
@@ -41,37 +40,59 @@ export function ScopeSelector({
 }: ScopeSelectorProps) {
   if (variant === "settings") {
     return (
-      <div className={cn("grid grid-cols-1 sm:grid-cols-3 gap-4", className)}>
-        <div className="space-y-2">
-          <label className="text-xs font-medium text-muted">Academic year</label>
-          <Select<AcademicYear>
-            value={academicYear}
-            options={ACADEMIC_YEAR_OPTIONS}
-            onChange={onAcademicYearChange}
-            disabled={disabled}
-            size="lg"
-          />
-        </div>
-        <div className="space-y-2">
-          <label className="text-xs font-medium text-muted">Branch</label>
-          <Select<Branch>
-            value={branch}
-            options={BRANCH_OPTIONS_LONG}
-            onChange={onBranchChange}
-            disabled={disabled}
-            size="lg"
-          />
+      <div className={cn("flex flex-col gap-5", className)}>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <label className="text-xs font-medium text-muted">Academic year</label>
+            <Select<AcademicYear>
+              value={academicYear}
+              options={ACADEMIC_YEAR_OPTIONS}
+              onChange={onAcademicYearChange}
+              disabled={disabled}
+              size="lg"
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-xs font-medium text-muted">Branch</label>
+            <Select<Branch>
+              value={branch}
+              options={BRANCH_OPTIONS_LONG}
+              onChange={onBranchChange}
+              disabled={disabled}
+              size="lg"
+            />
+          </div>
         </div>
         <div className="space-y-2">
           <label className="text-xs font-medium text-muted">Semester</label>
-          <Select<Semester>
-            value={semester}
-            options={SEMESTER_OPTIONS}
-            onChange={onSemesterChange}
-            disabled={disabled}
-            size="lg"
-            optionsLayout="grid-4"
-          />
+          <div
+            className="grid grid-cols-4 sm:grid-cols-8 gap-2"
+            role="radiogroup"
+            aria-label="Semester"
+          >
+            {SEMESTER_OPTIONS_SHORT.map((opt) => {
+              const active = semester === opt.value;
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  role="radio"
+                  aria-checked={active}
+                  disabled={disabled}
+                  onClick={() => onSemesterChange(opt.value)}
+                  className={cn(
+                    "min-h-10 rounded-xl border text-xs font-bold transition-all",
+                    "focus-visible:outline-offset-2 disabled:opacity-40 disabled:cursor-not-allowed",
+                    active
+                      ? "bg-foreground text-background border-foreground shadow-xs"
+                      : "bg-background text-muted border-border hover:border-border-strong hover:text-foreground hover:bg-surface/50",
+                  )}
+                >
+                  {opt.label}
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
     );
