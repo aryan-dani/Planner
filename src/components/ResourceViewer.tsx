@@ -27,6 +27,7 @@ import {
 import { motion } from "framer-motion";
 import { cleanResourceTitle, shortCodeLabel } from "@/lib/titleUtils";
 import NotebookViewer from "@/components/NotebookViewer";
+import PdfPreview from "@/components/PdfPreview";
 import CsvPreview from "@/components/CsvPreview";
 import {
   folderIdForResource,
@@ -110,8 +111,6 @@ export default function ResourceViewer({
     ? `https://drive.google.com/file/d/${driveId}/view`
     : resource.file_url;
 
-  const usesIframePreview =
-    !isTextFetch && !isNotebook && !isImage && !!embedUrl;
   const colabUrl = driveId
     ? `https://colab.research.google.com/drive/${driveId}`
     : null;
@@ -163,8 +162,10 @@ export default function ResourceViewer({
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [codeContent, setCodeContent] = useState<string | null>(null);
-  const [blobPreviewUrl, setBlobPreviewUrl] = useState<string | null>(null);
-  const activeIframeSrc = blobPreviewUrl ?? embedUrl;
+  const usePdfJs = isPdf && !!driveId;
+  const usesIframePreview =
+    !isTextFetch && !isNotebook && !isImage && !usePdfJs && !!embedUrl;
+  const activeIframeSrc = embedUrl;
 
   useEffect(() => {
     setMounted(true);
@@ -174,8 +175,14 @@ export default function ResourceViewer({
     setIsLoading(true);
     setLoadError(false);
     setCodeContent(null);
-    setBlobPreviewUrl(null);
   }, [embedUrl, resource.file_url, resource.id]);
+
+  useEffect(() => {
+    if (usePdfJs) {
+      setIsLoading(false);
+      setLoadError(false);
+    }
+  }, [usePdfJs, resource.id]);
 
   useEffect(() => {
     if (!isTextFetch) return;
@@ -225,37 +232,6 @@ export default function ResourceViewer({
       cancelled = true;
     };
   }, [isTextFetch, resource.file_url, driveId]);
-
-  useEffect(() => {
-    if (!loadError || !isPdf || !driveId || blobPreviewUrl) return;
-
-    let cancelled = false;
-    let objectUrl: string | null = null;
-
-    async function loadProxyFallback() {
-      try {
-        const res = await fetch(
-          `/api/resources/preview?id=${driveId}&ext=pdf`,
-        );
-        if (res.status === 413) throw new Error("too large");
-        if (!res.ok) throw new Error("preview failed");
-        const blob = await res.blob();
-        if (cancelled) return;
-        objectUrl = URL.createObjectURL(blob);
-        setBlobPreviewUrl(objectUrl);
-        setLoadError(false);
-        setIsLoading(false);
-      } catch {
-        /* keep loadError — overlay shows open-in-drive link */
-      }
-    }
-
-    loadProxyFallback();
-    return () => {
-      cancelled = true;
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
-    };
-  }, [loadError, isPdf, driveId, blobPreviewUrl, resource.id]);
 
   useEffect(() => {
     if (!usesIframePreview || !isLoading) return;
@@ -599,6 +575,21 @@ export default function ResourceViewer({
                 </div>
               )}
             </div>
+          ) : usePdfJs && driveId ? (
+            <PdfPreview
+              driveId={driveId}
+              ext={extension || "pdf"}
+              title={cleanResourceTitle(resource.title)}
+              fallbackUrl={driveViewUrl}
+              onReady={() => {
+                setIsLoading(false);
+                setLoadError(false);
+              }}
+              onFail={() => {
+                setLoadError(true);
+                setIsLoading(false);
+              }}
+            />
           ) : usesIframePreview && activeIframeSrc ? (
             <>
               <iframe
@@ -610,7 +601,7 @@ export default function ResourceViewer({
                 referrerPolicy="no-referrer-when-downgrade"
                 onLoad={() => setIsLoading(false)}
               />
-              {!isLoading && loadError && !blobPreviewUrl && (
+              {!isLoading && loadError && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-center text-muted bg-background/90 z-10 p-6">
                   <p className="text-sm">Preview is taking longer than usual.</p>
                   <a

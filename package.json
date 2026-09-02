@@ -26,9 +26,9 @@
     "@ducanh2912/next-pwa": "^10.2.9",
     "@vercel/speed-insights": "^2.0.0",
     "ai": "^6.0.182",
+    "fflate": "^0.8.2",
     "firebase": "^12.14.0",
     "firebase-admin": "^13.10.0",
-    "fflate": "^0.8.2",
     "framer-motion": "^12.38.0",
     "googleapis": "^173.0.0",
     "lucide-react": "^1.14.0",
@@ -37,6 +37,7 @@
     "node-domexception": "file:./scripts/domexception-shim",
     "officeparser": "^7.0.2",
     "pdf-parse": "^2.4.5",
+    "pdfjs-dist": "5.4.296",
     "react": "^18",
     "react-dom": "^18",
     "react-markdown": "^10.1.0",
@@ -62,7 +63,8 @@
   },
   "overrides": {
     "uuid": "^11.0.3",
-    "node-domexception": "file:./scripts/domexception-shim"
+    "node-domexception": "file:./scripts/domexception-shim",
+    "pdfjs-dist": "5.4.296"
   },
   "allowScripts": {
     "@firebase/util@1.15.1": true,

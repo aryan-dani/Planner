@@ -13,6 +13,10 @@ import { google } from "googleapis";
 import syncDrive from "./sync-drive.mjs";
 import { getEnv } from "../lib/env.mjs";
 import { getDrive } from "../lib/drive.mjs";
+import {
+  ACADEMIC_YEAR_PATH_RE,
+  DEFAULT_ACADEMIC_YEAR,
+} from "../lib/academicYear.mjs";
 
 const driveFolderId = getEnv("GOOGLE_DRIVE_FOLDER_ID");
 if (!driveFolderId) {
@@ -121,6 +125,25 @@ async function uploadDirectory(localPath, driveParentId) {
   }
 }
 
+async function yearFolderExistsAtRoot() {
+  const cleanName = DEFAULT_ACADEMIC_YEAR.replace(/'/g, "\\'");
+  const q = `name = '${cleanName}' and '${driveFolderId}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;
+  const res = await drive.files.list({
+    q,
+    fields: "files(id)",
+    pageSize: 1,
+    ...DRIVE_OPTS,
+  });
+  return (res.data.files || []).length > 0;
+}
+
+async function resolveBranchParentId() {
+  if (await yearFolderExistsAtRoot()) {
+    return getOrCreateFolder(DEFAULT_ACADEMIC_YEAR, driveFolderId);
+  }
+  return driveFolderId;
+}
+
 async function startUpload() {
   const localTarget = process.argv[2];
 
@@ -145,9 +168,16 @@ async function startUpload() {
     const targetFolderBasename = basename(localTarget);
     const semMatch = targetFolderBasename.match(/Sem_\d+_(.+)/i);
 
-    if (semMatch) {
+    if (ACADEMIC_YEAR_PATH_RE.test(targetFolderBasename)) {
+      const yearFolderId = await getOrCreateFolder(
+        targetFolderBasename,
+        driveFolderId,
+      );
+      await uploadDirectory(localTarget, yearFolderId);
+    } else if (semMatch) {
       const branchName = semMatch[1].toUpperCase();
-      const branchFolderId = await getOrCreateFolder(branchName, driveFolderId);
+      const branchParentId = await resolveBranchParentId();
+      const branchFolderId = await getOrCreateFolder(branchName, branchParentId);
       const targetParentId = await getOrCreateFolder(
         targetFolderBasename,
         branchFolderId,
