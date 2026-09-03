@@ -113,6 +113,14 @@ Without `GEMINI_API_KEY`, search falls back to keyword/BM25 (still scoped by sem
 ### 3. Drive Sync & Indexing
 
 ```bash
+# Upload a local tree into the year-scoped Drive folder
+npm run upload-drive -- "C:\path\to\2026-2027"
+npm run upload-drive -- "C:\path\to\Sem_5_AIDS" --year=2026-2027
+
+# Update files that already exist (same folder + name only — not global)
+npm run upload-drive:overwrite -- "C:\path\to\2026-2027"
+node runtime/tools/upload-drive.mjs "C:\path\to\folder" --overwrite --dry-run --no-sync
+
 # Sync Drive folder → Firestore subjects/resources
 npm run sync-drive
 
@@ -132,10 +140,10 @@ Resources are cached ~10 minutes (`unstable_cache` / `revalidate: 600`). After c
 Drive folder naming convention:
 
 ```text
-<root>/<BRANCH>/Sem_<N>_<BRANCH>/Sem_<N>_{Notes|PPT|PYQ|QB|WriteUps|Codes}/<Subject>/<File>
+<root>/<YYYY-YYYY>/<BRANCH>/Sem_<N>_<BRANCH>/Sem_<N>_{Notes|PPT|PYQ|QB|WriteUps|Codes}/<Subject>/<File>
 ```
 
-Example: `AIDS/Sem_5_AIDS/Sem_5_PPT/ML/ML_Unit_1.pptx`
+Example: `2026-2027/AIDS/Sem_5_AIDS/Sem_5_PPT/ML/ML_Unit_1.pptx`
 
 Syllabus at semester root: `Sem_<N>_Syllabus.pdf`
 

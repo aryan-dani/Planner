@@ -1,18 +1,19 @@
 /**
- * runtime/tools/upload-drive.mjs
- * Recursively uploads a local folder to the configured Google Drive folder.
- * Prefers user OAuth (quota) when GOOGLE_CLIENT_* + GOOGLE_REFRESH_TOKEN are set;
- * otherwise falls back to the Firebase service account (Shared Drives only).
- * Triggers Drive → Firestore sync when upload finishes.
+ * Recursively upload a local folder into the configured Google Drive tree.
  *
- * Usage: node runtime/tools/upload-drive.mjs <local_directory_path>
+ * Usage:
+ *   node runtime/tools/upload-drive.mjs <local_directory> [--overwrite] [--year=YYYY-YYYY] [--dry-run] [--no-sync]
+ *
+ * --overwrite  Update existing files in the same folder (path-scoped). Default: skip.
+ * --year       Nest Sem_* uploads under this year folder when year folders exist.
+ * --dry-run    Print actions only.
+ * --no-sync    Skip Drive → Firestore sync after upload.
  */
 import { existsSync, readdirSync, statSync, createReadStream } from "fs";
 import { join, basename } from "path";
-import { google } from "googleapis";
 import syncDrive from "./sync-drive.mjs";
 import { getEnv } from "../lib/env.mjs";
-import { getDrive } from "../lib/drive.mjs";
+import { getWritableDrive, DRIVE_SHARED_OPTS } from "../lib/drive.mjs";
 import {
   ACADEMIC_YEAR_PATH_RE,
   DEFAULT_ACADEMIC_YEAR,
@@ -20,47 +21,61 @@ import {
 
 const driveFolderId = getEnv("GOOGLE_DRIVE_FOLDER_ID");
 if (!driveFolderId) {
-  throw new Error("❌ Missing GOOGLE_DRIVE_FOLDER_ID in .env.local");
+  throw new Error("Missing GOOGLE_DRIVE_FOLDER_ID in .env.local");
 }
 
-const DRIVE_OPTS = {
-  supportsAllDrives: true,
-  includeItemsFromAllDrives: true,
-};
+function parseArgs(argv) {
+  const flags = {
+    overwrite: false,
+    dryRun: false,
+    noSync: false,
+    year: null,
+    localTarget: null,
+  };
 
-function getUploadDrive() {
-  const clientId = getEnv("GOOGLE_CLIENT_ID");
-  const clientSecret = getEnv("GOOGLE_CLIENT_SECRET");
-  const refreshToken = getEnv("GOOGLE_REFRESH_TOKEN");
-
-  if (clientId && clientSecret && refreshToken) {
-    const oauth2Client = new google.auth.OAuth2(clientId, clientSecret);
-    oauth2Client.setCredentials({ refresh_token: refreshToken });
-    console.log("🔐 Using OAuth user credentials for upload\n");
-    return google.drive({ version: "v3", auth: oauth2Client });
+  for (const arg of argv.slice(2)) {
+    if (arg === "--overwrite" || arg === "--force") flags.overwrite = true;
+    else if (arg === "--dry-run") flags.dryRun = true;
+    else if (arg === "--no-sync") flags.noSync = true;
+    else if (arg.startsWith("--year=")) flags.year = arg.slice("--year=".length).trim();
+    else if (!arg.startsWith("-") && !flags.localTarget) flags.localTarget = arg;
+    else {
+      console.error(`Unknown argument: ${arg}`);
+      process.exit(1);
+    }
   }
 
-  console.log(
-    "🔐 Using service account (requires Shared Drive storage quota)\n",
-  );
-  return getDrive(["https://www.googleapis.com/auth/drive"]);
+  if (flags.year && !ACADEMIC_YEAR_PATH_RE.test(flags.year)) {
+    console.error(`Invalid --year=${flags.year}. Expected YYYY-YYYY.`);
+    process.exit(1);
+  }
+
+  return flags;
 }
 
-const drive = getUploadDrive();
+const opts = parseArgs(process.argv);
+const stats = { created: 0, updated: 0, skipped: 0, folders: 0, failed: 0 };
+
+const drive = getWritableDrive();
+console.log("Using writable Drive client\n");
 
 async function getOrCreateFolder(name, parentId) {
   const cleanName = name.replace(/'/g, "\\'");
   const q = `name = '${cleanName}' and '${parentId}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;
-
   const res = await drive.files.list({
     q,
     fields: "files(id, name)",
     pageSize: 1,
-    ...DRIVE_OPTS,
+    ...DRIVE_SHARED_OPTS,
   });
-
   const files = res.data.files || [];
   if (files.length > 0) return files[0].id;
+
+  if (opts.dryRun) {
+    console.log(`  [dry-run] would create folder: ${name}`);
+    stats.folders += 1;
+    return parentId;
+  }
 
   const folder = await drive.files.create({
     requestBody: {
@@ -71,126 +86,171 @@ async function getOrCreateFolder(name, parentId) {
     fields: "id",
     supportsAllDrives: true,
   });
-
-  console.log(`  📁 Created remote folder: ${name}`);
+  console.log(`  Created remote folder: ${name}`);
+  stats.folders += 1;
   return folder.data.id;
 }
 
 async function fileExistsInFolder(name, parentId) {
   const cleanName = name.replace(/'/g, "\\'");
   const q = `name = '${cleanName}' and '${parentId}' in parents and mimeType != 'application/vnd.google-apps.folder' and trashed = false`;
-
   const res = await drive.files.list({
     q,
     fields: "files(id, name)",
     pageSize: 1,
-    ...DRIVE_OPTS,
+    ...DRIVE_SHARED_OPTS,
   });
-
   const files = res.data.files || [];
   return files.length > 0 ? files[0].id : null;
 }
 
-async function uploadDirectory(localPath, driveParentId) {
-  const items = readdirSync(localPath);
-
-  for (const item of items) {
-    const itemPath = join(localPath, item);
-    const stat = statSync(itemPath);
-
-    if (stat.isDirectory()) {
-      const subFolderId = await getOrCreateFolder(item, driveParentId);
-      await uploadDirectory(itemPath, subFolderId);
-    } else {
-      const existingId = await fileExistsInFolder(item, driveParentId);
-      if (existingId) {
-        console.log(`  ⏭️  Skipping existing file: ${item}`);
-        continue;
-      }
-
-      console.log(`  ⬆️  Uploading: ${item}...`);
-      await drive.files.create({
-        requestBody: {
-          name: item,
-          parents: [driveParentId],
-        },
-        media: {
-          body: createReadStream(itemPath),
-        },
-        fields: "id",
-        supportsAllDrives: true,
-      });
-      console.log(`  ✅ Uploaded: ${item}`);
-    }
-  }
-}
-
-async function yearFolderExistsAtRoot() {
-  const cleanName = DEFAULT_ACADEMIC_YEAR.replace(/'/g, "\\'");
+async function yearFolderExists(yearName) {
+  const cleanName = yearName.replace(/'/g, "\\'");
   const q = `name = '${cleanName}' and '${driveFolderId}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;
   const res = await drive.files.list({
     q,
     fields: "files(id)",
     pageSize: 1,
-    ...DRIVE_OPTS,
+    ...DRIVE_SHARED_OPTS,
   });
-  return (res.data.files || []).length > 0;
+  return (res.data.files || [])[0]?.id ?? null;
 }
 
-async function resolveBranchParentId() {
-  if (await yearFolderExistsAtRoot()) {
-    return getOrCreateFolder(DEFAULT_ACADEMIC_YEAR, driveFolderId);
+async function anyYearFolderExists() {
+  const q = `'${driveFolderId}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;
+  const res = await drive.files.list({
+    q,
+    fields: "files(id, name)",
+    pageSize: 50,
+    ...DRIVE_SHARED_OPTS,
+  });
+  return (res.data.files || []).some((f) => ACADEMIC_YEAR_PATH_RE.test(f.name));
+}
+
+async function uploadFile(itemPath, name, parentId) {
+  const existingId = await fileExistsInFolder(name, parentId);
+
+  if (existingId && !opts.overwrite) {
+    console.log(`  Skip existing: ${name}`);
+    stats.skipped += 1;
+    return;
+  }
+
+  if (opts.dryRun) {
+    console.log(`  [dry-run] would ${existingId ? "update" : "upload"}: ${name}`);
+    if (existingId) stats.updated += 1;
+    else stats.created += 1;
+    return;
+  }
+
+  try {
+    if (existingId) {
+      console.log(`  Updating: ${name}`);
+      await drive.files.update({
+        fileId: existingId,
+        media: { body: createReadStream(itemPath) },
+        supportsAllDrives: true,
+        fields: "id",
+      });
+      console.log(`  Updated: ${name}`);
+      stats.updated += 1;
+      return;
+    }
+
+    console.log(`  Uploading: ${name}`);
+    await drive.files.create({
+      requestBody: { name, parents: [parentId] },
+      media: { body: createReadStream(itemPath) },
+      fields: "id",
+      supportsAllDrives: true,
+    });
+    console.log(`  Uploaded: ${name}`);
+    stats.created += 1;
+  } catch (err) {
+    stats.failed += 1;
+    console.error(`  Failed: ${name} — ${err.message}`);
+  }
+}
+
+async function uploadDirectory(localPath, driveParentId) {
+  const items = readdirSync(localPath);
+  for (const item of items) {
+    if (item.startsWith(".") || item === "node_modules") continue;
+    const itemPath = join(localPath, item);
+    const stat = statSync(itemPath);
+    if (stat.isDirectory()) {
+      const subFolderId = await getOrCreateFolder(item, driveParentId);
+      await uploadDirectory(itemPath, subFolderId);
+    } else {
+      await uploadFile(itemPath, item, driveParentId);
+    }
+  }
+}
+
+async function resolveUploadRoot(localTarget) {
+  const targetFolderBasename = basename(localTarget);
+  const semMatch = targetFolderBasename.match(/Sem_\d+_(.+)/i);
+  const yearHint = opts.year || DEFAULT_ACADEMIC_YEAR;
+  const yearsExist = await anyYearFolderExists();
+
+  if (ACADEMIC_YEAR_PATH_RE.test(targetFolderBasename)) {
+    const yearFolderId = await getOrCreateFolder(targetFolderBasename, driveFolderId);
+    return yearFolderId;
+  }
+
+  if (semMatch) {
+    const branchName = semMatch[1].toUpperCase();
+    let branchParentId = driveFolderId;
+    if (yearsExist) {
+      branchParentId = await getOrCreateFolder(yearHint, driveFolderId);
+    }
+    const branchFolderId = await getOrCreateFolder(branchName, branchParentId);
+    return getOrCreateFolder(targetFolderBasename, branchFolderId);
+  }
+
+  if (yearsExist) {
+    return getOrCreateFolder(yearHint, driveFolderId);
   }
   return driveFolderId;
 }
 
 async function startUpload() {
-  const localTarget = process.argv[2];
+  const { localTarget } = opts;
 
   if (!localTarget || !existsSync(localTarget)) {
-    console.error(
-      "❌ Error: Please specify a valid local directory path to upload.",
-    );
+    console.error("Please specify a valid local directory path to upload.");
     console.log(
-      "Usage: node runtime/tools/upload-drive.mjs <local_directory_path>",
+      "Usage: node runtime/tools/upload-drive.mjs <local_directory> [--overwrite] [--year=YYYY-YYYY] [--dry-run] [--no-sync]",
     );
     process.exit(1);
   }
 
   if (!statSync(localTarget).isDirectory()) {
-    console.error("❌ Error: Target path is a file, must be a directory.");
+    console.error("Target path is a file; pass a directory.");
     process.exit(1);
   }
 
-  console.log(`\n📤 Starting Google Drive Upload from: ${localTarget}\n`);
+  const yearHint = opts.year || DEFAULT_ACADEMIC_YEAR;
+  console.log(`\nStarting Drive upload from: ${localTarget}`);
+  console.log(
+    `  overwrite=${opts.overwrite} dry-run=${opts.dryRun} year=${yearHint} sync=${!opts.noSync}\n`,
+  );
 
   try {
-    const targetFolderBasename = basename(localTarget);
-    const semMatch = targetFolderBasename.match(/Sem_\d+_(.+)/i);
+    const parentId = await resolveUploadRoot(localTarget);
+    await uploadDirectory(localTarget, parentId);
 
-    if (ACADEMIC_YEAR_PATH_RE.test(targetFolderBasename)) {
-      const yearFolderId = await getOrCreateFolder(
-        targetFolderBasename,
-        driveFolderId,
-      );
-      await uploadDirectory(localTarget, yearFolderId);
-    } else if (semMatch) {
-      const branchName = semMatch[1].toUpperCase();
-      const branchParentId = await resolveBranchParentId();
-      const branchFolderId = await getOrCreateFolder(branchName, branchParentId);
-      const targetParentId = await getOrCreateFolder(
-        targetFolderBasename,
-        branchFolderId,
-      );
-      await uploadDirectory(localTarget, targetParentId);
-    } else {
-      await uploadDirectory(localTarget, driveFolderId);
+    console.log(
+      `\nDone. created=${stats.created} updated=${stats.updated} skipped=${stats.skipped} folders=${stats.folders} failed=${stats.failed}`,
+    );
+
+    if (stats.failed > 0) process.exitCode = 1;
+
+    if (!opts.dryRun && !opts.noSync) {
+      await syncDrive();
     }
-
-    console.log(`\n🎉 Upload completed successfully!`);
-    await syncDrive();
   } catch (error) {
-    console.error(`\n❌ Upload failed: ${error.message}`);
+    console.error(`\nUpload failed: ${error.message}`);
     process.exit(1);
   }
 }

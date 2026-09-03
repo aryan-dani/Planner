@@ -155,6 +155,12 @@ function looksConventionOk(base, ctx) {
       "i",
     ).test(base);
   }
+  if (category === "Codes") {
+    return new RegExp(
+      `^Sem_${semNum}_[A-Za-z0-9_]+_(Assignment|Dataset)_(\\d+[A-Za-z]?)(_[A-Za-z0-9_]+)?$`,
+      "i",
+    ).test(base);
+  }
   if (category === "PYQ") {
     return new RegExp(
       `^${escapeRe(subject)}_PYQ_\\d{4}(_(Mid|End))?(_\\d+)?$`,

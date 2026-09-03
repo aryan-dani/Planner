@@ -9,6 +9,8 @@
     "lint": "eslint src",
     "analyze": "cross-env ANALYZE=true npm run build",
     "sync-drive": "node runtime/tools/sync-drive.mjs",
+    "upload-drive": "node runtime/tools/upload-drive.mjs",
+    "upload-drive:overwrite": "node runtime/tools/upload-drive.mjs --overwrite",
     "index-content": "node runtime/index.mjs index",
     "eval-rag": "node runtime/tools/eval-rag.mjs",
     "deploy:indexes": "node scripts/deploy-firestore-indexes.mjs",

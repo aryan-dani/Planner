@@ -27,6 +27,7 @@ import {
 import { motion } from "framer-motion";
 import { cleanResourceTitle, shortCodeLabel } from "@/lib/titleUtils";
 import NotebookViewer from "@/components/NotebookViewer";
+import PdfPreview, { type PdfPreviewHandle } from "@/components/PdfPreview";
 import CsvPreview from "@/components/CsvPreview";
 import {
   folderIdForResource,
@@ -156,13 +157,15 @@ export default function ResourceViewer({
   const containerRef = useRef<HTMLDivElement>(null);
   const downloadRef = useRef<HTMLAnchorElement>(null);
   const externalRef = useRef<HTMLAnchorElement>(null);
+  const pdfRef = useRef<PdfPreviewHandle>(null);
 
   const [mounted, setMounted] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [codeContent, setCodeContent] = useState<string | null>(null);
+  const usePdfJs = isPdf && !!driveId;
   const usesIframePreview =
-    !isTextFetch && !isNotebook && !isImage && !!embedUrl;
+    !isTextFetch && !isNotebook && !isImage && !usePdfJs && !!embedUrl;
   const activeIframeSrc = embedUrl;
 
   useEffect(() => {
@@ -173,7 +176,10 @@ export default function ResourceViewer({
     setIsLoading(true);
     setLoadError(false);
     setCodeContent(null);
-  }, [embedUrl, resource.file_url, resource.id]);
+    if (isPdf && getDriveFileId(resource.file_url)) {
+      setIsLoading(false);
+    }
+  }, [embedUrl, resource.file_url, resource.id, isPdf]);
 
   useEffect(() => {
     if (!isTextFetch) return;
@@ -234,10 +240,29 @@ export default function ResourceViewer({
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
+      const isMod = event.ctrlKey || event.metaKey || event.altKey;
+
       if (event.key === "Escape") {
+        if (pdfRef.current?.closeFind()) {
+          event.preventDefault();
+          return;
+        }
+        if (document.fullscreenElement) {
+          event.preventDefault();
+          document.exitFullscreen().catch(() => {});
+          return;
+        }
         onClose();
         return;
       }
+
+      if (isMod && event.key.toLowerCase() === "f" && usePdfJs) {
+        event.preventDefault();
+        pdfRef.current?.openFind();
+        return;
+      }
+
+      if (isMod) return;
 
       if (
         event.target instanceof HTMLInputElement ||
@@ -248,14 +273,21 @@ export default function ResourceViewer({
       }
 
       if (event.key.toLowerCase() === "f") {
+        event.preventDefault();
         if (!document.fullscreenElement) {
           containerRef.current?.requestFullscreen().catch(() => {});
         } else {
           document.exitFullscreen().catch(() => {});
         }
       }
-      if (event.key.toLowerCase() === "d") downloadRef.current?.click();
-      if (event.key.toLowerCase() === "o") externalRef.current?.click();
+      if (event.key.toLowerCase() === "d") {
+        event.preventDefault();
+        downloadRef.current?.click();
+      }
+      if (event.key.toLowerCase() === "o") {
+        event.preventDefault();
+        externalRef.current?.click();
+      }
 
       if (event.key === "Tab") {
         if (!containerRef.current) return;
@@ -294,7 +326,7 @@ export default function ResourceViewer({
       document.documentElement.style.overscrollBehavior = "";
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [onClose]);
+  }, [onClose, usePdfJs]);
 
   const viewerKindLabel = isNotebook
     ? "Notebook"
@@ -566,6 +598,22 @@ export default function ResourceViewer({
                 </div>
               )}
             </div>
+          ) : usePdfJs && driveId ? (
+            <PdfPreview
+              ref={pdfRef}
+              driveId={driveId}
+              ext={extension || "pdf"}
+              title={cleanResourceTitle(resource.title)}
+              fallbackUrl={driveViewUrl}
+              onReady={() => {
+                setIsLoading(false);
+                setLoadError(false);
+              }}
+              onFail={() => {
+                setLoadError(true);
+                setIsLoading(false);
+              }}
+            />
           ) : usesIframePreview && activeIframeSrc ? (
             <>
               <iframe

@@ -1,0 +1,534 @@
+"use client";
+
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  ExternalLink,
+  Search,
+  X,
+  ZoomIn,
+  ZoomOut,
+} from "lucide-react";
+import { fetchCachedPdf } from "@/lib/pdfPreviewCache";
+import { cn } from "@/lib/cn";
+
+export type PdfPreviewHandle = {
+  /** Returns true if find UI was open and is now closed. */
+  closeFind: () => boolean;
+  openFind: () => void;
+};
+
+interface PdfPreviewProps {
+  driveId: string;
+  ext?: string;
+  title: string;
+  fallbackUrl: string;
+  onReady?: () => void;
+  onFail?: () => void;
+}
+
+type PdfModule = typeof import("pdfjs-dist");
+type PdfDocument = Awaited<ReturnType<PdfModule["getDocument"]>["promise"]>;
+
+type FindHit = { page: number; snippet: string };
+
+const BUFFER_PAGES = 2;
+
+function PdfPage({
+  pdf,
+  pdfjs,
+  pageNumber,
+  scale,
+  findQuery,
+  activeHit,
+  onHeight,
+}: {
+  pdf: PdfDocument;
+  pdfjs: PdfModule;
+  pageNumber: number;
+  scale: number;
+  findQuery: string;
+  activeHit: FindHit | null;
+  onHeight: (page: number, height: number) => void;
+}) {
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const textRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    let layer: InstanceType<PdfModule["TextLayer"]> | null = null;
+
+    async function paint() {
+      const page = await pdf.getPage(pageNumber);
+      if (cancelled) return;
+      const viewport = page.getViewport({ scale });
+      const canvas = canvasRef.current;
+      const textEl = textRef.current;
+      const wrap = wrapRef.current;
+      if (!canvas || !textEl || !wrap) return;
+
+      const outputScale = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = Math.floor(viewport.width * outputScale);
+      canvas.height = Math.floor(viewport.height * outputScale);
+      canvas.style.width = `${viewport.width}px`;
+      canvas.style.height = `${viewport.height}px`;
+      wrap.style.width = `${viewport.width}px`;
+      wrap.style.height = `${viewport.height}px`;
+      onHeight(pageNumber, viewport.height);
+
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+      const transform =
+        outputScale !== 1 ? [outputScale, 0, 0, outputScale, 0, 0] : undefined;
+      await page.render({ canvasContext: ctx, viewport, canvas, transform }).promise;
+      if (cancelled) return;
+
+      textEl.replaceChildren();
+      const textContent = await page.getTextContent();
+      if (cancelled) return;
+      layer = new pdfjs.TextLayer({
+        textContentSource: textContent,
+        container: textEl,
+        viewport,
+      });
+      await layer.render();
+      if (cancelled) return;
+
+      const q = findQuery.trim().toLowerCase();
+      if (!q) return;
+      const divs = layer.textDivs;
+      let remaining = activeHit?.page === pageNumber ? 1 : 0;
+      for (const el of divs) {
+        const t = (el.textContent || "").toLowerCase();
+        if (!t.includes(q)) continue;
+        el.classList.add("pdf-find-hit");
+        if (activeHit?.page === pageNumber && remaining > 0) {
+          el.classList.add("pdf-find-hit-active");
+          remaining -= 1;
+        }
+      }
+    }
+
+    void paint().catch(() => {});
+    return () => {
+      cancelled = true;
+      layer?.cancel();
+    };
+  }, [pdf, pdfjs, pageNumber, scale, findQuery, activeHit, onHeight]);
+
+  return (
+    <div
+      ref={wrapRef}
+      data-pdf-page={pageNumber}
+      className="relative mx-auto mb-4 bg-white shadow-sm border border-border rounded-lg overflow-hidden"
+    >
+      <canvas ref={canvasRef} className="block max-w-full" />
+      <div ref={textRef} className="pdf-text-layer" />
+    </div>
+  );
+}
+
+const PdfPreview = forwardRef<PdfPreviewHandle, PdfPreviewProps>(
+  function PdfPreview(
+    { driveId, ext = "pdf", title, fallbackUrl, onReady, onFail },
+    ref,
+  ) {
+    const scrollRef = useRef<HTMLDivElement>(null);
+    const findInputRef = useRef<HTMLInputElement>(null);
+    const genRef = useRef(0);
+    const onReadyRef = useRef(onReady);
+    const onFailRef = useRef(onFail);
+    onReadyRef.current = onReady;
+    onFailRef.current = onFail;
+
+    const [pdfjs, setPdfjs] = useState<PdfModule | null>(null);
+    const [pdf, setPdf] = useState<PdfDocument | null>(null);
+    const [pageCount, setPageCount] = useState(0);
+    const [page, setPage] = useState(1);
+    const [scale, setScale] = useState(1.15);
+    const [failed, setFailed] = useState(false);
+    const [loading, setLoading] = useState(true);
+    const [heights, setHeights] = useState<Record<number, number>>({});
+    const [visible, setVisible] = useState<Set<number>>(new Set([1, 2, 3]));
+    const [findOpen, setFindOpen] = useState(false);
+    const [findQuery, setFindQuery] = useState("");
+    const [hits, setHits] = useState<FindHit[]>([]);
+    const [hitIndex, setHitIndex] = useState(0);
+    const [jumpValue, setJumpValue] = useState("1");
+    const pageTextRef = useRef<string[]>([]);
+
+    const activeHit = hits[hitIndex] ?? null;
+
+    useImperativeHandle(
+      ref,
+      () => ({
+        closeFind: () => {
+          if (!findOpen) return false;
+          setFindOpen(false);
+          return true;
+        },
+        openFind: () => {
+          setFindOpen(true);
+          requestAnimationFrame(() => findInputRef.current?.focus());
+        },
+      }),
+      [findOpen],
+    );
+
+    useEffect(() => {
+      const gen = ++genRef.current;
+      let cancelled = false;
+      setLoading(true);
+      setFailed(false);
+      setPdf(null);
+      setHits([]);
+
+      (async () => {
+        try {
+          const mod = await import("pdfjs-dist");
+          mod.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
+          const blob = await fetchCachedPdf(driveId, ext);
+          if (cancelled || gen !== genRef.current) return;
+          const data = await blob.arrayBuffer();
+          if (cancelled || gen !== genRef.current) return;
+          const doc = await mod.getDocument({ data }).promise;
+          if (cancelled || gen !== genRef.current) return;
+          setPdfjs(mod);
+          setPdf(doc);
+          setPageCount(doc.numPages);
+          setPage(1);
+          setJumpValue("1");
+          setVisible(new Set([1, 2, Math.min(3, doc.numPages)]));
+          setLoading(false);
+          onReadyRef.current?.();
+
+          const texts: string[] = [];
+          for (let i = 1; i <= doc.numPages; i++) {
+            if (cancelled || gen !== genRef.current) return;
+            const p = await doc.getPage(i);
+            const tc = await p.getTextContent();
+            texts[i] = tc.items
+              .map((item) => ("str" in item ? item.str : ""))
+              .join(" ");
+          }
+          pageTextRef.current = texts;
+        } catch {
+          if (!cancelled && gen === genRef.current) {
+            setFailed(true);
+            setLoading(false);
+            onFailRef.current?.();
+          }
+        }
+      })();
+
+      return () => {
+        cancelled = true;
+      };
+    }, [driveId, ext]);
+
+    const onHeight = useCallback((pageNum: number, height: number) => {
+      setHeights((prev) =>
+        prev[pageNum] === height ? prev : { ...prev, [pageNum]: height },
+      );
+    }, []);
+
+    const estimatedHeight = useMemo(() => {
+      const vals = Object.values(heights);
+      if (vals.length === 0) return 900;
+      return vals.reduce((a, b) => a + b, 0) / vals.length;
+    }, [heights]);
+
+    const scrollToPage = useCallback((n: number) => {
+      const el = scrollRef.current?.querySelector(`[data-pdf-page="${n}"]`);
+      el?.scrollIntoView({ behavior: "smooth", block: "start" });
+      setPage(n);
+      setJumpValue(String(n));
+    }, []);
+
+    useEffect(() => {
+      const root = scrollRef.current;
+      if (!root || pageCount === 0) return;
+
+      const observer = new IntersectionObserver(
+        (entries) => {
+          setVisible((prev) => {
+            const next = new Set(prev);
+            for (const e of entries) {
+              const num = Number((e.target as HTMLElement).dataset.pdfPage);
+              if (!num) continue;
+              if (e.isIntersecting) {
+                for (let i = num - BUFFER_PAGES; i <= num + BUFFER_PAGES; i++) {
+                  if (i >= 1 && i <= pageCount) next.add(i);
+                }
+                if (e.intersectionRatio > 0.4) {
+                  setPage(num);
+                  setJumpValue(String(num));
+                }
+              }
+            }
+            return next;
+          });
+        },
+        { root, threshold: [0.05, 0.4] },
+      );
+
+      const nodes = root.querySelectorAll("[data-pdf-slot]");
+      nodes.forEach((n) => observer.observe(n));
+      return () => observer.disconnect();
+    }, [pageCount, pdf, scale]);
+
+    useEffect(() => {
+      const q = findQuery.trim().toLowerCase();
+      if (!q) {
+        setHits([]);
+        setHitIndex(0);
+        return;
+      }
+      const found: FindHit[] = [];
+      pageTextRef.current.forEach((text, pageNum) => {
+        if (!text) return;
+        const lower = text.toLowerCase();
+        let from = 0;
+        while (found.length < 200) {
+          const at = lower.indexOf(q, from);
+          if (at < 0) break;
+          found.push({
+            page: pageNum,
+            snippet: text.slice(Math.max(0, at - 24), at + q.length + 24),
+          });
+          from = at + q.length;
+        }
+      });
+      setHits(found);
+      setHitIndex(0);
+      if (found[0]) scrollToPage(found[0].page);
+    }, [findQuery, scrollToPage]);
+
+    const goHit = (dir: number) => {
+      if (hits.length === 0) return;
+      const next = (hitIndex + dir + hits.length) % hits.length;
+      setHitIndex(next);
+      scrollToPage(hits[next].page);
+    };
+
+    useEffect(() => {
+      function onKey(e: KeyboardEvent) {
+        const mod = e.ctrlKey || e.metaKey;
+        if (mod && e.key.toLowerCase() === "f") {
+          e.preventDefault();
+          e.stopPropagation();
+          setFindOpen(true);
+          requestAnimationFrame(() => findInputRef.current?.focus());
+        }
+      }
+      window.addEventListener("keydown", onKey, true);
+      return () => window.removeEventListener("keydown", onKey, true);
+    }, []);
+
+    return (
+      <div className="relative h-full w-full flex flex-col bg-background">
+        <div className="flex items-center gap-2 border-b border-border bg-card/95 px-3 py-2 text-xs shrink-0">
+          <div className="flex items-center gap-1 rounded-lg border border-border bg-background px-1.5 py-1">
+            <button
+              type="button"
+              onClick={() => scrollToPage(Math.max(1, page - 1))}
+              className="flex h-7 w-7 items-center justify-center rounded-md text-muted hover:text-foreground hover:bg-surface"
+              aria-label="Previous page"
+            >
+              <ChevronLeft className="h-3.5 w-3.5" />
+            </button>
+            <input
+              value={jumpValue}
+              onChange={(e) => setJumpValue(e.target.value.replace(/[^\d]/g, ""))}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  const n = Math.min(
+                    pageCount,
+                    Math.max(1, Number(jumpValue) || 1),
+                  );
+                  scrollToPage(n);
+                }
+              }}
+              className="w-10 bg-transparent text-center font-semibold text-foreground outline-none"
+              aria-label="Page number"
+            />
+            <span className="text-muted tabular-nums pr-1">/ {pageCount || "—"}</span>
+            <button
+              type="button"
+              onClick={() => scrollToPage(Math.min(pageCount, page + 1))}
+              className="flex h-7 w-7 items-center justify-center rounded-md text-muted hover:text-foreground hover:bg-surface"
+              aria-label="Next page"
+            >
+              <ChevronRight className="h-3.5 w-3.5" />
+            </button>
+          </div>
+
+          <div className="flex items-center gap-1 rounded-lg border border-border bg-background px-1.5 py-1">
+            <button
+              type="button"
+              onClick={() => setScale((s) => Math.max(0.7, +(s - 0.15).toFixed(2)))}
+              className="flex h-7 w-7 items-center justify-center rounded-md text-muted hover:text-foreground hover:bg-surface"
+              aria-label="Zoom out"
+            >
+              <ZoomOut className="h-3.5 w-3.5" />
+            </button>
+            <span className="w-10 text-center font-semibold tabular-nums">
+              {Math.round(scale * 100)}%
+            </span>
+            <button
+              type="button"
+              onClick={() => setScale((s) => Math.min(2.4, +(s + 0.15).toFixed(2)))}
+              className="flex h-7 w-7 items-center justify-center rounded-md text-muted hover:text-foreground hover:bg-surface"
+              aria-label="Zoom in"
+            >
+              <ZoomIn className="h-3.5 w-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setScale(1)}
+              className="px-1.5 h-7 rounded-md text-[10px] font-bold uppercase tracking-wide text-muted hover:text-foreground"
+            >
+              Fit
+            </button>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              setFindOpen(true);
+              requestAnimationFrame(() => findInputRef.current?.focus());
+            }}
+            className="flex h-8 items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 font-semibold text-muted hover:text-foreground"
+          >
+            <Search className="h-3.5 w-3.5" />
+            Find
+            <kbd className="hidden sm:inline text-[10px] opacity-60">Ctrl F</kbd>
+          </button>
+
+          <span className="ml-auto truncate text-muted hidden md:inline">{title}</span>
+        </div>
+
+        {findOpen && (
+          <div className="shrink-0 border-b border-border bg-card px-3 py-2 flex items-center gap-2 animate-in fade-in slide-in-from-top-2">
+            <Search className="h-3.5 w-3.5 text-muted shrink-0" />
+            <input
+              ref={findInputRef}
+              value={findQuery}
+              onChange={(e) => setFindQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  goHit(e.shiftKey ? -1 : 1);
+                }
+                if (e.key === "Escape") {
+                  e.preventDefault();
+                  setFindOpen(false);
+                }
+              }}
+              placeholder="Find in document"
+              className="flex-1 min-w-0 bg-transparent text-sm outline-none text-foreground placeholder:text-muted"
+              autoFocus
+            />
+            <span className="text-[11px] font-semibold tabular-nums text-muted shrink-0">
+              {hits.length === 0
+                ? findQuery.trim()
+                  ? "0 matches"
+                  : ""
+                : `${hitIndex + 1} / ${hits.length}`}
+            </span>
+            <button
+              type="button"
+              onClick={() => goHit(-1)}
+              className="h-7 w-7 rounded-md border border-border text-muted hover:text-foreground"
+              aria-label="Previous match"
+            >
+              <ChevronLeft className="h-3.5 w-3.5 mx-auto" />
+            </button>
+            <button
+              type="button"
+              onClick={() => goHit(1)}
+              className="h-7 w-7 rounded-md border border-border text-muted hover:text-foreground"
+              aria-label="Next match"
+            >
+              <ChevronRight className="h-3.5 w-3.5 mx-auto" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setFindOpen(false)}
+              className="h-7 w-7 rounded-md text-muted hover:text-foreground"
+              aria-label="Close find"
+            >
+              <X className="h-3.5 w-3.5 mx-auto" />
+            </button>
+          </div>
+        )}
+
+        <div ref={scrollRef} className="flex-1 overflow-auto pdf-scroll p-4 sm:p-6">
+          {loading && !failed && (
+            <div className="flex flex-col items-center justify-center gap-3 py-16 text-muted">
+              <span className="loading-orb" aria-hidden />
+              <p className="text-sm font-medium">Loading PDF…</p>
+            </div>
+          )}
+
+          {failed && (
+            <div className="flex flex-col items-center justify-center gap-3 py-16 text-center text-muted">
+              <p className="text-sm">Could not render this PDF in-app.</p>
+              <a
+                href={fallbackUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-foreground underline underline-offset-4 text-sm inline-flex items-center gap-1 font-semibold"
+              >
+                Open on Drive <ExternalLink className="h-3 w-3" />
+              </a>
+            </div>
+          )}
+
+          {pdf && pdfjs &&
+            Array.from({ length: pageCount }, (_, i) => i + 1).map((n) => {
+              const h = heights[n] ?? estimatedHeight;
+              const shouldPaint = visible.has(n);
+              return (
+                <div
+                  key={`${n}-${scale}`}
+                  data-pdf-slot={n}
+                  data-pdf-page={n}
+                  style={{ minHeight: shouldPaint ? undefined : h }}
+                >
+                  {shouldPaint ? (
+                    <PdfPage
+                      pdf={pdf}
+                      pdfjs={pdfjs}
+                      pageNumber={n}
+                      scale={scale}
+                      findQuery={findQuery}
+                      activeHit={activeHit}
+                      onHeight={onHeight}
+                    />
+                  ) : (
+                    <div
+                      className="mx-auto mb-4 rounded-lg border border-border bg-surface/40"
+                      style={{ height: h }}
+                    />
+                  )}
+                </div>
+              );
+            })}
+        </div>
+      </div>
+    );
+  },
+);
+
+export default PdfPreview;

@@ -467,6 +467,59 @@ h1, h2, h3, h4, h5, h6 {
   background: rgb(var(--border-strong));
 }
 
+.pdf-scroll::-webkit-scrollbar {
+  width: 10px;
+}
+.pdf-scroll::-webkit-scrollbar-track {
+  background: rgb(var(--surface) / 0.4);
+}
+.pdf-scroll::-webkit-scrollbar-thumb {
+  background: rgb(var(--border-strong) / 0.55);
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+.pdf-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgb(var(--foreground) / 0.45);
+  background-clip: padding-box;
+}
+
+.pdf-text-layer {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  line-height: 1;
+  z-index: 2;
+  opacity: 1;
+  transform-origin: 0 0;
+}
+.pdf-text-layer span,
+.pdf-text-layer br {
+  color: transparent;
+  position: absolute;
+  white-space: pre;
+  cursor: text;
+  transform-origin: 0% 0%;
+}
+.pdf-text-layer ::selection {
+  background: rgb(59 130 246 / 0.35);
+}
+.pdf-text-layer .pdf-find-hit {
+  background: rgb(250 204 21 / 0.45);
+  color: transparent;
+  border-radius: 2px;
+}
+.pdf-text-layer .pdf-find-hit-active {
+  background: rgb(249 115 22 / 0.65);
+  box-shadow: 0 0 0 2px rgb(249 115 22 / 0.9);
+  animation: pdf-find-pulse 0.7s ease;
+}
+@keyframes pdf-find-pulse {
+  0% { box-shadow: 0 0 0 0 rgb(249 115 22 / 0.8); }
+  70% { box-shadow: 0 0 0 8px rgb(249 115 22 / 0); }
+  100% { box-shadow: 0 0 0 2px rgb(249 115 22 / 0.9); }
+}
+
 /* scrollbar-none */
 .scrollbar-none {
   -ms-overflow-style: none;
