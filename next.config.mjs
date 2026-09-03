@@ -41,23 +41,6 @@ const config = isDev
           /^\/admin/,
           /^\/api/,
         ],
-        runtimeCaching: [
-          {
-            urlPattern: ({ url }) =>
-              url.pathname.startsWith("/api/resources/preview"),
-            handler: "StaleWhileRevalidate",
-            options: {
-              cacheName: "utility-pdf-preview",
-              expiration: {
-                maxEntries: 48,
-                maxAgeSeconds: 7 * 24 * 60 * 60,
-              },
-              cacheableResponse: {
-                statuses: [0, 200],
-              },
-            },
-          },
-        ],
       },
       fallback: {
         document: '/~offline',

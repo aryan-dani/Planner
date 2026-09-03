@@ -13,13 +13,11 @@ import {
 import { ResourceItem } from "@/lib/dataFetcher";
 import {
   getFileExtension,
-  getDriveFileId,
   isCodeExtension,
   isCsvExtension,
   isImageExtension,
   isNotebookExtension,
 } from "@/lib/fileUtils";
-import { prefetchPdf } from "@/lib/pdfPreviewCache";
 import { getResourceFileRole } from "@/lib/resourceGroups";
 import { cleanResourceTitle } from "@/lib/titleUtils";
 
@@ -122,11 +120,6 @@ export default function ResourceFileRow({
       }`}
       style={{ paddingLeft }}
       onClick={handleOpen}
-      onMouseEnter={() => {
-        if (!isPdf) return;
-        const id = getDriveFileId(item.file_url);
-        if (id) prefetchPdf(id, extension || "pdf");
-      }}
       role="button"
       tabIndex={0}
       onKeyDown={(e) => {

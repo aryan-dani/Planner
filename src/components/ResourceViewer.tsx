@@ -27,7 +27,6 @@ import {
 import { motion } from "framer-motion";
 import { cleanResourceTitle, shortCodeLabel } from "@/lib/titleUtils";
 import NotebookViewer from "@/components/NotebookViewer";
-import PdfPreview from "@/components/PdfPreview";
 import CsvPreview from "@/components/CsvPreview";
 import {
   folderIdForResource,
@@ -162,9 +161,8 @@ export default function ResourceViewer({
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [codeContent, setCodeContent] = useState<string | null>(null);
-  const usePdfJs = isPdf && !!driveId;
   const usesIframePreview =
-    !isTextFetch && !isNotebook && !isImage && !usePdfJs && !!embedUrl;
+    !isTextFetch && !isNotebook && !isImage && !!embedUrl;
   const activeIframeSrc = embedUrl;
 
   useEffect(() => {
@@ -176,13 +174,6 @@ export default function ResourceViewer({
     setLoadError(false);
     setCodeContent(null);
   }, [embedUrl, resource.file_url, resource.id]);
-
-  useEffect(() => {
-    if (usePdfJs) {
-      setIsLoading(false);
-      setLoadError(false);
-    }
-  }, [usePdfJs, resource.id]);
 
   useEffect(() => {
     if (!isTextFetch) return;
@@ -575,21 +566,6 @@ export default function ResourceViewer({
                 </div>
               )}
             </div>
-          ) : usePdfJs && driveId ? (
-            <PdfPreview
-              driveId={driveId}
-              ext={extension || "pdf"}
-              title={cleanResourceTitle(resource.title)}
-              fallbackUrl={driveViewUrl}
-              onReady={() => {
-                setIsLoading(false);
-                setLoadError(false);
-              }}
-              onFail={() => {
-                setLoadError(true);
-                setIsLoading(false);
-              }}
-            />
           ) : usesIframePreview && activeIframeSrc ? (
             <>
               <iframe
