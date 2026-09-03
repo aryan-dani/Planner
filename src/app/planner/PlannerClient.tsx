@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plus, X, Check, Trash2, Download, Upload, Cloud, CloudOff, LogIn, ChevronLeft, ChevronRight,
   Share2, Copy, Users, Link2, Globe, Lock, UserPlus, CheckCircle2, Circle,
-  CalendarDays, MoreHorizontal, Minus, List, Columns, Calendar, RefreshCw, Tag
+  CalendarDays, MoreHorizontal, Minus, List, Columns, Calendar, RefreshCw, Tag, Undo2
 } from 'lucide-react';
 import Link from 'next/link';
 import { auth } from '@/lib/firebase';
@@ -43,6 +43,7 @@ type PlanMeta = {
   month: number;
   year: number;
   is_public: boolean;
+  updated_at?: string;
 };
 
 type Collaborator = {
@@ -878,6 +879,8 @@ export default function PlannerClient() {
   const [moreOpen, setMoreOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cloudHydratingRef = useRef(false);
+  const skipLocalStampRef = useRef(false);
+  const lastWrittenDataRef = useRef<string>('');
   const lastPushedSnapshotRef = useRef<string | null>(null);
 
   const today = todayISO();
@@ -885,6 +888,8 @@ export default function PlannerClient() {
 
   // ── Init ──
   useEffect(() => {
+    lastWrittenDataRef.current = '';
+    skipLocalStampRef.current = true;
     const key = storageKey(month, year);
     const saved = localStorage.getItem(key);
     if (saved) {
@@ -919,10 +924,31 @@ export default function PlannerClient() {
 
   // ── Save to localStorage ──
   useEffect(() => {
-    if (mounted) {
-      const key = storageKey(month, year);
+    if (!mounted) return;
+    const key = storageKey(month, year);
+    const dataSnap = JSON.stringify({
+      data: planData,
+      title: planMeta.title,
+      is_public: planMeta.is_public,
+      id: planMeta.id,
+    });
+
+    if (skipLocalStampRef.current) {
       localStorage.setItem(key, JSON.stringify({ data: planData, meta: planMeta }));
+      lastWrittenDataRef.current = dataSnap;
+      skipLocalStampRef.current = false;
+      return;
     }
+
+    let updated_at = planMeta.updated_at;
+    if (lastWrittenDataRef.current && dataSnap !== lastWrittenDataRef.current) {
+      updated_at = new Date().toISOString();
+    }
+    lastWrittenDataRef.current = dataSnap;
+    localStorage.setItem(key, JSON.stringify({
+      data: planData,
+      meta: { ...planMeta, updated_at },
+    }));
   }, [planData, planMeta, mounted, month, year]);
 
   // ── Cloud push (debounced) ──
@@ -945,13 +971,15 @@ export default function PlannerClient() {
           year,
           data: planData,
           title: planMeta.title,
-          is_public: planMeta.is_public
+          is_public: planMeta.is_public,
+          ...(planMeta.id ? { planId: planMeta.id } : {}),
         })
       });
 
       if (!res.ok) throw new Error(await res.text());
       const resData = await res.json();
-      setPlanMeta(prev => ({ ...prev, id: resData.id }));
+      skipLocalStampRef.current = true;
+      setPlanMeta(prev => ({ ...prev, id: resData.id, updated_at: new Date().toISOString() }));
       lastPushedSnapshotRef.current = JSON.stringify({
         data: planData,
         title: planMeta.title,
@@ -963,7 +991,7 @@ export default function PlannerClient() {
     } finally {
       setSyncing(false);
     }
-  }, [user, planData, planMeta.title, planMeta.is_public, month, year]);
+  }, [user, planData, planMeta.title, planMeta.is_public, planMeta.id, month, year]);
 
   const pullFromCloud = useCallback(async () => {
     if (!user) return;
@@ -985,14 +1013,41 @@ export default function PlannerClient() {
 
       if (resData.plan) {
         const p = resData.plan;
+        const cloudUpdatedMs = p.updated_at ? new Date(p.updated_at).getTime() : 0;
+
+        let localUpdatedMs = 0;
+        try {
+          const raw = localStorage.getItem(storageKey(month, year));
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            const ts = parsed?.meta?.updated_at || parsed?.updated_at;
+            if (ts) localUpdatedMs = new Date(ts).getTime();
+          }
+        } catch {
+          /* ignore */
+        }
+
+        // Last-write-wins: keep local when it is newer than cloud.
+        if (localUpdatedMs > cloudUpdatedMs) {
+          if (p.id) {
+            skipLocalStampRef.current = true;
+            setPlanMeta(prev => ({ ...prev, id: prev.id || p.id }));
+          }
+          setCollaborators(resData.collaborators || []);
+          if (cloudUpdatedMs) setLastSynced(new Date(cloudUpdatedMs));
+          return;
+        }
+
         const nextData = p.data || {};
         const nextMeta = {
           id: p.id,
           title: p.title || 'Study Plan',
           month,
           year,
-          is_public: !!p.is_public
+          is_public: !!p.is_public,
+          updated_at: p.updated_at || undefined,
         };
+        skipLocalStampRef.current = true;
         setPlanData(nextData);
         setPlanMeta(nextMeta);
         
@@ -1058,10 +1113,17 @@ export default function PlannerClient() {
   };
 
   const deleteTask = (date: string, taskId: string) => {
+    pushUndoSnapshot();
     setPlanData(prev => ({
       ...prev,
       [date]: (prev[date] || []).filter(t => t.id !== taskId),
     }));
+    toast.message('Task deleted', {
+      action: {
+        label: 'Undo',
+        onClick: () => undoLastChange(),
+      },
+    });
   };
 
   const updateTask = (date: string, taskId: string, text: string) => {
@@ -1104,7 +1166,7 @@ export default function PlannerClient() {
         return t;
       });
 
-      let nextData = { ...prev, [date]: updatedDateTasks };
+      const nextData = { ...prev, [date]: updatedDateTasks };
 
       if (taskToPropagate) {
         const startDate = new Date(date + 'T00:00:00');
@@ -1267,6 +1329,25 @@ export default function PlannerClient() {
   };
 
   // ── Export/Import ──
+  const undoStackRef = useRef<PlanData[]>([]);
+
+  const pushUndoSnapshot = useCallback(() => {
+    undoStackRef.current = [
+      ...undoStackRef.current.slice(-19),
+      structuredClone(planData),
+    ];
+  }, [planData]);
+
+  const undoLastChange = useCallback(() => {
+    const prev = undoStackRef.current.pop();
+    if (!prev) {
+      toast.message('Nothing to undo');
+      return;
+    }
+    setPlanData(prev);
+    toast.success('Restored');
+  }, []);
+
   const exportData = () => {
     const blob = new Blob([JSON.stringify({ meta: planMeta, data: planData }, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -1277,6 +1358,45 @@ export default function PlannerClient() {
     URL.revokeObjectURL(url);
   };
 
+  const escapeIcs = (text: string) =>
+    text
+      .replace(/\\/g, '\\\\')
+      .replace(/;/g, '\\;')
+      .replace(/,/g, '\\,')
+      .replace(/\n/g, '\\n');
+
+  const exportIcs = () => {
+    const lines = [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'PRODID:-//UtilityOS//Planner//EN',
+      'CALSCALE:GREGORIAN',
+    ];
+    for (const [date, tasks] of Object.entries(planData)) {
+      for (const task of tasks || []) {
+        const dt = date.replace(/-/g, '');
+        lines.push(
+          'BEGIN:VEVENT',
+          `UID:${task.id}@utilityos.tech`,
+          `DTSTAMP:${dt}T000000Z`,
+          `DTSTART;VALUE=DATE:${dt}`,
+          `SUMMARY:${escapeIcs(task.text)}`,
+          task.done || task.status === 'done' ? 'STATUS:COMPLETED' : 'STATUS:CONFIRMED',
+          'END:VEVENT',
+        );
+      }
+    }
+    lines.push('END:VCALENDAR');
+    const blob = new Blob([lines.join('\r\n')], { type: 'text/calendar;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `study-plan-${MONTH_NAMES[month - 1].toLowerCase()}-${year}.ics`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success('Calendar exported');
+  };
+
   const importData = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -1285,11 +1405,13 @@ export default function PlannerClient() {
       try {
         const parsed = JSON.parse(ev.target?.result as string);
         if (parsed.data) {
+          pushUndoSnapshot();
           setPlanData(parsed.data);
           if (parsed.meta) setPlanMeta(parsed.meta);
           toast.success('Plan imported');
         } else {
           // Try old format
+          pushUndoSnapshot();
           setPlanData(parsed);
           toast.success('Plan imported (legacy format)');
         }
@@ -1302,8 +1424,15 @@ export default function PlannerClient() {
   };
 
   const clearAll = () => {
-    if (confirm(`Clear all tasks for ${MONTH_NAMES[month - 1]} ${year}? This cannot be undone.`)) {
+    if (confirm(`Clear all tasks for ${MONTH_NAMES[month - 1]} ${year}?`)) {
+      pushUndoSnapshot();
       setPlanData({});
+      toast.message('Month cleared', {
+        action: {
+          label: 'Undo',
+          onClick: () => undoLastChange(),
+        },
+      });
     }
   };
 
@@ -1392,9 +1521,16 @@ export default function PlannerClient() {
                 <Download className="w-3.5 h-3.5" />
                 Export
               </button>
+              <button onClick={exportIcs} className="inline-flex items-center gap-1.5 text-xs font-medium text-muted hover:text-foreground border border-border rounded-lg px-2.5 py-2 min-h-11 hover:bg-surface transition-colors">
+                <CalendarDays className="w-3.5 h-3.5" />
+                ICS
+              </button>
               <button onClick={() => fileInputRef.current?.click()} className="inline-flex items-center gap-1.5 text-xs font-medium text-muted hover:text-foreground border border-border rounded-lg px-2.5 py-2 min-h-11 hover:bg-surface transition-colors">
                 <Upload className="w-3.5 h-3.5" />
                 Import
+              </button>
+              <button onClick={undoLastChange} className="inline-flex items-center gap-1.5 text-xs font-medium text-muted hover:text-foreground border border-border rounded-lg px-2.5 py-2 min-h-11 hover:bg-surface transition-colors" title="Undo">
+                <Undo2 className="w-3.5 h-3.5" />
               </button>
               <Button variant="ghost" size="sm" onClick={clearAll} className="min-h-11 hover:text-destructive hover:border-destructive/30">
                 <Trash2 className="w-3.5 h-3.5" />
@@ -1416,10 +1552,16 @@ export default function PlannerClient() {
                     <Share2 className="w-3.5 h-3.5" /> Share
                   </button>
                   <button onClick={() => { exportData(); setMoreOpen(false); }} className="flex items-center gap-2 px-3 py-2.5 min-h-11 text-xs font-medium text-foreground hover:bg-surface rounded-lg text-left">
-                    <Download className="w-3.5 h-3.5" /> Export
+                    <Download className="w-3.5 h-3.5" /> Export JSON
+                  </button>
+                  <button onClick={() => { exportIcs(); setMoreOpen(false); }} className="flex items-center gap-2 px-3 py-2.5 min-h-11 text-xs font-medium text-foreground hover:bg-surface rounded-lg text-left">
+                    <CalendarDays className="w-3.5 h-3.5" /> Export ICS
                   </button>
                   <button onClick={() => { fileInputRef.current?.click(); setMoreOpen(false); }} className="flex items-center gap-2 px-3 py-2.5 min-h-11 text-xs font-medium text-foreground hover:bg-surface rounded-lg text-left">
                     <Upload className="w-3.5 h-3.5" /> Import
+                  </button>
+                  <button onClick={() => { undoLastChange(); setMoreOpen(false); }} className="flex items-center gap-2 px-3 py-2.5 min-h-11 text-xs font-medium text-foreground hover:bg-surface rounded-lg text-left">
+                    <Undo2 className="w-3.5 h-3.5" /> Undo
                   </button>
                   <Button variant="ghost" size="sm" onClick={() => { clearAll(); setMoreOpen(false); }} className="min-h-11 text-destructive hover:bg-surface justify-start w-full">
                     <Trash2 className="w-3.5 h-3.5" /> Clear month

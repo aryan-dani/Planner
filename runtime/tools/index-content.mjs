@@ -115,31 +115,46 @@ export default async function indexContent() {
     }
 
     const toIndex = [];
+    const queued = new Set();
+    const queue = (res) => {
+      if (queued.has(res.id)) return;
+      queued.add(res.id);
+      toIndex.push(res);
+    };
+
     for (const res of indexable) {
       const doc = indexedMap.get(res.id);
       if (!doc) {
-        toIndex.push(res);
+        queue(res);
         continue;
       }
       if (!doc.search_tokens?.length) {
-        toIndex.push(res);
+        queue(res);
         continue;
       }
-      if (res.content_hash && doc.content_hash === res.content_hash) continue;
+      // Missing hash on the resource means sync cleared it after a Drive edit.
+      if (!res.content_hash) {
+        queue(res);
+        continue;
+      }
+      // Hash mismatch between catalog and indexed content → reindex.
+      if (doc.content_hash && res.content_hash !== doc.content_hash) {
+        queue(res);
+        continue;
+      }
+      // Drive mtime newer than last index → reindex even if hashes still match.
+      const driveMtime = res.drive_modified_at || res.created_at;
       if (
-        res.created_at &&
+        driveMtime &&
         doc.last_indexed &&
-        new Date(res.created_at).getTime() > new Date(doc.last_indexed).getTime()
+        new Date(driveMtime).getTime() > new Date(doc.last_indexed).getTime()
       ) {
-        toIndex.push(res);
+        queue(res);
+        continue;
       }
-    }
-
-    // Also index resources missing content_hash (first hybrid migration)
-    for (const res of indexable) {
-      if (!res.content_hash && !toIndex.find((r) => r.id === res.id)) {
-        toIndex.push(res);
-      }
+      // Same hash already indexed — skip.
+      if (res.content_hash && doc.content_hash === res.content_hash) continue;
+      queue(res);
     }
 
     console.log(`🚀 ${toIndex.length} resources to (re)index.\n`);
@@ -248,7 +263,11 @@ export default async function indexContent() {
         await deleteStaleChunks(res.id, chunks.length);
 
         await db.collection("resources").doc(res.id).set(
-          { content_hash: contentHash },
+          {
+            content_hash: contentHash,
+            // Clear stale AI summary so summarize re-generates for new content.
+            ai_summary: null,
+          },
           { merge: true },
         );
 

@@ -48,6 +48,8 @@ interface ResourceViewerProps {
   /** All files in the same assignment (writeup, codes, datasets) */
   assignmentSiblings?: ResourceItem[];
   onOpenRelated?: (item: ResourceItem) => void;
+  /** Jump to this PDF page once the viewer is ready */
+  initialPage?: number | null;
 }
 
 function getViewerUrl(resource: ResourceItem) {
@@ -88,6 +90,7 @@ export default function ResourceViewer({
   relatedDatasets = [],
   assignmentSiblings = [],
   onOpenRelated,
+  initialPage = null,
 }: ResourceViewerProps) {
   const extension = getFileExtension(resource.title, resource.file_url);
   const isDrive = resource.file_url.includes("drive.google.com");
@@ -234,6 +237,7 @@ export default function ResourceViewer({
     if (!usesIframePreview || !isLoading) return;
     const timer = setTimeout(() => {
       setLoadError(true);
+      setIsLoading(false);
     }, 20000);
     return () => clearTimeout(timer);
   }, [usesIframePreview, isLoading, activeIframeSrc]);
@@ -608,6 +612,11 @@ export default function ResourceViewer({
               onReady={() => {
                 setIsLoading(false);
                 setLoadError(false);
+                if (initialPage && initialPage > 0) {
+                  requestAnimationFrame(() => {
+                    pdfRef.current?.scrollToPage(initialPage);
+                  });
+                }
               }}
               onFail={() => {
                 setLoadError(true);
@@ -623,7 +632,10 @@ export default function ResourceViewer({
                 loading="eager"
                 allow="autoplay; encrypted-media"
                 referrerPolicy="no-referrer-when-downgrade"
-                onLoad={() => setIsLoading(false)}
+                onLoad={() => {
+                  setIsLoading(false);
+                  setLoadError(false);
+                }}
               />
               {!isLoading && loadError && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-center text-muted bg-background/90 z-10 p-6">

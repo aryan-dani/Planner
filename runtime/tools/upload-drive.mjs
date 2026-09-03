@@ -118,13 +118,20 @@ async function yearFolderExists(yearName) {
 
 async function anyYearFolderExists() {
   const q = `'${driveFolderId}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;
-  const res = await drive.files.list({
-    q,
-    fields: "files(id, name)",
-    pageSize: 50,
-    ...DRIVE_SHARED_OPTS,
-  });
-  return (res.data.files || []).some((f) => ACADEMIC_YEAR_PATH_RE.test(f.name));
+  const folders = [];
+  let pageToken = null;
+  do {
+    const res = await drive.files.list({
+      q,
+      fields: "nextPageToken, files(id, name)",
+      pageSize: 100,
+      pageToken,
+      ...DRIVE_SHARED_OPTS,
+    });
+    folders.push(...(res.data.files || []));
+    pageToken = res.data.nextPageToken ?? null;
+  } while (pageToken);
+  return folders.some((f) => ACADEMIC_YEAR_PATH_RE.test(f.name));
 }
 
 async function uploadFile(itemPath, name, parentId) {

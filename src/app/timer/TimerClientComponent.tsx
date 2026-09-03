@@ -21,7 +21,7 @@ import {
   CloudRain
 } from 'lucide-react';
 import { FadeIn, ScaleButton } from '@/components/Animations';
-import { logActivity } from '@/lib/activity';
+import { logActivity, localDateKey } from '@/lib/activity';
 import { incrementTaskFocus } from '@/lib/plannerStorage';
 
 type TimerMode = 'work' | 'break' | 'longBreak';
@@ -67,6 +67,7 @@ export default function TimerClient() {
   const [showFocusWarning, setShowFocusWarning] = useState(false);
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const deadlineRef = useRef<number | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const [soundscape, setSoundscape] = useState<'none' | 'lofi' | 'rain' | 'cafe'>('none');
@@ -245,7 +246,7 @@ export default function TimerClient() {
     return 'stroke-muted';
   }, [mode]);
 
-  // Load focus history
+  // Load focus history + session count
   useEffect(() => {
     const logsSaved = localStorage.getItem('utility_focus_logs');
     if (logsSaved) {
@@ -253,7 +254,18 @@ export default function TimerClient() {
         setFocusLogs(JSON.parse(logsSaved));
       } catch {}
     }
+    const sessionsSaved = localStorage.getItem('utility_focus_sessions');
+    if (sessionsSaved) {
+      const n = parseInt(sessionsSaved, 10);
+      if (Number.isFinite(n) && n >= 0) setSessions(n);
+    }
   }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('utility_focus_sessions', String(sessions));
+    } catch {}
+  }, [sessions]);
 
   const playSound = useCallback(() => {
     if (muted) return;
@@ -266,6 +278,7 @@ export default function TimerClient() {
   const switchMode = useCallback((newMode: TimerMode) => {
     setMode(newMode);
     setIsActive(false);
+    deadlineRef.current = null;
     if (newMode === 'work') setTimeLeft(sanitizeDuration(workTime) * 60);
     else if (newMode === 'break') setTimeLeft(sanitizeDuration(breakTime) * 60);
     else setTimeLeft(sanitizeDuration(longBreakTime) * 60);
@@ -274,7 +287,7 @@ export default function TimerClient() {
   const logFocusSession = useCallback(async (minutes: number) => {
     logActivity('focus_timer_completed', 1);
 
-    const today = new Date().toISOString().split('T')[0];
+    const today = localDateKey();
     try {
       const logsSaved = localStorage.getItem('utility_focus_logs');
       let logs: FocusLog[] = [];
@@ -302,38 +315,60 @@ export default function TimerClient() {
     }
   }, [taskId, day]);
 
+  // Deadline-based tick so background tabs stay accurate
   useEffect(() => {
-    if (isActive && timeLeft > 0) {
+    if (isActive) {
+      if (deadlineRef.current == null) {
+        deadlineRef.current = Date.now() + timeLeft * 1000;
+      }
       timerRef.current = setInterval(() => {
-        setTimeLeft((prev) => prev - 1);
-      }, 1000);
-    } else if (timeLeft === 0) {
-      playSound();
-      if (mode === 'work') {
-        const newSessions = sessions + 1;
-        setSessions(newSessions);
-        
-        const durationMins = sanitizeDuration(workTime);
-        logFocusSession(durationMins);
-
-        if (newSessions % 4 === 0) switchMode('longBreak');
-        else switchMode('break');
-      } else {
-        switchMode('work');
-      }
-      
-      if ("Notification" in window && Notification.permission === "granted") {
-        new Notification("Focus Session Complete", {
-          body: mode === 'work' ? "Time for a break!" : "Break is over, back to work!",
-          icon: "/utility-logo.png"
-        });
-      }
+        const end = deadlineRef.current;
+        if (end == null) return;
+        const remaining = Math.max(0, Math.ceil((end - Date.now()) / 1000));
+        setTimeLeft(remaining);
+      }, 250);
+    } else if (deadlineRef.current != null) {
+      const remaining = Math.max(
+        0,
+        Math.ceil((deadlineRef.current - Date.now()) / 1000),
+      );
+      setTimeLeft(remaining);
+      deadlineRef.current = null;
     }
 
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [isActive, timeLeft, mode, sessions, playSound, switchMode, logFocusSession, workTime]);
+    // timeLeft intentionally omitted — captured when starting/resuming
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isActive]);
+
+  useEffect(() => {
+    if (timeLeft !== 0 || !isActive) return;
+
+    deadlineRef.current = null;
+    setIsActive(false);
+    playSound();
+    if (mode === 'work') {
+      const newSessions = sessions + 1;
+      setSessions(newSessions);
+
+      const durationMins = sanitizeDuration(workTime);
+      logFocusSession(durationMins);
+
+      if (newSessions % 4 === 0) switchMode('longBreak');
+      else switchMode('break');
+    } else {
+      switchMode('work');
+    }
+
+    if ("Notification" in window && Notification.permission === "granted") {
+      new Notification("Focus Session Complete", {
+        body: mode === 'work' ? "Time for a break!" : "Break is over, back to work!",
+        icon: "/utility-logo.png"
+      });
+    }
+  }, [timeLeft, isActive, mode, sessions, playSound, switchMode, logFocusSession, workTime]);
 
   useEffect(() => {
     if ("Notification" in window && Notification.permission === "default") {
@@ -365,6 +400,7 @@ export default function TimerClient() {
   const toggleTimer = () => setIsActive(!isActive);
   const resetTimer = () => {
     setIsActive(false);
+    deadlineRef.current = null;
     setTimeLeft(totalTime);
   };
 
@@ -375,7 +411,7 @@ export default function TimerClient() {
     for (let i = 6; i >= 0; i--) {
       const d = new Date();
       d.setDate(d.getDate() - i);
-      const dateString = d.toISOString().split('T')[0];
+      const dateString = localDateKey(d);
       const log = focusLogs.find(l => l.date === dateString);
       const dayLabel = daysOfWeek[d.getDay()];
       data.push({
@@ -535,6 +571,15 @@ export default function TimerClient() {
             </button>
 
             <button
+              onClick={() => setMuted((m) => !m)}
+              className="w-12 h-12 rounded-xl border border-border bg-card flex items-center justify-center text-foreground hover:border-foreground/35 hover:scale-110 active:scale-90 shadow-xs transition-all duration-200"
+              title={muted ? 'Unmute' : 'Mute'}
+              aria-label={muted ? 'Unmute completion sound' : 'Mute completion sound'}
+            >
+              {muted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
+            </button>
+
+            <button
               onClick={() => setShowSettings(true)}
               className="w-12 h-12 rounded-xl border border-border bg-card flex items-center justify-center text-foreground hover:border-foreground/35 hover:scale-110 active:scale-90 shadow-xs transition-all duration-200"
               title="Settings"
@@ -573,7 +618,7 @@ export default function TimerClient() {
             <div className="bg-surface/50 border border-border rounded-xl p-3 text-center">
               <span className="text-xs font-bold text-muted uppercase tracking-widest">Today's Focus</span>
               <p className="text-2xl font-black text-foreground mt-1">
-                {focusLogs.find(l => l.date === new Date().toISOString().split('T')[0])?.minutes || 0}m
+                {focusLogs.find(l => l.date === localDateKey())?.minutes || 0}m
               </p>
             </div>
           </div>

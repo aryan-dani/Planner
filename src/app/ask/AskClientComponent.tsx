@@ -2,7 +2,7 @@
 
 import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport } from 'ai';
-import { useState, useEffect, useLayoutEffect, useRef, useMemo, memo } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef, useMemo, memo, Children, isValidElement, cloneElement, type ReactNode, type ReactElement } from 'react';
 import { 
   Send, 
   Trash2, 
@@ -27,7 +27,8 @@ import {
   Mic,
   Globe,
   FileText,
-  X
+  X,
+  Square,
 } from 'lucide-react';
 import { useAcademicStore } from '@/store/academicStore';
 import { auth } from '@/lib/firebase';
@@ -37,15 +38,16 @@ import { logActivity } from '@/lib/activity';
 import { NotesDisclaimer } from '@/components/NotesDisclaimer';
 import { toast } from 'sonner';
 import { useSRSStore } from '@/store/srsStore';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import AcademicBreadcrumb from '@/components/AcademicBreadcrumb';
 import Link from 'next/link';
 import { buildResourcesHref } from '@/lib/resourceUrl';
 import type { ResourceItem } from '@/lib/dataFetcher';
 import type { AcademicYear, Branch, Semester } from '@/store/academicStore';
 import { Button, Select } from '@/components/ui';
-import { SourceCardList } from '@/components/ask/SourceCard';
+import { SourceCardList, renderWithCitations } from '@/components/ask/SourceCard';
 import type { RetrievalSource } from '@/lib/rag/types';
+import { stripInvalidCitations, validMarkerSet } from '@/lib/agent/router';
 
 const SUGGESTED_PROMPTS = [
   'Explain overfitting vs underfitting in Machine Learning with examples',
@@ -85,8 +87,43 @@ function stabilizeStreamingMarkdown(content: string): string {
   return content;
 }
 
+function pageFromSectionLabel(label: string | undefined): number | null {
+  if (!label) return null;
+  const m = label.match(/page\s*(\d+)/i);
+  if (!m) return null;
+  const n = Number(m[1]);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+function injectCitationChips(
+  children: ReactNode,
+  onCitationClick?: (marker: string) => void,
+): ReactNode {
+  if (!onCitationClick) return children;
+  return Children.map(children, (child) => {
+    if (typeof child === "string") {
+      return <>{renderWithCitations(child, onCitationClick)}</>;
+    }
+    if (isValidElement(child) && (child as ReactElement<{ children?: ReactNode }>).props.children != null) {
+      const el = child as ReactElement<{ children?: ReactNode }>;
+      return cloneElement(el, {
+        children: injectCitationChips(el.props.children, onCitationClick),
+      });
+    }
+    return child;
+  });
+}
+
 /* Professional markdown renderer using react-markdown */
-const MessageContent = memo(function MessageContent({ content, showCursor }: { content: string, showCursor?: boolean }) {
+const MessageContent = memo(function MessageContent({
+  content,
+  showCursor,
+  onCitationClick,
+}: {
+  content: string;
+  showCursor?: boolean;
+  onCitationClick?: (marker: string) => void;
+}) {
   const markdown = showCursor ? stabilizeStreamingMarkdown(content) : content;
   return (
     <div className="prose prose-sm dark:prose-invert max-w-none prose-p:leading-relaxed prose-pre:bg-surface prose-pre:border prose-pre:border-border prose-pre:rounded-lg prose-code:text-primary prose-code:bg-primary/5 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:before:content-none prose-code:after:content-none">
@@ -118,6 +155,17 @@ const MessageContent = memo(function MessageContent({ content, showCursor }: { c
               </code>
             );
           },
+          p: ({ children }) => (
+            <p>{injectCitationChips(children, onCitationClick)}</p>
+          ),
+          li: ({ children }) => (
+            <li>{injectCitationChips(children, onCitationClick)}</li>
+          ),
+          td: ({ children }) => (
+            <td className="px-4 py-3 text-xs text-foreground/75 border-b border-border/40 font-semibold leading-relaxed">
+              {injectCitationChips(children, onCitationClick)}
+            </td>
+          ),
           table: ({ children }) => (
             <div className="overflow-x-auto my-6 border border-border bg-card shadow-sm rounded-xl">
               <table className="min-w-full divide-y divide-border/60 text-xs">
@@ -134,11 +182,6 @@ const MessageContent = memo(function MessageContent({ content, showCursor }: { c
             <th className="px-4 py-3.5 text-left text-xs font-bold text-foreground/85 border-b border-border/60">
               {children}
             </th>
-          ),
-          td: ({ children }) => (
-            <td className="px-4 py-3 text-xs text-foreground/75 border-b border-border/40 font-semibold leading-relaxed">
-              {children}
-            </td>
           ),
           tr: ({ children }) => (
             <tr className="hover:bg-surface/20 transition-colors">
@@ -292,6 +335,7 @@ export default function AskClient({
   const [activeTab, setActiveTab] = useState<'chat' | 'flashcards' | 'quiz'>('chat');
 
   const searchParams = useSearchParams();
+  const router = useRouter();
 
   // Grounded Document Chat States
   const [resources, setResources] = useState<ResourceItem[]>(initialResources);
@@ -494,6 +538,7 @@ export default function AskClient({
     regenerate,
     status,
     setMessages,
+    stop,
   } = chatHelpers;
 
 
@@ -501,6 +546,75 @@ export default function AskClient({
   const [assistantSources, setAssistantSources] = useState<RetrievalSource[]>([]);
   const [scopeWidened, setScopeWidened] = useState(false);
   const isLoading = status === 'submitted' || status === 'streaming';
+  const lastScrubbedMsgRef = useRef<string | null>(null);
+
+  const openCitation = (marker: string) => {
+    const source = assistantSources.find(
+      (s) => s.marker === marker || s.marker === `S${marker.replace(/^S/i, "")}`,
+    );
+    if (!source?.resource_id) {
+      toast.message("Source not available");
+      return;
+    }
+    const page = pageFromSectionLabel(source.section_label);
+    const href = buildResourcesHref({
+      academicYear,
+      branch,
+      semester,
+      subject: source.subject_name,
+      view: source.resource_id,
+      page,
+    });
+    router.push(href);
+  };
+
+  // Scrub invalid citation markers once the assistant message finishes (matches cache path).
+  useEffect(() => {
+    if (status !== 'ready' || messages.length === 0) return;
+    const last = messages[messages.length - 1] as { id?: string; role?: string; parts?: Array<{ type?: string; text?: string }>; content?: string };
+    if (last?.role !== 'assistant') return;
+    const msgId = last.id || String(messages.length);
+    if (lastScrubbedMsgRef.current === msgId) return;
+
+    const markers = validMarkerSet(assistantSources);
+    const scrubPartText = (text: string) => stripInvalidCitations(text, markers);
+    let changed = false;
+
+    if (Array.isArray(last.parts)) {
+      const nextParts = last.parts.map((p) => {
+        if (p?.type === 'text' && typeof p.text === 'string') {
+          const cleaned = scrubPartText(p.text);
+          if (cleaned !== p.text) {
+            changed = true;
+            return { ...p, text: cleaned };
+          }
+        }
+        return p;
+      });
+      if (changed) {
+        lastScrubbedMsgRef.current = msgId;
+        setMessages((prev: typeof messages) => {
+          const copy = [...prev];
+          copy[copy.length - 1] = { ...copy[copy.length - 1], parts: nextParts };
+          return copy;
+        });
+      } else {
+        lastScrubbedMsgRef.current = msgId;
+      }
+    } else if (typeof last.content === 'string') {
+      const cleaned = scrubPartText(last.content);
+      if (cleaned !== last.content) {
+        lastScrubbedMsgRef.current = msgId;
+        setMessages((prev: typeof messages) => {
+          const copy = [...prev];
+          copy[copy.length - 1] = { ...copy[copy.length - 1], content: cleaned };
+          return copy;
+        });
+      } else {
+        lastScrubbedMsgRef.current = msgId;
+      }
+    }
+  }, [status, messages, assistantSources, setMessages]);
 
   // Load chat sessions on mount
   useEffect(() => {
@@ -1164,6 +1278,11 @@ export default function AskClient({
                             <MessageContent 
                               content={getMessageContent(m)} 
                               showCursor={isLoading && m.id === messages[messages.length - 1].id}
+                              onCitationClick={
+                                m.id === messages[messages.length - 1]?.id
+                                  ? openCitation
+                                  : undefined
+                              }
                             />
                             {m.id === messages[messages.length - 1]?.id && assistantSources.length > 0 && (
                               <SourceCardList
@@ -1171,6 +1290,7 @@ export default function AskClient({
                                 widened={scopeWidened}
                                 branch={branch}
                                 semester={semester}
+                                onCitationClick={openCitation}
                               />
                             )}
                             <div className="absolute top-0 right-0 opacity-100 md:opacity-0 md:group-hover/bubble:opacity-100 transition-opacity">
@@ -1271,12 +1391,15 @@ export default function AskClient({
                     </button>
 
                     <button
-                      type="submit"
-                      disabled={isLoading || !(input || '').trim()}
+                      type={isLoading ? "button" : "submit"}
+                      disabled={!isLoading && !(input || '').trim()}
+                      onClick={isLoading ? () => stop?.() : undefined}
                       className="w-9 h-9 rounded-xl bg-foreground text-background flex items-center justify-center disabled:opacity-30 hover:scale-105 active:scale-95 transition-all duration-200 shadow-sm"
+                      title={isLoading ? "Stop generating" : "Send"}
+                      aria-label={isLoading ? "Stop generating" : "Send"}
                     >
                       {isLoading ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <Square className="w-3.5 h-3.5 fill-current" />
                       ) : (
                         <Send className="w-4 h-4" />
                       )}

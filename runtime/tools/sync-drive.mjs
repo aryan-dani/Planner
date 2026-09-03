@@ -63,8 +63,26 @@ async function retrieveAllFiles(folderId, currentPath = "") {
 
 // ── Sync Process ──────────────────────────────────────────────────────────────
 
-async function syncDrive() {
-  console.log(`\n🚀 Starting Google Drive Sync...\n`);
+async function syncDrive(options = {}) {
+  const dryRun = options.dryRun === true || process.argv.includes("--dry-run");
+  const subjectArg =
+    options.subject ||
+    (() => {
+      const eq = process.argv.find((a) => a.startsWith("--subject="));
+      if (eq) return eq.slice("--subject=".length);
+      const idx = process.argv.indexOf("--subject");
+      if (idx >= 0 && process.argv[idx + 1] && !process.argv[idx + 1].startsWith("-")) {
+        return process.argv[idx + 1];
+      }
+      return null;
+    })();
+  const subjectFilter = subjectArg ? String(subjectArg).trim().toLowerCase() : null;
+
+  console.log(
+    `\n🚀 Starting Google Drive Sync...${dryRun ? " (dry-run)" : ""}${
+      subjectFilter ? ` [subject≈${subjectArg}]` : ""
+    }\n`,
+  );
 
   try {
     const driveFolderId = getEnv("GOOGLE_DRIVE_FOLDER_ID");
@@ -82,6 +100,7 @@ async function syncDrive() {
       skipped: 0,
       deletedResources: 0,
       deletedSubjects: 0,
+      reindexFlagged: 0,
     };
     const liveSubjectIds = new Set();
     const liveResourceIds = new Set();
@@ -126,21 +145,31 @@ async function syncDrive() {
         .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
         .join(" ");
 
+      if (
+        subjectFilter &&
+        !subjectName.toLowerCase().includes(subjectFilter)
+      ) {
+        stats.skipped++;
+        continue;
+      }
+
       // 1. Sync Subject to Firestore
       const subjectId = generateId(
         `subject-${academicYear}-${branch}-${semester}-${subjectName.toLowerCase()}`,
       );
       const subjectRef = db.collection("subjects").doc(subjectId);
       if (!syncedSubjectIds.has(subjectId)) {
-        await subjectRef.set(
-          {
-            name: subjectName,
-            branch: branch,
-            semester: semester,
-            academic_year: academicYear,
-          },
-          { merge: true },
-        );
+        if (!dryRun) {
+          await subjectRef.set(
+            {
+              name: subjectName,
+              branch: branch,
+              semester: semester,
+              academic_year: academicYear,
+            },
+            { merge: true },
+          );
+        }
         syncedSubjectIds.add(subjectId);
         stats.subjects++;
       }
@@ -173,25 +202,48 @@ async function syncDrive() {
         else if (catSegment.includes("code")) category = "codes";
       }
 
-      await resourceRef.set(
-        {
-          title: fileName,
-          file_url: fileUrl,
-          subject_id: subjectId,
-          category: category,
-          academic_year: academicYear,
-          branch,
-          semester,
-          created_at: file.updatedAt || new Date().toISOString(),
-        },
-        { merge: true },
-      );
+      const driveModifiedAt = file.updatedAt || new Date().toISOString();
+      const existingSnap = await resourceRef.get();
+      const existing = existingSnap.exists ? existingSnap.data() : null;
+      const contentChanged =
+        !existing ||
+        existing.drive_modified_at !== driveModifiedAt ||
+        existing.file_url !== fileUrl;
+
+      const payload = {
+        title: fileName,
+        file_url: fileUrl,
+        subject_id: subjectId,
+        category: category,
+        academic_year: academicYear,
+        branch,
+        semester,
+        created_at: existing?.created_at || driveModifiedAt,
+        drive_modified_at: driveModifiedAt,
+      };
+
+      // Clear indexed hashes so index-content re-extracts updated Drive files.
+      if (contentChanged && existing?.content_hash) {
+        payload.content_hash = null;
+        payload.ai_summary = null;
+        stats.reindexFlagged++;
+      }
+
+      if (!dryRun) {
+        await resourceRef.set(payload, { merge: true });
+        if (contentChanged && existing?.content_hash) {
+          await db.collection("resource_content").doc(resourceId).set(
+            { content_hash: null, ai_summary: null },
+            { merge: true },
+          );
+        }
+      }
 
       liveResourceIds.add(resourceId);
       stats.resources++;
 
       console.log(
-        `  ✅ Synced: ${fileName.substring(0, 30).padEnd(30)} [${subjectName}]`,
+        `  ✅ Synced: ${fileName.substring(0, 30).padEnd(30)} [${subjectName}]${contentChanged && existing?.content_hash ? " (reindex)" : ""}`,
       );
     }
 
@@ -202,59 +254,91 @@ async function syncDrive() {
     const allResourcesSnap = await db.collection("resources").get();
     const staleResourceIds = [];
     allResourcesSnap.forEach((doc) => {
-      if (!liveResourceIds.has(doc.id)) {
-        staleResourceIds.push(doc.id);
+      if (liveResourceIds.has(doc.id)) return;
+      if (subjectFilter) {
+        // Scoped sync: only prune resources under subjects we touched
+        const sid = doc.data()?.subject_id;
+        if (!liveSubjectIds.has(sid)) return;
       }
+      staleResourceIds.push(doc.id);
     });
 
     if (staleResourceIds.length > 0) {
       console.log(
-        `  🗑️ Deleting ${staleResourceIds.length} stale resources...`,
+        `  🗑️ Deleting ${staleResourceIds.length} stale resources${dryRun ? " (dry-run)" : ""}${
+          subjectFilter ? " (subject-scoped)" : ""
+        }...`,
       );
-      // Keep batches small — each resource deletes 2 docs; stay well under 500 ops / 10 MiB
-      const chunkSize = 50;
-      for (let i = 0; i < staleResourceIds.length; i += chunkSize) {
-        const chunk = staleResourceIds.slice(i, i + chunkSize);
-        const batch = db.batch();
-        for (const id of chunk) {
-          batch.delete(db.collection("resources").doc(id));
-          batch.delete(db.collection("resource_content").doc(id));
-        }
-        await batch.commit();
-        if (staleResourceIds.length > chunkSize) {
-          console.log(
-            `     … deleted ${Math.min(i + chunkSize, staleResourceIds.length)}/${staleResourceIds.length}`,
-          );
+      if (!dryRun) {
+        const chunkSize = 40;
+        for (let i = 0; i < staleResourceIds.length; i += chunkSize) {
+          const chunk = staleResourceIds.slice(i, i + chunkSize);
+          const batch = db.batch();
+          for (const id of chunk) {
+            batch.delete(db.collection("resources").doc(id));
+            batch.delete(db.collection("resource_content").doc(id));
+          }
+          await batch.commit();
+
+          // Also delete orphan RAG chunks for each stale resource
+          for (const id of chunk) {
+            const chunkSnap = await db
+              .collection("resource_chunks")
+              .where("resource_id", "==", id)
+              .limit(500)
+              .get();
+            if (chunkSnap.empty) continue;
+            const chunkBatch = db.batch();
+            chunkSnap.docs.forEach((d) => chunkBatch.delete(d.ref));
+            await chunkBatch.commit();
+          }
+
+          if (staleResourceIds.length > chunkSize) {
+            console.log(
+              `     … deleted ${Math.min(i + chunkSize, staleResourceIds.length)}/${staleResourceIds.length}`,
+            );
+          }
         }
       }
       stats.deletedResources = staleResourceIds.length;
     }
 
-    // Fetch all current subjects in Firestore
-    const allSubjectsSnap = await db.collection("subjects").get();
-    const staleSubjectIds = [];
-    allSubjectsSnap.forEach((doc) => {
-      if (!liveSubjectIds.has(doc.id)) {
-        staleSubjectIds.push(doc.id);
-      }
-    });
-
-    if (staleSubjectIds.length > 0) {
-      console.log(`  🗑️ Deleting ${staleSubjectIds.length} stale subjects...`);
-      const chunkSize = 200;
-      for (let i = 0; i < staleSubjectIds.length; i += chunkSize) {
-        const chunk = staleSubjectIds.slice(i, i + chunkSize);
-        const batch = db.batch();
-        for (const id of chunk) {
-          batch.delete(db.collection("subjects").doc(id));
+    // Fetch all current subjects in Firestore (skip full prune when subject-scoped)
+    if (!subjectFilter) {
+      const allSubjectsSnap = await db.collection("subjects").get();
+      const staleSubjectIds = [];
+      allSubjectsSnap.forEach((doc) => {
+        if (!liveSubjectIds.has(doc.id)) {
+          staleSubjectIds.push(doc.id);
         }
-        await batch.commit();
+      });
+
+      if (staleSubjectIds.length > 0) {
+        console.log(
+          `  🗑️ Deleting ${staleSubjectIds.length} stale subjects${dryRun ? " (dry-run)" : ""}...`,
+        );
+        if (!dryRun) {
+          const chunkSize = 200;
+          for (let i = 0; i < staleSubjectIds.length; i += chunkSize) {
+            const chunk = staleSubjectIds.slice(i, i + chunkSize);
+            const batch = db.batch();
+            for (const id of chunk) {
+              batch.delete(db.collection("subjects").doc(id));
+            }
+            await batch.commit();
+          }
+        }
+        stats.deletedSubjects = staleSubjectIds.length;
       }
-      stats.deletedSubjects = staleSubjectIds.length;
+    } else {
+      console.log(
+        `  ⏭️ Skipping subject prune (subject-scoped sync: ${subjectArg})`,
+      );
     }
 
     console.log(`\n✨ Sync Complete!`);
     console.log(`   - Resources Synced: ${stats.resources}`);
+    console.log(`   - Reindex Flagged: ${stats.reindexFlagged}`);
     console.log(`   - Resources Deleted: ${stats.deletedResources}`);
     console.log(`   - Subjects Synced: ${liveSubjectIds.size}`);
     console.log(`   - Subjects Deleted: ${stats.deletedSubjects}`);

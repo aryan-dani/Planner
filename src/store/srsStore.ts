@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { auth, db } from '@/lib/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { logActivity } from '@/lib/activity';
+import { localDateKey } from '@/lib/dateLocal';
 
 export interface Flashcard {
   id: string;
@@ -66,7 +67,7 @@ function touchLocalMeta() {
 }
 
 function getTodayString() {
-  return new Date().toISOString().split('T')[0];
+  return localDateKey();
 }
 
 function getNextReviewDate(box: number): string {
@@ -74,7 +75,7 @@ function getNextReviewDate(box: number): string {
   const days = intervals[Math.min(box - 1, intervals.length - 1)] || 1;
   const d = new Date();
   d.setDate(d.getDate() + days);
-  return d.toISOString().split('T')[0];
+  return localDateKey(d);
 }
 
 export const useSRSStore = create<SRSState>((set, get) => ({

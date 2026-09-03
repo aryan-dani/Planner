@@ -3,13 +3,15 @@
  *   <BRANCH>/Sem_<N>_<BRANCH>/<Category>/<Subject>/file
  * Category folders: Sem_<N>_Notes | Sem_<N>_PPT | Sem_<N>_PYQ | Sem_<N>_QB | Sem_<N>_WriteUps | Sem_<N>_Codes
  *
- * Usage: node runtime/tools/normalize-drive.mjs [--dry-run]
+ * Usage: node runtime/tools/normalize-drive.mjs [--apply]
+ * Default is dry-run. Pass --apply to rename folders.
  */
 import { env } from "../lib/env.mjs";
 import { getDrive } from "../lib/drive.mjs";
 import { listDriveScopes } from "../lib/academicYear.mjs";
 
-const dryRun = process.argv.includes("--dry-run");
+const apply = process.argv.includes("--apply");
+const dryRun = !apply;
 const drive = getDrive(["https://www.googleapis.com/auth/drive"]);
 const rootId = env["GOOGLE_DRIVE_FOLDER_ID"];
 
@@ -31,6 +33,8 @@ async function listChildren(folderId) {
       fields: "nextPageToken, files(id, name, mimeType)",
       pageSize: 100,
       pageToken,
+      supportsAllDrives: true,
+      includeItemsFromAllDrives: true,
     });
     out.push(...(res.data.files || []));
     pageToken = res.data.nextPageToken;

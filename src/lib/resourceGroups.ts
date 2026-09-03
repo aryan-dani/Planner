@@ -433,8 +433,13 @@ export function folderIdForResource(item: ResourceItem): string | null {
     const key =
       parseAssignmentKey(item.title) || parseWriteUpKey(item.title);
     if (key) {
-      const base = assignmentBaseNum(key);
-      return assignmentFolderId(String(base || key), subject);
+      const num = assignmentBaseNum(key);
+      // Letter variants (2A/2B) nest under Assignment 2 — deep-link the child folder.
+      if (isLetterVariant(key) && key.toUpperCase() !== String(num)) {
+        const childBase = `assignment-${key.toLowerCase()}`;
+        return subject ? scopedFolderId(subject, childBase) : childBase;
+      }
+      return assignmentFolderId(String(num || key), subject);
     }
   }
   if (item.category === "notes" || item.category === "ppt") {

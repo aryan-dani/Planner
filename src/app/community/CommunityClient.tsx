@@ -250,7 +250,7 @@ export default function CommunityClient({
   };
 
   const filteredDecks = useMemo(() => {
-    let result = decks.filter((deck) => {
+    const result = decks.filter((deck) => {
       const matchBranch =
         selectedBranch === "ALL" || deck.branch === selectedBranch;
       const matchSearch =

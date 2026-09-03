@@ -7,6 +7,7 @@ import { Toaster } from 'sonner';
 import NavigationProgress from './NavigationProgress';
 
 const CommandPalette = dynamic(() => import('./CommandPalette'), { ssr: false });
+const PwaUpdater = dynamic(() => import('./pwa/PwaUpdater'), { ssr: false });
 
 
 function ToasterProvider() {
@@ -36,6 +37,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
         <NavigationProgress />
         {children}
         <CommandPalette />
+        <PwaUpdater />
         <ToasterProvider />
       </PWAProvider>
     </ThemeProvider>

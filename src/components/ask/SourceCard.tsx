@@ -11,12 +11,24 @@ export interface SourceCardProps {
   onCitationClick?: (marker: string) => void;
 }
 
-export function SourceCard({ source }: SourceCardProps) {
+export function SourceCard({
+  source,
+  onCitationClick,
+}: SourceCardProps) {
   return (
     <Card
       id={`source-${source.marker}`}
       hover
-      className="p-3 space-y-2 scroll-mt-24"
+      className="p-3 space-y-2 scroll-mt-24 cursor-pointer"
+      role="button"
+      tabIndex={0}
+      onClick={() => onCitationClick?.(source.marker)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onCitationClick?.(source.marker);
+        }
+      }}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
@@ -38,6 +50,7 @@ export function SourceCard({ source }: SourceCardProps) {
             rel="noopener noreferrer"
             className="shrink-0 p-1.5 rounded-md border border-border text-muted hover:text-foreground"
             aria-label={`Open ${source.title}`}
+            onClick={(e) => e.stopPropagation()}
           >
             <ExternalLink className="w-3.5 h-3.5" />
           </a>
@@ -55,11 +68,13 @@ export function SourceCardList({
   widened,
   branch,
   semester,
+  onCitationClick,
 }: {
   sources: RetrievalSource[];
   widened?: boolean;
   branch?: string;
   semester?: number;
+  onCitationClick?: (marker: string) => void;
 }) {
   if (sources.length === 0) return null;
 
@@ -82,7 +97,7 @@ export function SourceCardList({
       </div>
       <div className="grid gap-2">
         {sources.map((s) => (
-          <SourceCard key={s.id} source={s} />
+          <SourceCard key={s.id} source={s} onCitationClick={onCitationClick} />
         ))}
       </div>
     </div>

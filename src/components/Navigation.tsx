@@ -187,6 +187,7 @@ function NavigationInner() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [userEmail, setUserEmail] = useState<string | undefined>();
+  const [isAdmin, setIsAdmin] = useState(false);
   const [isMac, setIsMac] = useState(true);
   const { theme, setTheme } = useTheme();
   const prefsAppliedRef = useRef(false);
@@ -303,6 +304,40 @@ function NavigationInner() {
     setMobileOpen(false);
   }, [pathname]);
 
+  useEffect(() => {
+    let cancelled = false;
+    async function checkAdmin() {
+      if (!userEmail) {
+        setIsAdmin(false);
+        return;
+      }
+      try {
+        const { auth } = await import("@/lib/firebase");
+        const user = auth.currentUser;
+        if (!user) {
+          if (!cancelled) setIsAdmin(false);
+          return;
+        }
+        const token = await user.getIdToken();
+        const res = await fetch("/api/admin/me", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) {
+          if (!cancelled) setIsAdmin(false);
+          return;
+        }
+        const data = await res.json();
+        if (!cancelled) setIsAdmin(!!data.isAdmin);
+      } catch {
+        if (!cancelled) setIsAdmin(false);
+      }
+    }
+    checkAdmin();
+    return () => {
+      cancelled = true;
+    };
+  }, [userEmail]);
+
   const cycleTheme = () => {
     setTheme(theme === "light" ? "dark" : theme === "dark" ? "system" : "light");
   };
@@ -310,15 +345,6 @@ function NavigationInner() {
   const isActive = useCallback((href: string) =>
     href === "/" ? pathname === "/" : pathname.startsWith(href),
     [pathname]
-  );
-
-  const adminEmails =
-    process.env.NEXT_PUBLIC_ADMIN_EMAILS?.split(",")
-      .map((e) => e.trim().toLowerCase())
-      .filter(Boolean) ?? [];
-  const isAdmin = !!(
-    userEmail &&
-    adminEmails.includes(userEmail.toLowerCase())
   );
 
   const showSelectors =
@@ -587,6 +613,7 @@ function NavigationInner() {
     <>
       {/* 1. Desktop Sticky Sidebar with collapse transition */}
       <aside
+        aria-label="Primary"
         className={`h-screen sticky top-0 left-0 border-r border-border/80 bg-background-subtle z-40 hidden md:flex flex-col shrink-0 transition-all duration-400 ease-[cubic-bezier(0.2,0.8,0.2,1)] w-0 overflow-hidden md:overflow-visible ${
           collapsed ? SIDEBAR_COLLAPSED : SIDEBAR_EXPANDED
         }`}

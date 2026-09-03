@@ -17,6 +17,7 @@ const studySchema = z.object({
     academicYear: z.string().max(16).optional(),
     branch: z.string().max(32).optional(),
     semester: z.number().int().min(1).max(8).optional(),
+    subjects: z.array(z.string().max(120)).max(40).optional(),
   }).optional(),
 });
 
@@ -24,7 +25,7 @@ export async function POST(req: Request) {
   const auth = await requireUser(req);
   if (isAuthFailure(auth)) return auth;
 
-  const rate = enforceUserRateLimit(auth.uid, "study", 20, 60_000);
+  const rate = await enforceUserRateLimit(auth.uid, "study", 20, 60_000);
   if (!rate.allowed) {
     return new Response(JSON.stringify({ error: 'Rate limit exceeded. Try again shortly.' }), {
       status: 429,
@@ -55,6 +56,7 @@ export async function POST(req: Request) {
       ? 'Electronics & Communication Engineering'
       : branch;
     const semester = context?.semester || DEFAULT_SEMESTER;
+    const subjects = context?.subjects || [];
 
     const cleanTopic = topic.trim().toLowerCase().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?]/g, "").replace(/\s+/g, " ");
     const cacheKey = `study_${auth.uid}_${type}_${cleanTopic}_${academicYear}_${branch}_${semester}`.trim();
@@ -95,7 +97,12 @@ export async function POST(req: Request) {
 
     let snippets: string[] = [];
     if (topic && topic.length > 2) {
-      const finalResults = await performRAGSearch(topic, 5, undefined, { academicYear, branch, semester });
+      const finalResults = await performRAGSearch(topic, 5, undefined, {
+        academicYear,
+        branch,
+        semester,
+        subjects: subjects.length > 0 ? subjects : undefined,
+      });
       snippets = finalResults.map((r) => `[SOURCE: ${r.title} | SUBJECT: ${r.subject_name}]: ${r.snippet}`);
     }
 

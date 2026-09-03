@@ -18,6 +18,9 @@ export function isAllowedDriveFileCached(fileId: string): Promise<boolean> {
   return unstable_cache(
     () => queryAllowedDriveFile(fileId),
     [`drive-allow-${fileId}`],
-    { revalidate: 86400, tags: [`drive-file-${fileId}`] },
+    {
+      revalidate: 86400,
+      tags: [`drive-file-${fileId}`, "drive-allowlist"],
+    },
   )();
 }

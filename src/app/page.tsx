@@ -13,6 +13,12 @@ import {
 import AuthButtons from "./AuthButtons";
 import HomeHeatmap from "./HomeHeatmap";
 import HomeStats from "./HomeStats";
+import { getResourcesFromDB, getSubjectsFromDB } from "@/lib/dataFetcher";
+import { BRANCHES, SEMESTERS } from "@/lib/academic/scope";
+import {
+  DEFAULT_ACADEMIC_YEAR,
+  DEFAULT_SEMESTER,
+} from "@/lib/workspace";
 
 const FLOW = [
   { href: "/syllabus", title: "Syllabus", hint: "Units & topics" },
@@ -88,7 +94,30 @@ const FEATURES = [
   },
 ];
 
-export default function Home() {
+export default async function Home() {
+  let subjectCount = 0;
+  let resourceCount = 0;
+  try {
+    const year = DEFAULT_ACADEMIC_YEAR;
+    const semester = DEFAULT_SEMESTER;
+    const results = await Promise.all(
+      BRANCHES.map(async (branch) => {
+        const [subjects, resources] = await Promise.all([
+          getSubjectsFromDB(year, branch, semester),
+          getResourcesFromDB(year, branch, semester),
+        ]);
+        return {
+          subjects: subjects.length,
+          resources: resources.length,
+        };
+      }),
+    );
+    subjectCount = results.reduce((sum, r) => sum + r.subjects, 0);
+    resourceCount = results.reduce((sum, r) => sum + r.resources, 0);
+  } catch (err) {
+    console.error("HomeStats fetch failed:", err);
+  }
+
   return (
     <div className="flex-1 w-full flex flex-col relative overflow-x-clip page-fade-in">
       {/* Hero grid overlay */}
@@ -186,7 +215,12 @@ export default function Home() {
         <HomeHeatmap />
       </section>
 
-      <HomeStats />
+      <HomeStats
+        subjects={subjectCount}
+        resources={resourceCount}
+        semesters={SEMESTERS.length}
+        branches={BRANCHES.length}
+      />
     </div>
   );
 }

@@ -11,7 +11,7 @@ A premium, monochrome academic workspace for university students. Built with Nex
 - **GPA Calculator**: SGPA/CGPA with auto-populated subjects.
 - **SRS Flashcards**: Leitner-style spaced repetition.
 - **Focus Timer**: Pomodoro sessions with activity tracking.
-- **PWA**: Installable offline-capable client with update prompts.
+- **PWA**: Installable offline-capable client.
 
 ## Tech Stack
 
@@ -46,16 +46,23 @@ FIREBASE_PRIVATE_KEY=
 GOOGLE_DRIVE_FOLDER_ID=
 
 # App config
-NEXT_PUBLIC_ADMIN_EMAILS=you@example.com
-# Optional server-only allowlist (preferred over NEXT_PUBLIC for API checks)
+# Server-only admin allowlist (used by /api/admin/* and Sync Now)
 ADMIN_EMAILS=you@example.com
 GROQ_API_KEY=
 
 # Hybrid RAG embeddings (Google AI Studio — NOT a replacement for Groq)
 GEMINI_API_KEY=
 
-# Protect /api/webhooks/storage-sync (required for Vercel Cron in production)
+# Protect /api/webhooks/* (required in production)
 CRON_SECRET=
+
+# Optional: URL GitHub Actions POSTs after sync+index (e.g. https://utilityos.tech/api/webhooks/revalidate-content)
+VERCEL_REVALIDATE_URL=
+
+# Google Drive OAuth (writable uploads / renames — SA is read-only for Shared Drives)
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+GOOGLE_REFRESH_TOKEN=
 
 # Ishani campus API (faculty seating, directory, labs) — server-only
 # Local: http://127.0.0.1:8001
@@ -76,14 +83,15 @@ Set these on the Vercel project for **Production**, then redeploy:
 | `GROQ_API_KEY` | Chat, study, summarize (unchanged) |
 | `GEMINI_API_KEY` | Chunk embeddings during `index-content` + semantic search cache |
 | `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY` | Admin token verify + Drive JWT |
-| `NEXT_PUBLIC_ADMIN_EMAILS` | Admin UI + Sync Now button |
+| `ADMIN_EMAILS` | Server-only admin allowlist (Sync Now, admin APIs) |
 | `GH_PAT` (workflow scope) | **Recommended** — Sync Now dispatches `storage-sync.yml` (sync + index) |
-| `CRON_SECRET` | Authorizes the daily Vercel cron hit |
+| `CRON_SECRET` | Authorizes webhook revalidate / manual sync |
+| `VERCEL_REVALIDATE_URL` | GitHub Actions POSTs here after sync+index |
 | `ISHANI_API_URL` | Campus seating / directory / labs — set to `https://api.aryandani.com` (Ishani’s public FastAPI) |
 
 Without `GOOGLE_DRIVE_FOLDER_ID` **and** without `GH_PAT`, Sync Now returns **503** instead of a fake success.
 
-For GitHub Actions daily sync, add the same `FIREBASE_*`, `GOOGLE_DRIVE_FOLDER_ID`, and `GEMINI_API_KEY` values as repository secrets.
+For GitHub Actions daily sync (00:00 UTC via `storage-sync.yml` only — there is no duplicate Vercel cron), add the same `FIREBASE_*`, `GOOGLE_DRIVE_FOLDER_ID`, `GEMINI_API_KEY`, `CRON_SECRET`, and `VERCEL_REVALIDATE_URL` values as repository secrets.
 
 ### 2. Hybrid RAG setup (one-time)
 
@@ -123,6 +131,7 @@ node runtime/tools/upload-drive.mjs "C:\path\to\folder" --overwrite --dry-run --
 
 # Sync Drive folder → Firestore subjects/resources
 npm run sync-drive
+# Preview deletes/upserts without writing: node runtime/tools/sync-drive.mjs --dry-run
 
 # Index document text for RAG / search
 npm run index-content
@@ -134,6 +143,8 @@ npm run sync-all
 npm run audit-drive-site
 # Optional: --branch=AIDS --semester=3
 ```
+
+Nightly sync is scheduled **only** in GitHub Actions (`.github/workflows/storage-sync.yml` at 00:00 UTC). The Vercel cron was removed to avoid double-dispatching the same workflow.
 
 Resources are cached ~10 minutes (`unstable_cache` / `revalidate: 600`). After changing what the site shows (or after sync), wait for revalidate, redeploy, or use **Sync Now**.
 
@@ -158,11 +169,11 @@ Syllabus at semester root: `Sem_<N>_Syllabus.pdf`
 | PYQ | `<SUBJECT>_PYQ_<Year>[_Mid\|End][_K].ext` | `DAA_PYQ_2024_End_1.pdf` |
 | QB | `<SUBJECT>_QB[_Year][_Solved][_K].ext` | `PS_QB_1_Solved.pdf` |
 
-Normalize category folders:
+Normalize category folders (default is dry-run; pass `--apply` to write):
 
 ```bash
-node runtime/tools/normalize-drive.mjs --dry-run
 node runtime/tools/normalize-drive.mjs
+node runtime/tools/normalize-drive.mjs --apply
 ```
 
 Audit / rename files + trash junk:
@@ -178,6 +189,18 @@ npm run rename-drive-files:apply    # apply trash + mechanical renames
 npm install
 npm run dev
 ```
+
+## Next priorities (post-audit)
+
+Phase 3 / 4 shipped:
+
+1. Resources: recently viewed strip + share-link copy
+2. Ask: Stop generation + clickable `[S#]` chips → PDF viewer (with optional page)
+3. Planner: ICS export + undo for deletes / clear month
+4. Runtime CLI: `sync --subject=` (scoped prune) + `doctor`
+5. Home live subject/resource counts from Firestore
+
+Ops still needed: deploy `firestore.rules`; optional Upstash Redis for distributed rate limits.
 
 ## License
 

@@ -18,7 +18,13 @@ export async function performRAGSearch(
   query: string,
   limit: number = 3,
   resourceId?: string,
-  scope?: { academicYear?: string; branch?: string; semester?: number },
+  scope?: {
+    academicYear?: string;
+    branch?: string;
+    semester?: number;
+    subjects?: string[];
+    queryEmbedding?: number[];
+  },
 ): Promise<RAGSearchResult[]> {
   try {
     const result = await retrieve({
@@ -28,6 +34,8 @@ export async function performRAGSearch(
       academicYear: scope?.academicYear,
       branch: scope?.branch,
       semester: scope?.semester,
+      subjects: scope?.subjects,
+      queryEmbedding: scope?.queryEmbedding,
     });
 
     return result.sources.map((s) => ({

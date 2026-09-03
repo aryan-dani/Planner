@@ -20,6 +20,26 @@ const nextConfig = {
     "pdfjs-dist",
     "officeparser",
   ],
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          { key: "X-Frame-Options", value: "SAMEORIGIN" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          {
+            key: "Permissions-Policy",
+            value: "camera=(), microphone=(), geolocation=()",
+          },
+          {
+            key: "Strict-Transport-Security",
+            value: "max-age=63072000; includeSubDomains; preload",
+          },
+        ],
+      },
+    ];
+  },
 };
 
 const isDev = process.env.NODE_ENV === 'development';
@@ -30,11 +50,12 @@ const config = isDev
       dest: 'public',
       disable: false,
       register: true,
-      skipWaiting: true,
+      skipWaiting: false,
       cacheOnFrontEndNav: false,
       aggressiveFrontEndNavCaching: false,
       workboxOptions: {
-        skipWaiting: true,
+        skipWaiting: false,
+        navigateFallback: '/~offline',
         navigateFallbackDenylist: [
           /^\/resources/,
           /^\/ask/,
@@ -53,7 +74,7 @@ const config = isDev
                 maxAgeSeconds: 7 * 24 * 60 * 60,
               },
               cacheableResponse: {
-                statuses: [0, 200],
+                statuses: [200],
               },
             },
           },

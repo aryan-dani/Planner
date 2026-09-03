@@ -53,15 +53,13 @@ export function tokenize(input: string, options?: { stem?: boolean }): string[] 
   const normalized = normalizeText(input);
   if (!normalized) return [];
 
-  const seen = new Set<string>();
   const tokens: string[] = [];
 
   for (const raw of normalized.split(" ")) {
     if (raw.length < 2 || raw.length > 30) continue;
     if (STOP_WORDS.has(raw)) continue;
     const token = stem ? stemWord(raw) : raw;
-    if (token.length < 2 || seen.has(token)) continue;
-    seen.add(token);
+    if (token.length < 2) continue;
     tokens.push(token);
   }
 

@@ -18,6 +18,8 @@ async function listFolder(folderId, prefix = "", depth = 0) {
       pageSize: 100,
       pageToken,
       orderBy: "folder,name",
+      supportsAllDrives: true,
+      includeItemsFromAllDrives: true,
     });
     const files = res.data.files || [];
     for (const file of files) {

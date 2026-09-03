@@ -19,6 +19,7 @@ interface ResourceFolderProps {
   expandedIds: Set<string>;
   onOpenResource: (item: ResourceItem) => void;
   onSummarize?: (item: ResourceItem) => void;
+  onShare?: (item: ResourceItem) => void;
   depth?: number;
   highlightFileId?: string | null;
   activeFolderId?: string | null;
@@ -32,6 +33,7 @@ export default function ResourceFolder({
   expandedIds,
   onOpenResource,
   onSummarize,
+  onShare,
   depth = 0,
   highlightFileId = null,
   activeFolderId = null,
@@ -96,6 +98,7 @@ export default function ResourceFolder({
                   item={item}
                   onOpenResource={onOpenResource}
                   onSummarize={onSummarize}
+                  onShare={onShare}
                   depth={depth + 1}
                   highlight={highlightFileId === item.id}
                 />
@@ -110,6 +113,7 @@ export default function ResourceFolder({
                       item={item}
                       onOpenResource={onOpenResource}
                       onSummarize={onSummarize}
+                      onShare={onShare}
                       depth={depth + 1}
                       highlight={
                         highlightFileId === item.id ||
@@ -130,6 +134,7 @@ export default function ResourceFolder({
                     expandedIds={expandedIds}
                     onOpenResource={onOpenResource}
                     onSummarize={onSummarize}
+                    onShare={onShare}
                     depth={depth + 1}
                     highlightFileId={highlightFileId}
                     activeFolderId={activeFolderId}

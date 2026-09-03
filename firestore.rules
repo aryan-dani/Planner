@@ -1,0 +1,112 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    function isOwnerField() {
+      return signedIn() && resource.data.owner_id == request.auth.uid;
+    }
+
+    function isOwnerFieldOnCreate() {
+      return signedIn() && request.resource.data.owner_id == request.auth.uid;
+    }
+
+    // Public catalog (Drive sync writes via Admin SDK — bypasses rules)
+    match /subjects/{id} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /resources/{id} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /resource_content/{id} {
+      allow read, write: if false;
+    }
+
+    match /resource_chunks/{id} {
+      allow read, write: if false;
+    }
+
+    match /rag_stats/{id} {
+      allow read, write: if false;
+    }
+
+    match /semantic_cache/{id} {
+      allow read, write: if false;
+    }
+
+    // Per-user profile / prefs
+    match /users/{uid} {
+      allow read, write: if isOwner(uid);
+    }
+
+    // Spaced-repetition decks (doc id = uid)
+    match /srs_data/{uid} {
+      allow read, write: if isOwner(uid);
+    }
+
+    // Planner
+    match /planner_plans/{planId} {
+      allow read: if signedIn() && (
+        resource.data.owner_id == request.auth.uid ||
+        resource.data.is_public == true
+      );
+      allow create: if isOwnerFieldOnCreate();
+      allow update, delete: if isOwnerField();
+    }
+
+    match /planner_collaborators/{id} {
+      allow read: if signedIn() && (
+        resource.data.owner_id == request.auth.uid ||
+        resource.data.user_email == request.auth.token.email
+      );
+      allow write: if false; // managed via Admin API
+    }
+
+    // Community decks — public read; create/update/delete via Admin API
+    match /community_decks/{id} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /community_deck_upvotes/{id} {
+      allow read, write: if false;
+    }
+
+    // Activity, visualize, support — Admin API only
+    match /activity_logs/{id} {
+      allow read, write: if false;
+    }
+
+    match /visualize_grids/{id} {
+      allow read, write: if false;
+    }
+
+    match /visualize_progress/{id} {
+      allow read, write: if false;
+    }
+
+    match /visualize_telemetry/{id} {
+      allow read, write: if false;
+    }
+
+    match /support_messages/{id} {
+      allow read, write: if false;
+    }
+
+    // Deny everything else by default
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

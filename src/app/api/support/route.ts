@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { FieldValue } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { isAuthFailure, requireUser } from "@/lib/apiAuth";
+import { enforceUserRateLimit } from "@/lib/rateLimit";
 
 export const dynamic = "force-dynamic";
 
@@ -10,6 +11,14 @@ export async function POST(request: Request) {
     const auth = await requireUser(request);
     if (isAuthFailure(auth)) return auth;
 
+    const rate = await enforceUserRateLimit(auth.uid, "support", 10, 60_000);
+    if (!rate.allowed) {
+      return NextResponse.json(
+        { error: "Rate limit exceeded" },
+        { status: 429, headers: { "Retry-After": String(rate.retryAfterSec) } },
+      );
+    }
+
     const body = await request.json();
     const amount = Number(body.amount);
     const name = typeof body.name === "string" ? body.name.trim().slice(0, 120) : "";
@@ -17,7 +26,7 @@ export async function POST(request: Request) {
     const txnId = typeof body.txnId === "string" ? body.txnId.trim().slice(0, 120) : "";
     const message = typeof body.message === "string" ? body.message.trim().slice(0, 2000) : "";
 
-    if (!Number.isFinite(amount) || amount <= 0) {
+    if (!Number.isFinite(amount) || amount <= 0 || amount > 1_000_000) {
       return NextResponse.json({ error: "Valid amount required" }, { status: 400 });
     }
 

@@ -25,6 +25,7 @@ export type PdfPreviewHandle = {
   /** Returns true if find UI was open and is now closed. */
   closeFind: () => boolean;
   openFind: () => void;
+  scrollToPage: (page: number) => void;
 };
 
 interface PdfPreviewProps {
@@ -39,7 +40,7 @@ interface PdfPreviewProps {
 type PdfModule = typeof import("pdfjs-dist");
 type PdfDocument = Awaited<ReturnType<PdfModule["getDocument"]>["promise"]>;
 
-type FindHit = { page: number; snippet: string };
+type FindHit = { page: number; snippet: string; occurrence: number };
 
 const BUFFER_PAGES = 2;
 
@@ -49,7 +50,7 @@ function PdfPage({
   pageNumber,
   scale,
   findQuery,
-  activeHit,
+  activeOccurrence,
   onHeight,
 }: {
   pdf: PdfDocument;
@@ -57,7 +58,8 @@ function PdfPage({
   pageNumber: number;
   scale: number;
   findQuery: string;
-  activeHit: FindHit | null;
+  /** Which match index on this page is active (-1 = none). */
+  activeOccurrence: number;
   onHeight: (page: number, height: number) => void;
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -107,15 +109,27 @@ function PdfPage({
       const q = findQuery.trim().toLowerCase();
       if (!q) return;
       const divs = layer.textDivs;
-      let remaining = activeHit?.page === pageNumber ? 1 : 0;
+      let occurrence = 0;
       for (const el of divs) {
         const t = (el.textContent || "").toLowerCase();
-        if (!t.includes(q)) continue;
-        el.classList.add("pdf-find-hit");
-        if (activeHit?.page === pageNumber && remaining > 0) {
-          el.classList.add("pdf-find-hit-active");
-          remaining -= 1;
+        // A single text span may contain multiple hits — count each.
+        let from = 0;
+        let hitCountInDiv = 0;
+        while (from <= t.length) {
+          const at = t.indexOf(q, from);
+          if (at < 0) break;
+          hitCountInDiv += 1;
+          from = at + q.length;
         }
+        if (hitCountInDiv === 0) continue;
+        el.classList.add("pdf-find-hit");
+        // Activate if any occurrence inside this div is the active one.
+        for (let i = 0; i < hitCountInDiv; i++) {
+          if (occurrence + i === activeOccurrence) {
+            el.classList.add("pdf-find-hit-active");
+          }
+        }
+        occurrence += hitCountInDiv;
       }
     }
 
@@ -124,7 +138,7 @@ function PdfPage({
       cancelled = true;
       layer?.cancel();
     };
-  }, [pdf, pdfjs, pageNumber, scale, findQuery, activeHit, onHeight]);
+  }, [pdf, pdfjs, pageNumber, scale, findQuery, activeOccurrence, onHeight]);
 
   return (
     <div
@@ -146,6 +160,7 @@ const PdfPreview = forwardRef<PdfPreviewHandle, PdfPreviewProps>(
     const scrollRef = useRef<HTMLDivElement>(null);
     const findInputRef = useRef<HTMLInputElement>(null);
     const genRef = useRef(0);
+    const docRef = useRef<PdfDocument | null>(null);
     const onReadyRef = useRef(onReady);
     const onFailRef = useRef(onFail);
     onReadyRef.current = onReady;
@@ -158,6 +173,7 @@ const PdfPreview = forwardRef<PdfPreviewHandle, PdfPreviewProps>(
     const [scale, setScale] = useState(1.15);
     const [failed, setFailed] = useState(false);
     const [loading, setLoading] = useState(true);
+    const [textReady, setTextReady] = useState(false);
     const [heights, setHeights] = useState<Record<number, number>>({});
     const [visible, setVisible] = useState<Set<number>>(new Set([1, 2, 3]));
     const [findOpen, setFindOpen] = useState(false);
@@ -169,29 +185,25 @@ const PdfPreview = forwardRef<PdfPreviewHandle, PdfPreviewProps>(
 
     const activeHit = hits[hitIndex] ?? null;
 
-    useImperativeHandle(
-      ref,
-      () => ({
-        closeFind: () => {
-          if (!findOpen) return false;
-          setFindOpen(false);
-          return true;
-        },
-        openFind: () => {
-          setFindOpen(true);
-          requestAnimationFrame(() => findInputRef.current?.focus());
-        },
-      }),
-      [findOpen],
-    );
+    const activeOccurrenceOnPage = useMemo(() => {
+      if (!activeHit) return -1;
+      return activeHit.occurrence;
+    }, [activeHit]);
 
     useEffect(() => {
       const gen = ++genRef.current;
       let cancelled = false;
       setLoading(true);
       setFailed(false);
+      setTextReady(false);
       setPdf(null);
       setHits([]);
+      pageTextRef.current = [];
+
+      if (docRef.current) {
+        void docRef.current.destroy().catch(() => {});
+        docRef.current = null;
+      }
 
       (async () => {
         try {
@@ -202,7 +214,11 @@ const PdfPreview = forwardRef<PdfPreviewHandle, PdfPreviewProps>(
           const data = await blob.arrayBuffer();
           if (cancelled || gen !== genRef.current) return;
           const doc = await mod.getDocument({ data }).promise;
-          if (cancelled || gen !== genRef.current) return;
+          if (cancelled || gen !== genRef.current) {
+            void doc.destroy().catch(() => {});
+            return;
+          }
+          docRef.current = doc;
           setPdfjs(mod);
           setPdf(doc);
           setPageCount(doc.numPages);
@@ -210,7 +226,6 @@ const PdfPreview = forwardRef<PdfPreviewHandle, PdfPreviewProps>(
           setJumpValue("1");
           setVisible(new Set([1, 2, Math.min(3, doc.numPages)]));
           setLoading(false);
-          onReadyRef.current?.();
 
           const texts: string[] = [];
           for (let i = 1; i <= doc.numPages; i++) {
@@ -221,7 +236,10 @@ const PdfPreview = forwardRef<PdfPreviewHandle, PdfPreviewProps>(
               .map((item) => ("str" in item ? item.str : ""))
               .join(" ");
           }
+          if (cancelled || gen !== genRef.current) return;
           pageTextRef.current = texts;
+          setTextReady(true);
+          onReadyRef.current?.();
         } catch {
           if (!cancelled && gen === genRef.current) {
             setFailed(true);
@@ -233,6 +251,10 @@ const PdfPreview = forwardRef<PdfPreviewHandle, PdfPreviewProps>(
 
       return () => {
         cancelled = true;
+        if (docRef.current) {
+          void docRef.current.destroy().catch(() => {});
+          docRef.current = null;
+        }
       };
     }, [driveId, ext]);
 
@@ -254,6 +276,24 @@ const PdfPreview = forwardRef<PdfPreviewHandle, PdfPreviewProps>(
       setPage(n);
       setJumpValue(String(n));
     }, []);
+
+    useImperativeHandle(
+      ref,
+      () => ({
+        closeFind: () => {
+          if (!findOpen) return false;
+          setFindOpen(false);
+          return true;
+        },
+        openFind: () => {
+          if (!textReady) return;
+          setFindOpen(true);
+          requestAnimationFrame(() => findInputRef.current?.focus());
+        },
+        scrollToPage,
+      }),
+      [findOpen, textReady, scrollToPage],
+    );
 
     useEffect(() => {
       const root = scrollRef.current;
@@ -288,6 +328,11 @@ const PdfPreview = forwardRef<PdfPreviewHandle, PdfPreviewProps>(
     }, [pageCount, pdf, scale]);
 
     useEffect(() => {
+      if (!textReady) {
+        setHits([]);
+        setHitIndex(0);
+        return;
+      }
       const q = findQuery.trim().toLowerCase();
       if (!q) {
         setHits([]);
@@ -299,20 +344,23 @@ const PdfPreview = forwardRef<PdfPreviewHandle, PdfPreviewProps>(
         if (!text) return;
         const lower = text.toLowerCase();
         let from = 0;
+        let occurrence = 0;
         while (found.length < 200) {
           const at = lower.indexOf(q, from);
           if (at < 0) break;
           found.push({
             page: pageNum,
             snippet: text.slice(Math.max(0, at - 24), at + q.length + 24),
+            occurrence,
           });
+          occurrence += 1;
           from = at + q.length;
         }
       });
       setHits(found);
       setHitIndex(0);
       if (found[0]) scrollToPage(found[0].page);
-    }, [findQuery, scrollToPage]);
+    }, [findQuery, scrollToPage, textReady]);
 
     const goHit = (dir: number) => {
       if (hits.length === 0) return;
@@ -327,13 +375,14 @@ const PdfPreview = forwardRef<PdfPreviewHandle, PdfPreviewProps>(
         if (mod && e.key.toLowerCase() === "f") {
           e.preventDefault();
           e.stopPropagation();
+          if (!textReady) return;
           setFindOpen(true);
           requestAnimationFrame(() => findInputRef.current?.focus());
         }
       }
       window.addEventListener("keydown", onKey, true);
       return () => window.removeEventListener("keydown", onKey, true);
-    }, []);
+    }, [textReady]);
 
     return (
       <div className="relative h-full w-full flex flex-col bg-background">
@@ -404,15 +453,28 @@ const PdfPreview = forwardRef<PdfPreviewHandle, PdfPreviewProps>(
 
           <button
             type="button"
+            disabled={!textReady}
             onClick={() => {
+              if (!textReady) return;
               setFindOpen(true);
               requestAnimationFrame(() => findInputRef.current?.focus());
             }}
-            className="flex h-8 items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 font-semibold text-muted hover:text-foreground"
+            className={cn(
+              "flex h-8 items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 font-semibold",
+              textReady
+                ? "text-muted hover:text-foreground"
+                : "text-muted/50 cursor-not-allowed",
+            )}
           >
             <Search className="h-3.5 w-3.5" />
-            Find
-            <kbd className="hidden sm:inline text-[10px] opacity-60">Ctrl F</kbd>
+            {textReady ? (
+              <>
+                Find
+                <kbd className="hidden sm:inline text-[10px] opacity-60">Ctrl F</kbd>
+              </>
+            ) : (
+              "Indexing…"
+            )}
           </button>
 
           <span className="ml-auto truncate text-muted hidden md:inline">{title}</span>
@@ -513,7 +575,9 @@ const PdfPreview = forwardRef<PdfPreviewHandle, PdfPreviewProps>(
                       pageNumber={n}
                       scale={scale}
                       findQuery={findQuery}
-                      activeHit={activeHit}
+                      activeOccurrence={
+                        activeHit?.page === n ? activeOccurrenceOnPage : -1
+                      }
                       onHeight={onHeight}
                     />
                   ) : (

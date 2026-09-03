@@ -261,7 +261,7 @@ async function fetchResourcesFromDB(
       );
   } catch (error) {
     console.error("Error fetching resources from Firestore:", error);
-    return [];
+    throw error;
   }
 }
 

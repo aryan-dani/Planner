@@ -10,7 +10,7 @@ export async function GET(request: Request) {
   const auth = await requireUser(request);
   if (isAuthFailure(auth)) return auth;
 
-  const rate = enforceUserRateLimit(auth.uid, "summarize", 20, 60_000);
+  const rate = await enforceUserRateLimit(auth.uid, "summarize", 20, 60_000);
   if (!rate.allowed) {
     return NextResponse.json(
       { error: "Rate limit exceeded. Try again shortly." },

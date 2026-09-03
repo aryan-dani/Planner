@@ -25,7 +25,7 @@ const semesterFilter = (() => {
 })();
 
 const KNOWN_BRANCHES = new Set(["AIDS", "CSE", "ECE"]);
-const CAT_RE = /notes|ppt|presentation|pyq|qb|writeup/i;
+const CAT_RE = /notes|ppt|presentation|pyq|qb|question.?bank|writeup|codes?/i;
 
 /** Mirror of former site exclusions (for reporting only). */
 const SITE_SUBJECT_EXCLUSIONS = {
@@ -111,8 +111,16 @@ function parseDriveFile(file) {
     else if (catSegment.includes("ppt") || catSegment.includes("presentation"))
       category = "ppt";
     else if (catSegment.includes("pyq")) category = "pyq";
-    else if (catSegment.includes("qb")) category = "qb";
+    else if (
+      catSegment.includes("qb") ||
+      catSegment.includes("question_bank")
+    ) {
+      category = file.name.toLowerCase().includes("solved")
+        ? "solved-question-bank"
+        : "question-bank";
+    }
     else if (catSegment.includes("writeup")) category = "writeup";
+    else if (catSegment.includes("code")) category = "codes";
   }
 
   const misnested =

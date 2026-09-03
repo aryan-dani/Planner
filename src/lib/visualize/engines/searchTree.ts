@@ -113,8 +113,8 @@ export function generateSearchTreeSteps(
 
   const visitedSet = new Set<string>();
   const frontierIds: string[] = [startId];
-  let frontierQueue: string[] = [startId];
-  let frontierStack: string[] = [startId];
+  const frontierQueue: string[] = [startId];
+  const frontierStack: string[] = [startId];
   const openHeap = new MinHeap<{ id: string; priority: number; g: number }>(
     (a, b) => {
       if (a.priority !== b.priority) return a.priority - b.priority;

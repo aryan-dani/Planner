@@ -131,7 +131,7 @@ const server = http.createServer(async (req, res) => {
           
           writeFileSync(envPath, envContent.trim() + "\n", "utf-8");
           console.log("💾 GOOGLE_REFRESH_TOKEN has been saved to your .env.local file!");
-          console.log("🚀 You can now run node scripts/sync-supabase-to-drive.mjs to sync without quota errors!\n");
+          console.log("🚀 You can now run node runtime/tools/upload-drive.mjs (see README) without Drive quota errors!\n");
         }
       } catch (err) {
         console.error("❌ Failed to exchange code for tokens:", err.message);

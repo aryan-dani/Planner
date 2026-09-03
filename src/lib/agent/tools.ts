@@ -6,6 +6,8 @@ import {
 import { retrieve } from "@/lib/rag/retrieve";
 import type { RetrievalResult } from "@/lib/rag/types";
 import { adminDb } from "@/lib/firebaseAdmin";
+import { matchesAcademicYear } from "@/lib/academic/scope";
+import type { AcademicYear } from "@/lib/academic/scope";
 
 export interface ToolContext {
   academicYear?: string;
@@ -13,6 +15,7 @@ export interface ToolContext {
   semester: number;
   subjects: string[];
   resourceId?: string;
+  queryEmbedding?: number[];
 }
 
 export async function searchNotes(
@@ -28,6 +31,8 @@ export async function searchNotes(
     resourceId: ctx.resourceId,
     limit: 5,
     categoryBoost: category ? [category] : undefined,
+    subjects: ctx.subjects.length > 0 ? ctx.subjects : undefined,
+    queryEmbedding: ctx.queryEmbedding,
   });
 }
 
@@ -42,6 +47,8 @@ export async function findPyq(
     semester: ctx.semester,
     limit: 5,
     categoryBoost: ["pyq", "question-bank", "solved-question-bank"],
+    subjects: ctx.subjects.length > 0 ? ctx.subjects : undefined,
+    queryEmbedding: ctx.queryEmbedding,
   });
 }
 
@@ -91,26 +98,52 @@ export async function listResources(
   category?: string,
 ): Promise<Array<{ id: string; title: string; category: string; subject_name: string }>> {
   const db = adminDb();
-  const snap = await db.collection("resources").limit(100).get();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let ref: any = db.collection("resources");
+  if (ctx.branch) ref = ref.where("branch", "==", ctx.branch);
+  if (ctx.semester != null) ref = ref.where("semester", "==", ctx.semester);
+  const snap = await ref.limit(100).get();
 
-  const subjectSnap = await db.collection("subjects").get();
-  const subjectMap = new Map(
-    subjectSnap.docs.map((s) => [s.id, s.data().name as string]),
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let subjectRef: any = db.collection("subjects");
+  if (ctx.branch) subjectRef = subjectRef.where("branch", "==", ctx.branch);
+  if (ctx.semester != null) subjectRef = subjectRef.where("semester", "==", ctx.semester);
+  let subjectSnap;
+  try {
+    subjectSnap = await subjectRef.get();
+  } catch {
+    subjectSnap = await db.collection("subjects").get();
+  }
+  const subjectMap = new Map<string, string>(
+    subjectSnap.docs.map((s: { id: string; data: () => Record<string, unknown> }) => [
+      s.id,
+      String(s.data().name || ""),
+    ]),
   );
 
   const results: Array<{ id: string; title: string; category: string; subject_name: string }> = [];
 
   for (const doc of snap.docs) {
     const d = doc.data();
+    if (
+      ctx.academicYear &&
+      !matchesAcademicYear(d.academic_year as string | undefined, ctx.academicYear as AcademicYear)
+    ) {
+      continue;
+    }
+    if (ctx.branch && d.branch && d.branch !== ctx.branch) continue;
+    if (ctx.semester != null && d.semester != null && Number(d.semester) !== Number(ctx.semester)) {
+      continue;
+    }
     if (category && d.category !== category) continue;
-    const subjectName = subjectMap.get(d.subject_id) || "Unknown";
+    const subjectName = subjectMap.get(d.subject_id as string) || "Unknown";
     if (ctx.subjects.length > 0 && !ctx.subjects.some((s) => subjectName.includes(s))) {
       continue;
     }
     results.push({
       id: doc.id,
-      title: d.title || "Untitled",
-      category: d.category || "other",
+      title: (d.title as string) || "Untitled",
+      category: (d.category as string) || "other",
       subject_name: subjectName,
     });
   }

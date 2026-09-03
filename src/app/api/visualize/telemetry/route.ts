@@ -3,6 +3,7 @@ import { FieldValue } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { isAuthFailure, requireUser } from "@/lib/apiAuth";
 import { getAlgorithm } from "@/lib/visualize/catalog";
+import { enforceUserRateLimit } from "@/lib/rateLimit";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +19,15 @@ export async function POST(request: Request) {
   try {
     const user = await requireUser(request);
     if (isAuthFailure(user)) return user;
+
+    const rate = await enforceUserRateLimit(user.uid, "visualize-telemetry", 60, 60_000);
+    if (!rate.allowed) {
+      return NextResponse.json(
+        { error: "Rate limit exceeded" },
+        { status: 429, headers: { "Retry-After": String(rate.retryAfterSec) } },
+      );
+    }
+
     const body = await request.json();
 
     const algorithmId =

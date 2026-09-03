@@ -26,7 +26,7 @@ import {
   Compass,
   Calendar
 } from 'lucide-react';
-import { logActivity } from '@/lib/activity';
+import { logActivity, localDateKey } from '@/lib/activity';
 import { NotesDisclaimer } from '@/components/NotesDisclaimer';
 import { isSubjectMatch } from '@/lib/subjectMatcher';
 import {
@@ -265,7 +265,7 @@ export default function SyllabusClient({ subjects, academicYear, branch, semeste
   // Scheduler Modal State
   const [plannerModalOpen, setPlannerModalOpen] = useState(false);
   const [schedulingModule, setSchedulingModule] = useState<{ subjectName: string; moduleTitle: string } | null>(null);
-  const [scheduleDate, setScheduleDate] = useState(new Date().toISOString().split('T')[0]);
+  const [scheduleDate, setScheduleDate] = useState(localDateKey());
   const [scheduleCategory, setScheduleCategory] = useState('Revision');
   const [scheduleTitle, setScheduleTitle] = useState('');
 

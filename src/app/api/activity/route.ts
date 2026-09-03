@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { FieldValue } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { isAuthFailure, requireUser } from "@/lib/apiAuth";
+import { localDateKey } from "@/lib/dateLocal";
 
 export const dynamic = "force-dynamic";
 
@@ -27,10 +28,10 @@ const ALLOWED_ACTIONS = new Set([
   "summary_generated",
 ]);
 
-function daysAgoIso(days: number): string {
+function daysAgoLocal(days: number): string {
   const d = new Date();
-  d.setUTCDate(d.getUTCDate() - days);
-  return d.toISOString().split("T")[0];
+  d.setDate(d.getDate() - days);
+  return localDateKey(d);
 }
 
 export async function GET(request: Request) {
@@ -40,23 +41,42 @@ export async function GET(request: Request) {
 
     const userId = auth.uid;
     const db = adminDb();
-    const since = daysAgoIso(365);
+    const since = daysAgoLocal(365);
 
-    const snapshot = await db
-      .collection("activity_logs")
-      .where("user_id", "==", userId)
-      .get();
-
-    const logs = snapshot.docs
-      .map((doc) => {
-        const d = doc.data();
+    // Prefer date-filtered query; fall back to in-memory filter if index missing.
+    let logs: Array<{ logged_date: string; count: number; action_type: string }> = [];
+    try {
+      const snapshot = await db
+        .collection("activity_logs")
+        .where("user_id", "==", userId)
+        .where("logged_date", ">=", since)
+        .limit(2000)
+        .get();
+      logs = snapshot.docs.map((docSnap) => {
+        const d = docSnap.data();
         return {
           logged_date: d.logged_date as string,
           count: d.count as number,
           action_type: d.action_type as string,
         };
-      })
-      .filter((log) => log.logged_date && log.logged_date >= since);
+      });
+    } catch {
+      const snapshot = await db
+        .collection("activity_logs")
+        .where("user_id", "==", userId)
+        .limit(2000)
+        .get();
+      logs = snapshot.docs
+        .map((docSnap) => {
+          const d = docSnap.data();
+          return {
+            logged_date: d.logged_date as string,
+            count: d.count as number,
+            action_type: d.action_type as string,
+          };
+        })
+        .filter((log) => log.logged_date && log.logged_date >= since);
+    }
 
     return NextResponse.json({ logs });
   } catch (error) {
@@ -96,7 +116,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const today = new Date().toISOString().split("T")[0];
+    const today = localDateKey();
     const docId = `${userId}_${actionType}_${today}`;
     const db = adminDb();
     const logRef = db.collection("activity_logs").doc(docId);

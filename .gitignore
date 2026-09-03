@@ -48,4 +48,10 @@ drive-rename-report.json
 drive-needs-review.md
 drive-site-audit.json
 
+# local sync/index logs
+*-log.txt
+index-content-log.txt
+sync-drive-log.txt
+restructure-drive-log.txt
+
 .vercel

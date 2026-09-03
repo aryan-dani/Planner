@@ -7,6 +7,7 @@ import {
   FileSpreadsheet,
   FileText,
   ImageIcon,
+  Link2,
   PenTool,
   Table2,
 } from "lucide-react";
@@ -27,6 +28,7 @@ interface ResourceFileRowProps {
   item: ResourceItem;
   onOpenResource: (item: ResourceItem) => void;
   onSummarize?: (item: ResourceItem) => void;
+  onShare?: (item: ResourceItem) => void;
   depth?: number;
   highlight?: boolean;
   scrollTarget?: boolean;
@@ -60,6 +62,7 @@ export default function ResourceFileRow({
   item,
   onOpenResource,
   onSummarize,
+  onShare,
   depth = 0,
   highlight = false,
   scrollTarget = false,
@@ -154,6 +157,22 @@ export default function ResourceFileRow({
       </div>
 
       <div className="flex items-center gap-1.5 flex-shrink-0 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+        {onShare && (
+          <button
+            type="button"
+            onClick={(e: MouseEvent) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onShare(item);
+            }}
+            className="inline-flex items-center gap-1 px-2.5 py-2 min-h-11 rounded-lg bg-surface hover:bg-surface-hover border border-border text-xs font-medium text-foreground transition-colors"
+            aria-label="Copy share link"
+            title="Copy share link"
+          >
+            <Link2 className="w-3 h-3 text-muted" />
+            Share
+          </button>
+        )}
         <button
           type="button"
           onClick={(e: MouseEvent) => {

@@ -273,10 +273,11 @@ function LoginContent() {
 
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <label className="block text-xs font-semibold text-foreground mb-1.5">
+              <label htmlFor="login-email" className="block text-xs font-semibold text-foreground mb-1.5">
                 Email address
               </label>
               <input
+                id="login-email"
                 type="email"
                 required
                 autoComplete="email"
@@ -288,11 +289,12 @@ function LoginContent() {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-foreground mb-1.5">
+              <label htmlFor="login-password" className="block text-xs font-semibold text-foreground mb-1.5">
                 Password
               </label>
               <div className="relative">
                 <input
+                  id="login-password"
                   type={showPassword ? "text" : "password"}
                   required
                   autoComplete="current-password"
@@ -303,6 +305,7 @@ function LoginContent() {
                 />
                 <button
                   type="button"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
                   onClick={() => setShowPassword((v) => !v)}
                   className="absolute right-3 inset-y-0 flex items-center text-muted hover:text-foreground"
                 >

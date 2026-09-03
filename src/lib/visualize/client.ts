@@ -88,11 +88,12 @@ export async function markAlgorithmComplete(
 ): Promise<void> {
   if (!auth.currentUser) return;
   const headers = await authHeaders(true);
+  const normalizedId = algorithmId.replace(/-tree$/, "");
   await fetch("/api/visualize/progress", {
     method: "POST",
     headers,
     body: JSON.stringify({
-      algorithmId,
+      algorithmId: normalizedId,
       completed: true,
       timeSpentSeconds,
     }),
@@ -104,10 +105,18 @@ export async function logTelemetryEvent(payload: {
   algorithmId: string;
   action: string;
 }): Promise<void> {
+  if (typeof window === "undefined") return;
+  try {
+    if (localStorage.getItem("utility_viz_telemetry") !== "1") return;
+  } catch {
+    return;
+  }
   const headers = await authHeaders(false);
+  // Strip -tree so graph/tree sessions share the same algorithm id in telemetry.
+  const algorithmId = payload.algorithmId.replace(/-tree$/, "");
   await fetch("/api/visualize/telemetry", {
     method: "POST",
     headers,
-    body: JSON.stringify(payload),
+    body: JSON.stringify({ ...payload, algorithmId }),
   });
 }

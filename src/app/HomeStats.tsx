@@ -3,25 +3,23 @@
 import { useEffect, useRef, useState } from "react";
 import { useInView } from "framer-motion";
 
-function StatsCounter({ value }: { value: string }) {
+function StatsCounter({ value }: { value: number }) {
   const [count, setCount] = useState(0);
   const ref = useRef<HTMLSpanElement>(null);
   const isInView = useInView(ref, { once: true, margin: "-50px" });
-  const numericVal = parseInt(value.replace(/\D/g, ""), 10);
-  const hasPlus = value.includes("+");
 
   useEffect(() => {
     if (!isInView) return;
 
     let start = 0;
-    const end = numericVal;
-    if (Number.isNaN(end) || end === 0) {
-      setCount(end);
+    const end = value;
+    if (!Number.isFinite(end) || end <= 0) {
+      setCount(Math.max(0, end || 0));
       return;
     }
 
     const totalDuration = 1000;
-    const increment = Math.ceil(end / (totalDuration / 30));
+    const increment = Math.max(1, Math.ceil(end / (totalDuration / 30)));
 
     const timer = setInterval(() => {
       start += increment;
@@ -34,28 +32,35 @@ function StatsCounter({ value }: { value: string }) {
     }, 30);
 
     return () => clearInterval(timer);
-  }, [numericVal, isInView]);
+  }, [value, isInView]);
 
-  return (
-    <span ref={ref}>
-      {count}
-      {hasPlus && "+"}
-    </span>
-  );
+  return <span ref={ref}>{count}</span>;
 }
 
-const STATS = [
-  { label: "Subjects", value: "10+" },
-  { label: "Resources", value: "50+" },
-  { label: "Semesters", value: "8" },
-  { label: "Branches", value: "3" },
-] as const;
+export type HomeStatsProps = {
+  subjects: number;
+  resources: number;
+  semesters: number;
+  branches: number;
+};
 
-export default function HomeStats() {
+export default function HomeStats({
+  subjects,
+  resources,
+  semesters,
+  branches,
+}: HomeStatsProps) {
+  const stats = [
+    { label: "Subjects", value: subjects },
+    { label: "Resources", value: resources },
+    { label: "Semesters", value: semesters },
+    { label: "Branches", value: branches },
+  ] as const;
+
   return (
     <section className="w-full border-t border-border bg-background-subtle py-14">
       <div className="max-w-7xl mx-auto px-6 grid grid-cols-2 md:grid-cols-4 gap-6">
-        {STATS.map(({ label, value }) => (
+        {stats.map(({ label, value }) => (
           <div
             key={label}
             className="bg-card border border-border card-premium-hover p-6 rounded-2xl shadow-xs text-center relative overflow-hidden"

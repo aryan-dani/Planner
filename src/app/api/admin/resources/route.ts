@@ -115,7 +115,10 @@ export async function PATCH(request: Request) {
 
   try {
     const body = await request.json();
-    const { id, title, subject_id } = body;
+    const id = typeof body.id === "string" ? body.id.trim() : "";
+    const title = typeof body.title === "string" ? body.title.trim().slice(0, 300) : "";
+    const subject_id =
+      typeof body.subject_id === "string" ? body.subject_id.trim().slice(0, 128) : "";
 
     if (!id || !title || !subject_id) {
       return NextResponse.json(
@@ -132,12 +135,13 @@ export async function PATCH(request: Request) {
 
     revalidateTag("resources", "max");
     revalidateTag("subjects", "max");
+    revalidateTag("drive-allowlist", "max");
 
     return NextResponse.json({ success: true });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error updating resource:", error);
     return NextResponse.json(
-      { error: error.message || "Failed to update resource" },
+      { error: "Failed to update resource" },
       { status: 500 }
     );
   }

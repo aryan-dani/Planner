@@ -265,10 +265,11 @@ function SignupContent() {
 
           <form onSubmit={handleEmailSignup} className="space-y-4">
             <div>
-              <label className="block text-xs font-semibold text-foreground mb-1.5">
+              <label htmlFor="signup-email" className="block text-xs font-semibold text-foreground mb-1.5">
                 Email address
               </label>
               <input
+                id="signup-email"
                 type="email"
                 required
                 autoComplete="email"
@@ -280,11 +281,12 @@ function SignupContent() {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-foreground mb-1.5">
+              <label htmlFor="signup-password" className="block text-xs font-semibold text-foreground mb-1.5">
                 Password
               </label>
               <div className="relative">
                 <input
+                  id="signup-password"
                   type={showPassword ? "text" : "password"}
                   required
                   minLength={6}
@@ -296,6 +298,7 @@ function SignupContent() {
                 />
                 <button
                   type="button"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
                   onClick={() => setShowPassword((v) => !v)}
                   className="absolute right-3 inset-y-0 flex items-center text-muted hover:text-foreground"
                 >

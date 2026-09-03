@@ -13,7 +13,8 @@ import { routeQuery, compactHistory, stripInvalidCitations, validMarkerSet, mode
 import { executeTool, pickTool, getSyllabusUnit } from "@/lib/agent/tools";
 import { searchNotes } from "@/lib/agent/tools";
 import { lookupSemanticCache, storeSemanticCache } from "@/lib/rag/cache";
-import { CHAT_TEMPERATURE } from "@/lib/rag/config";
+import { embedQuery } from "@/lib/rag/embed";
+import { CHAT_TEMPERATURE, EMBED_DIMS } from "@/lib/rag/config";
 import type { RetrievalResult, RetrievalSource } from "@/lib/rag/types";
 
 const messagePartSchema = z.object({
@@ -107,11 +108,47 @@ function cachedStreamResponse(text: string, sources?: RetrievalSource[]) {
   });
 }
 
+/** Scrub invalid [S#] markers in streamed text deltas (hold back incomplete tails). */
+function citationScrubTransform(validMarkers: Set<string>) {
+  let hold = "";
+  return () =>
+    new TransformStream({
+      transform(chunk, controller) {
+        if (chunk?.type !== "text-delta" || typeof chunk.text !== "string") {
+          controller.enqueue(chunk);
+          return;
+        }
+        const combined = hold + chunk.text;
+        const incomplete = combined.match(/\[S\d*$/);
+        if (incomplete) {
+          hold = incomplete[0];
+          const ready = combined.slice(0, combined.length - hold.length);
+          const cleaned = stripInvalidCitations(ready, validMarkers);
+          if (cleaned) controller.enqueue({ ...chunk, text: cleaned });
+        } else {
+          hold = "";
+          controller.enqueue({
+            ...chunk,
+            text: stripInvalidCitations(combined, validMarkers),
+          });
+        }
+      },
+      flush(controller) {
+        if (!hold) return;
+        const cleaned = stripInvalidCitations(hold, validMarkers);
+        hold = "";
+        if (cleaned) {
+          controller.enqueue({ type: "text-delta", id: "scrub-flush", text: cleaned });
+        }
+      },
+    });
+}
+
 export async function POST(req: Request) {
   const auth = await requireUser(req);
   if (isAuthFailure(auth)) return auth;
 
-  const rate = enforceUserRateLimit(auth.uid, "chat", 30, 60_000);
+  const rate = await enforceUserRateLimit(auth.uid, "chat", 30, 60_000);
   if (!rate.allowed) {
     return new Response(JSON.stringify({ error: "Rate limit exceeded. Try again shortly." }), {
       status: 429,
@@ -140,7 +177,19 @@ export async function POST(req: Request) {
   const resourceId = context?.resourceId;
 
   const routed = routeQuery(lastMessage);
-  const toolCtx = { academicYear, branch, semester, subjects, resourceId };
+
+  // Single embed per turn — reuse for cache lookup, retrieve, and cache store
+  let queryEmbedding: number[] | undefined;
+  if (process.env.GEMINI_API_KEY && lastMessage.length > 5) {
+    try {
+      const emb = await embedQuery(lastMessage);
+      if (emb?.length === EMBED_DIMS) queryEmbedding = emb;
+    } catch (err) {
+      console.warn("Query embed error:", err);
+    }
+  }
+
+  const toolCtx = { academicYear, branch, semester, subjects, resourceId, queryEmbedding };
 
   // Semantic cache (embedding-based)
   if (lastMessage.length > 5) {
@@ -152,6 +201,7 @@ export async function POST(req: Request) {
         branch,
         semester,
         resourceId,
+        queryEmbedding,
       });
       if (cached?.response) {
         return cachedStreamResponse(
@@ -180,9 +230,13 @@ export async function POST(req: Request) {
   const toolName = pickTool(routed.intent);
 
   if (routed.intent === "compare") {
+    // capturing split: [before, delimiter, after]
     const parts = lastMessage.split(/\b(vs\.?|versus|compare|difference between)\b/i);
     const topicA = (parts[0] || lastMessage).trim();
-    const topicB = (parts[1] || "").trim();
+    // parts[1] is the delimiter when the group captures; topic B is parts[2+]
+    const topicB = parts.length > 2
+      ? parts.slice(2).join("").trim()
+      : "";
     const compareResult = await executeTool("compare_topics", { topicA, topicB }, toolCtx);
     if ("a" in compareResult && "b" in compareResult) {
       retrieval = {
@@ -248,6 +302,8 @@ export async function POST(req: Request) {
     messages: finalMessages,
     maxOutputTokens: 2048,
     temperature: CHAT_TEMPERATURE,
+    abortSignal: req.signal,
+    experimental_transform: citationScrubTransform(markers),
     onFinish: async ({ text }) => {
       const cleaned = stripInvalidCitations(text, markers);
       if (lastMessage.length > 5) {
@@ -260,6 +316,7 @@ export async function POST(req: Request) {
           resourceId,
           response: cleaned,
           sources,
+          queryEmbedding,
         });
       }
     },

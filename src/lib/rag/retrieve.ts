@@ -182,11 +182,11 @@ function scoreChunks(
 }
 
 async function fetchNeighborChunks(
-  hits: ChunkRecord[],
+  hits: Array<ChunkRecord & { fusedScore: number }>,
   topN: number,
-): Promise<ChunkRecord[]> {
+): Promise<Array<ChunkRecord & { fusedScore: number }>> {
   const db = adminDb();
-  const neighbors: ChunkRecord[] = [];
+  const neighbors: Array<ChunkRecord & { fusedScore: number }> = [];
   const seen = new Set(hits.map((h) => h.id));
 
   for (const hit of hits.slice(0, topN)) {
@@ -198,7 +198,11 @@ async function fetchNeighborChunks(
       seen.add(neighborId);
       const doc = await db.collection("resource_chunks").doc(neighborId).get();
       if (doc.exists) {
-        neighbors.push({ id: doc.id, ...doc.data() } as ChunkRecord);
+        neighbors.push({
+          id: doc.id,
+          ...doc.data(),
+          fusedScore: hit.fusedScore * 0.5,
+        } as ChunkRecord & { fusedScore: number });
       }
     }
   }
@@ -273,6 +277,8 @@ export async function retrieve(params: RetrieveParams): Promise<RetrievalResult>
     resourceId,
     limit = 5,
     categoryBoost: categoryBoostIn,
+    subjects,
+    queryEmbedding: queryEmbeddingIn,
   } = params;
 
   const cleaned = cleanQuery(query);
@@ -289,6 +295,7 @@ export async function retrieve(params: RetrieveParams): Promise<RetrievalResult>
     semester,
     resourceId,
     limit,
+    subjects,
   });
   const cached = getRetrievalCache(cacheKey);
   if (cached) return cached;
@@ -303,9 +310,10 @@ export async function retrieve(params: RetrieveParams): Promise<RetrievalResult>
     semester,
     resourceId,
   );
-  let queryVector: number[] | null = null;
+  let queryVector: number[] | null =
+    queryEmbeddingIn?.length ? queryEmbeddingIn : null;
 
-  if (process.env.GEMINI_API_KEY && cleaned.length > 2) {
+  if (!queryVector && process.env.GEMINI_API_KEY && cleaned.length > 2) {
     try {
       queryVector = await embedQuery(cleaned);
     } catch (err) {
@@ -346,13 +354,23 @@ export async function retrieve(params: RetrieveParams): Promise<RetrievalResult>
 
   const chunkMap = new Map<string, ChunkRecord>();
   for (const c of [...lexical, ...vector]) chunkMap.set(c.id, c);
-  const allChunks = [...chunkMap.values()];
+  let allChunks = [...chunkMap.values()];
+
+  if (subjects?.length) {
+    const lowered = subjects.map((s) => s.toLowerCase());
+    const filtered = allChunks.filter((c) => {
+      const name = (c.subject_name || "").toLowerCase();
+      return lowered.some((s) => name.includes(s) || s.includes(name));
+    });
+    if (filtered.length > 0) allChunks = filtered;
+  }
 
   const lexicalRanked = scoreChunks(allChunks, queryTerms, stats, categoryBoost).map(
     (c) => ({ id: c.id, score: c.score }),
   );
 
   const vectorRanked = vector
+    .filter((c) => allChunks.some((a) => a.id === c.id))
     .sort((a, b) => (a._distance ?? 1) - (b._distance ?? 1))
     .map((c) => ({ id: c.id, score: 1 - (c._distance ?? 1) }));
 
@@ -376,9 +394,20 @@ export async function retrieve(params: RetrieveParams): Promise<RetrievalResult>
 
   const mergedMap = new Map<string, ChunkRecord & { fusedScore: number }>();
   for (const h of ranked) mergedMap.set(h.id, h);
+  const parentScoreByResource = new Map<string, number>();
+  for (const h of topHits) {
+    const prev = parentScoreByResource.get(h.resource_id) ?? 0;
+    if ((h.fusedScore ?? 0) > prev) {
+      parentScoreByResource.set(h.resource_id, h.fusedScore);
+    }
+  }
   for (const n of neighbors) {
     if (!mergedMap.has(n.id)) {
-      mergedMap.set(n.id, { ...n, fusedScore: (mergedMap.get(n.resource_id + "_0")?.fusedScore ?? 0) * 0.5 });
+      const parentScore = parentScoreByResource.get(n.resource_id) ?? 0;
+      mergedMap.set(n.id, {
+        ...n,
+        fusedScore: parentScore * 0.5,
+      });
     }
   }
 

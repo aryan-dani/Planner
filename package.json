@@ -7,6 +7,9 @@
     "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint src",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "analyze": "cross-env ANALYZE=true npm run build",
     "sync-drive": "node runtime/tools/sync-drive.mjs",
     "upload-drive": "node runtime/tools/upload-drive.mjs",
@@ -61,7 +64,8 @@
     "firebase-tools": "^14.0.0",
     "postcss": "^8.5.14",
     "tailwindcss": "^3.4.19",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^3.2.7"
   },
   "overrides": {
     "uuid": "^11.0.3",

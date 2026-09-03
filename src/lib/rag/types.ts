@@ -52,6 +52,8 @@ export interface RetrieveParams {
   resourceId?: string;
   limit?: number;
   categoryBoost?: string[];
+  subjects?: string[];
+  queryEmbedding?: number[];
 }
 
 export interface CorpusStats {

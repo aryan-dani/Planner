@@ -52,12 +52,13 @@ const subjectCache = new Map<
 
 function highlightMatch(text: string, query: string) {
   if (!query.trim()) return <span>{text}</span>;
-  const regex = new RegExp(`(${query.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')})`, 'gi');
-  const parts = text.split(regex);
+  const escaped = query.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+  const parts = text.split(new RegExp(`(${escaped})`, 'i'));
+  const qLower = query.toLowerCase();
   return (
     <span>
       {parts.map((part, i) =>
-        regex.test(part) ? (
+        part.toLowerCase() === qLower ? (
           <mark key={i} className="bg-primary/20 text-primary font-bold rounded-sm px-0.5">
             {part}
           </mark>
@@ -75,15 +76,48 @@ export default function CommandPalette() {
     startNavigationProgress();
     router.push(href);
   };
-  const { academicYear, branch, semester, isCommandPaletteOpen, setCommandPaletteOpen, setSearchQuery } = useAcademicStore();
+  const { academicYear, branch, semester, isCommandPaletteOpen, setCommandPaletteOpen } = useAcademicStore();
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [isMac, setIsMac] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [dynamicSubjects, setDynamicSubjects] = useState<Array<{ id: string; name: string }>>([]);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
   const lastInteraction = useRef<'key' | 'mouse'>('key');
+
+  useEffect(() => {
+    if (!isCommandPaletteOpen) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { auth } = await import('@/lib/firebase');
+        const user = auth.currentUser;
+        if (!user) {
+          if (!cancelled) setIsAdmin(false);
+          return;
+        }
+        const token = await user.getIdToken();
+        const res = await fetch('/api/admin/me', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) {
+          if (!cancelled) setIsAdmin(false);
+          return;
+        }
+        const data = await res.json();
+        if (!cancelled) setIsAdmin(!!data.isAdmin);
+      } catch {
+        if (!cancelled) setIsAdmin(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isCommandPaletteOpen]);
+
   // Fetch dynamic subjects for the current branch & semester only when open
   useEffect(() => {
     if (!isCommandPaletteOpen) return;
@@ -374,17 +408,21 @@ export default function CommandPalette() {
           setCommandPaletteOpen(false);
         },
       },
-      {
-        id: 'nav-admin',
-        title: 'Admin Storage Sync Dashboard',
-        category: 'Navigation',
-        icon: Terminal,
-        badge: 'Admin',
-        action: () => {
-          navigate('/admin');
-          setCommandPaletteOpen(false);
-        },
-      },
+      ...(isAdmin
+        ? [
+            {
+              id: 'nav-admin',
+              title: 'Admin Storage Sync Dashboard',
+              category: 'Navigation' as const,
+              icon: Terminal,
+              badge: 'Admin',
+              action: () => {
+                navigate('/admin');
+                setCommandPaletteOpen(false);
+              },
+            },
+          ]
+        : []),
     ];
 
     const subjectItems: CommandItem[] = dynamicSubjects.map((sub) => ({
@@ -396,6 +434,7 @@ export default function CommandPalette() {
       hint: 'Open vault · notes, assignments',
       action: () => {
         const params = new URLSearchParams({
+          year: academicYear,
           branch,
           semester: String(semester),
           subject: subjectToSlug(sub.name),
@@ -406,7 +445,7 @@ export default function CommandPalette() {
     }));
 
     return [...baseItems, ...subjectItems];
-  }, [router, navigate, setCommandPaletteOpen, dynamicSubjects, branch, semester]);
+  }, [router, navigate, setCommandPaletteOpen, dynamicSubjects, branch, semester, academicYear, isAdmin]);
 
   // Filter items based on query
   const filteredItems = useMemo(() => {
@@ -445,11 +484,13 @@ export default function CommandPalette() {
         setCommandPaletteOpen(false);
       } else if (e.key === 'ArrowDown') {
         e.preventDefault();
+        if (filteredItems.length === 0) return;
         lastInteraction.current = 'key';
         setSelectedIndex((prev) => (prev + 1) % filteredItems.length);
         inputRef.current?.focus();
       } else if (e.key === 'ArrowUp') {
         e.preventDefault();
+        if (filteredItems.length === 0) return;
         lastInteraction.current = 'key';
         setSelectedIndex((prev) => (prev - 1 + filteredItems.length) % filteredItems.length);
         inputRef.current?.focus();
@@ -458,12 +499,33 @@ export default function CommandPalette() {
         if (filteredItems[selectedIndex]) {
           filteredItems[selectedIndex].action();
         }
+      } else if (e.key === 'Tab') {
+        const root = dialogRef.current;
+        if (!root) return;
+        const focusable = root.querySelectorAll<HTMLElement>(
+          'input, button:not([disabled]), [href], [tabindex]:not([tabindex="-1"])',
+        );
+        if (focusable.length === 0) return;
+        e.preventDefault();
+        const list = Array.from(focusable);
+        const idx = list.indexOf(document.activeElement as HTMLElement);
+        const next = e.shiftKey
+          ? (idx <= 0 ? list.length - 1 : idx - 1)
+          : (idx >= list.length - 1 ? 0 : idx + 1);
+        list[next]?.focus();
       }
     };
 
     window.addEventListener('keydown', handleModalKeyDown);
     return () => window.removeEventListener('keydown', handleModalKeyDown);
   }, [isCommandPaletteOpen, filteredItems, selectedIndex, setCommandPaletteOpen]);
+
+  // Focus search input when opened
+  useEffect(() => {
+    if (isCommandPaletteOpen) {
+      requestAnimationFrame(() => inputRef.current?.focus());
+    }
+  }, [isCommandPaletteOpen]);
 
   // Auto-scroll to selected item without triggering mouse events
   useEffect(() => {
@@ -477,7 +539,7 @@ export default function CommandPalette() {
   return (
     <AnimatePresence>
       {isCommandPaletteOpen && (
-        <div className="fixed inset-0 z-[200] flex items-start justify-center pt-[calc(4rem+env(safe-area-inset-top))] sm:pt-24 px-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+        <div className="fixed inset-0 z-[300] flex items-start justify-center pt-[calc(4rem+env(safe-area-inset-top))] sm:pt-24 px-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
           {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
@@ -490,6 +552,10 @@ export default function CommandPalette() {
 
           {/* Modal */}
           <motion.div
+            ref={dialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Command palette"
             initial={{ opacity: 0, scale: 0.97, y: -8 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.97, y: -8 }}

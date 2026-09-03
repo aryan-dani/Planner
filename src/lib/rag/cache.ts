@@ -48,11 +48,15 @@ export async function lookupSemanticCache(params: {
   branch: string;
   semester: number;
   resourceId?: string;
+  queryEmbedding?: number[];
 }): Promise<SemanticCacheHit | null> {
   if (!process.env.GEMINI_API_KEY) return null;
 
   try {
-    const queryVector = await embedQuery(params.query);
+    const queryVector =
+      params.queryEmbedding?.length === EMBED_DIMS
+        ? params.queryEmbedding
+        : await embedQuery(params.query);
     const db = adminDb();
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -106,12 +110,14 @@ export async function storeSemanticCache(params: {
   resourceId?: string;
   response: string;
   sources?: unknown;
+  queryEmbedding?: number[];
 }): Promise<void> {
   try {
     const db = adminDb();
-    let queryEmbedding: number[] | null = null;
+    let queryEmbedding: number[] | null =
+      params.queryEmbedding?.length === EMBED_DIMS ? params.queryEmbedding : null;
 
-    if (process.env.GEMINI_API_KEY) {
+    if (!queryEmbedding && process.env.GEMINI_API_KEY) {
       try {
         queryEmbedding = await embedQuery(params.query);
       } catch {

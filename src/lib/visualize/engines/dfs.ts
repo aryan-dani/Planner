@@ -137,19 +137,21 @@ export function generateDfsSteps(
 
       const tentativeGCost = current.gCost + 1;
 
-      neighbor.parent = { row: current.row, col: current.col };
-      neighbor.gCost = tentativeGCost;
-      neighbor.hCost = 0;
-      neighbor.fCost = tentativeGCost;
+      if (tentativeGCost < neighbor.gCost) {
+        neighbor.parent = { row: current.row, col: current.col };
+        neighbor.gCost = tentativeGCost;
+        neighbor.hCost = 0;
+        neighbor.fCost = tentativeGCost;
 
-      stack.push({ ...neighbor });
+        stack.push({ ...neighbor });
 
-      const inOpenSet = openSetPositions.some(
-        (p) => p.row === neighborRow && p.col === neighborCol,
-      );
+        const inOpenSet = openSetPositions.some(
+          (p) => p.row === neighborRow && p.col === neighborCol,
+        );
 
-      if (!inOpenSet) {
-        openSetPositions.push({ row: neighborRow, col: neighborCol });
+        if (!inOpenSet) {
+          openSetPositions.push({ row: neighborRow, col: neighborCol });
+        }
       }
     }
 

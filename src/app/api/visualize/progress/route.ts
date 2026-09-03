@@ -6,6 +6,11 @@ import { getAlgorithm } from "@/lib/visualize/catalog";
 
 export const dynamic = "force-dynamic";
 
+/** Normalize tree playback ids (e.g. `bfs-tree`) onto the base algorithm. */
+function normalizeAlgorithmId(raw: string): string {
+  return raw.replace(/-tree$/, "");
+}
+
 export async function GET(request: Request) {
   try {
     const auth = await requireUser(request);
@@ -43,13 +48,14 @@ export async function POST(request: Request) {
     if (isAuthFailure(auth)) return auth;
 
     const body = await request.json();
-    const algorithmId =
+    const rawId =
       typeof body.algorithmId === "string" ? body.algorithmId : "";
+    const algorithmId = normalizeAlgorithmId(rawId);
     if (!getAlgorithm(algorithmId)) {
       return NextResponse.json({ error: "Unknown algorithm" }, { status: 400 });
     }
 
-    const timeSpentSeconds = Math.max(
+    const deltaSeconds = Math.max(
       0,
       Math.min(Number(body.timeSpentSeconds) || 0, 86_400),
     );
@@ -57,11 +63,16 @@ export async function POST(request: Request) {
 
     const db = adminDb();
     const docId = `${auth.uid}_${algorithmId}`;
-    await db.collection("visualize_progress").doc(docId).set(
+    const docRef = db.collection("visualize_progress").doc(docId);
+    const existing = await docRef.get();
+    const prevSeconds = Number(existing.data()?.timeSpentSeconds) || 0;
+    const timeSpentSeconds = Math.min(prevSeconds + deltaSeconds, 86_400);
+
+    await docRef.set(
       {
         owner_id: auth.uid,
         algorithmId,
-        completed,
+        completed: completed || Boolean(existing.data()?.completed),
         timeSpentSeconds,
         updated_at: FieldValue.serverTimestamp(),
       },

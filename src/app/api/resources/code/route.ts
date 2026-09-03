@@ -1,14 +1,11 @@
 import { NextResponse } from "next/server";
-import { isAuthFailure, requireUser } from "@/lib/apiAuth";
-import { getDriveClient, isAllowedDriveFile } from "@/lib/driveServer";
+import { getDriveClient } from "@/lib/driveServer";
+import { isAllowedDriveFileCached } from "@/lib/driveAllowlist";
 
 const MAX_BYTES = 8 * 1024 * 1024; // 8 MB — typical notebooks exceed 2 MB
 
-/** Fetch plain-text source from a Drive file for the code viewer. */
+/** Fetch plain-text source from a Drive file for the code viewer (allowlisted anonymous GET). */
 export async function GET(request: Request) {
-  const auth = await requireUser(request);
-  if (isAuthFailure(auth)) return auth;
-
   const { searchParams } = new URL(request.url);
   const fileId = searchParams.get("id");
 
@@ -16,7 +13,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Valid file id required" }, { status: 400 });
   }
 
-  if (!(await isAllowedDriveFile(fileId))) {
+  if (!(await isAllowedDriveFileCached(fileId))) {
     return NextResponse.json({ error: "File not available" }, { status: 404 });
   }
 

@@ -9,6 +9,17 @@ import { summarize } from "./lib/pdf.mjs";
 import syncProject from "./tools/sync-drive.mjs";
 import indexContent from "./tools/index-content.mjs";
 import purgeCache from "./tools/purge-cache.mjs";
+import doctor from "./tools/doctor.mjs";
+
+function parseFlag(args, name) {
+  const eq = args.find((a) => a.startsWith(`--${name}=`));
+  if (eq) return eq.slice(`--${name}=`.length);
+  const idx = args.indexOf(`--${name}`);
+  if (idx >= 0 && args[idx + 1] && !args[idx + 1].startsWith("-")) {
+    return args[idx + 1];
+  }
+  return null;
+}
 
 const helpText = `
 Academic OS Runtime CLI (Firebase Backend)
@@ -23,12 +34,17 @@ Commands:
   pdf <bucket> <path> Extract text and metadata from a PDF
   search <term>     Search all PDFs locally in 'course-content' for a term
   sync              Synchronize Google Drive with Firestore database
+                      --subject=<name>  Limit sync + prune to matching subjects
+                      --dry-run         Print actions without writing
   index             Index resource contents into Firestore for RAG search
   purge-cache       Purge semantic cache entries older than 30 days
+  doctor            Check env vars + Firestore collection health
   
 Examples:
   node runtime/index.mjs files course-content
   node runtime/index.mjs sync
+  node runtime/index.mjs sync --subject=ML --dry-run
+  node runtime/index.mjs doctor
   node runtime/index.mjs index
   node runtime/index.mjs purge-cache
 `;
@@ -52,7 +68,7 @@ async function main() {
       case "buckets": {
         const b = await listBuckets();
         console.log(`\n📦 STORAGE BUCKETS:\n`);
-        b.forEach(bucket => console.log(` - ${bucket.name}`));
+        b.forEach((bucket) => console.log(` - ${bucket.name}`));
         console.log("");
         break;
       }
@@ -69,7 +85,9 @@ async function main() {
       case "pdf": {
         if (args.length < 2) throw new Error("Bucket and path required.");
         console.log(`\n📄 Extracting PDF: ${args[1]}...`);
-        const result = await summarize(await (await import("./lib/storage.mjs")).downloadFile(args[0], args[1]));
+        const result = await summarize(
+          await (await import("./lib/storage.mjs")).downloadFile(args[0], args[1]),
+        );
         console.log(`\nPages: ${result.pages}`);
         console.log(`Metadata:`, result.metadata);
         console.log(`\nText Preview:\n${"-".repeat(20)}\n${result.summary}\n`);
@@ -84,10 +102,13 @@ async function main() {
       }
 
       case "sync": {
-        await syncProject();
+        await syncProject({
+          subject: parseFlag(args, "subject"),
+          dryRun: args.includes("--dry-run"),
+        });
         break;
       }
-      
+
       case "index": {
         await indexContent();
         break;
@@ -98,12 +119,19 @@ async function main() {
         break;
       }
 
+      case "doctor": {
+        await doctor();
+        break;
+      }
+
       default:
         console.error(`Unknown command: ${cmd}`);
         console.log(helpText);
+        process.exitCode = 1;
     }
   } catch (error) {
     console.error(`\n❌ Error: ${error.message}\n`);
+    process.exitCode = 1;
   }
 }
 

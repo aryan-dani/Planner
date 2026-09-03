@@ -6,7 +6,8 @@
 import { db } from "./firebase.mjs";
 
 export async function select(table, options = {}) {
-  const { columns = "*", where = [], order = null, limit = 100, offset = 0 } = options;
+  // Default null = no limit (callers that need a cap must pass limit explicitly).
+  const { columns = "*", where = [], order = null, limit = null, offset = 0 } = options;
   
   try {
     let q = db.collection(table);
@@ -94,20 +95,36 @@ export async function insert(table, data) {
 
 export async function update(table, filters, data) {
   try {
-    const { data: matchedDocs } = await select(table, { columns: "id", where: filters });
+    // Paginate through all matches — avoid silently capping at a default limit.
+    const matchedDocs = [];
+    let offset = 0;
+    const pageSize = 500;
+    while (true) {
+      const { data: page } = await select(table, {
+        columns: "id",
+        where: filters,
+        limit: pageSize,
+        offset,
+      });
+      matchedDocs.push(...page);
+      if (page.length < pageSize) break;
+      offset += pageSize;
+    }
     if (matchedDocs.length === 0) return [];
-    
-    const batch = db.batch();
+
     const cleanData = { ...data };
     delete cleanData.id;
-    
-    for (const doc of matchedDocs) {
-      const docRef = db.collection(table).doc(doc.id);
-      batch.update(docRef, cleanData);
+
+    for (let i = 0; i < matchedDocs.length; i += 400) {
+      const slice = matchedDocs.slice(i, i + 400);
+      const batch = db.batch();
+      for (const doc of slice) {
+        batch.update(db.collection(table).doc(doc.id), cleanData);
+      }
+      await batch.commit();
     }
-    await batch.commit();
-    
-    return matchedDocs.map(doc => ({ ...doc, ...cleanData }));
+
+    return matchedDocs.map((doc) => ({ ...doc, ...cleanData }));
   } catch (err) {
     throw new Error(`update("${table}"): ${err.message}`);
   }
@@ -116,18 +133,33 @@ export async function update(table, filters, data) {
 export async function remove(table, filters) {
   if (!filters || filters.length === 0)
     throw new Error(`remove("${table}"): refusing to delete without filters.`);
-    
+
   try {
-    const { data } = await select(table, { columns: "id", where: filters });
-    if (data.length === 0) return [];
-    
-    const batch = db.batch();
-    for (const doc of data) {
-      const docRef = db.collection(table).doc(doc.id);
-      batch.delete(docRef);
+    const matched = [];
+    let offset = 0;
+    const pageSize = 500;
+    while (true) {
+      const { data: page } = await select(table, {
+        columns: "id",
+        where: filters,
+        limit: pageSize,
+        offset,
+      });
+      matched.push(...page);
+      if (page.length < pageSize) break;
+      offset += pageSize;
     }
-    await batch.commit();
-    return data;
+    if (matched.length === 0) return [];
+
+    for (let i = 0; i < matched.length; i += 400) {
+      const slice = matched.slice(i, i + 400);
+      const batch = db.batch();
+      for (const doc of slice) {
+        batch.delete(db.collection(table).doc(doc.id));
+      }
+      await batch.commit();
+    }
+    return matched;
   } catch (err) {
     throw new Error(`remove("${table}"): ${err.message}`);
   }

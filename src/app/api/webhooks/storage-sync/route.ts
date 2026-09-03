@@ -3,6 +3,7 @@ import { revalidateTag } from "next/cache";
 import syncDrive from "../../../../../runtime/tools/sync-drive.mjs";
 import { adminAuth, hasFirebaseCredentials } from "@/lib/firebaseAdmin";
 import { getAdminEmails } from "@/lib/apiAuth";
+import { safeEqualSecret } from "@/lib/safeEqual";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -31,11 +32,11 @@ function canRunInProcess(): boolean {
 
 async function isAuthorized(request: Request): Promise<boolean> {
   const authHeader = request.headers.get("authorization");
-  const cronSecret = process.env.CRON_SECRET;
+  const cronSecret = process.env.CRON_SECRET?.trim();
   const bearer =
     authHeader?.startsWith("Bearer ") ? authHeader.slice(7).trim() : null;
 
-  if (cronSecret && bearer && bearer === cronSecret) {
+  if (cronSecret && bearer && safeEqualSecret(bearer, cronSecret)) {
     return true;
   }
 
@@ -99,6 +100,7 @@ function queueInProcessDriveSync() {
       revalidateTag("subjects", "max");
       revalidateTag("resources", "max");
       revalidateTag("syllabus", "max");
+      revalidateTag("drive-allowlist", "max");
     } catch (err) {
       console.error("❌ Background sync failed:", err);
     }

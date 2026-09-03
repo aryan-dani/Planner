@@ -67,6 +67,7 @@ export function buildResourcesHref(opts: {
   filter?: ResourceFilter | null;
   folder?: string | null;
   view?: string | null;
+  page?: number | null;
 }): string {
   const params = new URLSearchParams();
   if (opts.academicYear) params.set("year", opts.academicYear);
@@ -76,5 +77,6 @@ export function buildResourcesHref(opts: {
   if (opts.filter && opts.filter !== "all") params.set("filter", opts.filter);
   if (opts.folder) params.set("folder", opts.folder);
   if (opts.view) params.set("view", opts.view);
+  if (opts.page && opts.page > 0) params.set("page", String(opts.page));
   return `/resources?${params.toString()}`;
 }

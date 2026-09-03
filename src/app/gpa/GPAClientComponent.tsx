@@ -138,12 +138,13 @@ function resolveWorkspaceCourse(
 }
 
 function getGradePoint(marks: number) {
-  if(marks >= 90) return 10; 
-  if(marks >= 80) return 9; 
-  if(marks >= 70) return 8;
-  if(marks >= 60) return 7; 
-  if(marks >= 50) return 6; 
-  if(marks >= 40) return 5; 
+  const clamped = Math.min(100, Math.max(0, marks));
+  if(clamped >= 90) return 10;
+  if(clamped >= 80) return 9;
+  if(clamped >= 70) return 8;
+  if(clamped >= 60) return 7;
+  if(clamped >= 50) return 6;
+  if(clamped >= 40) return 5;
   return 0;
 }
 
@@ -210,7 +211,13 @@ export default function GPAClient() {
         else if (parsed.branch && COURSE_DATA[parsed.branch] && parsed.branch !== 'AIDS') {
           setCourseKeyOverride(parsed.branch);
         }
-        if (parsed.marks) setMarks(parsed.marks);
+        if (parsed.marks) {
+          const clamped: Record<string, number> = {};
+          for (const [id, v] of Object.entries(parsed.marks as Record<string, number>)) {
+            clamped[id] = Math.min(100, Math.max(0, Number(v) || 0));
+          }
+          setMarks(clamped);
+        }
       } catch (e) {
         console.error('Failed to load GPA data', e);
       }
@@ -261,7 +268,7 @@ export default function GPAClient() {
   }, [hydrated, semestersData, targetCGPA, targetSemester]);
 
   const handleMarkChange = (id: string, value: string) => {
-    const num = parseFloat(value) || 0;
+    const num = Math.min(100, Math.max(0, parseFloat(value) || 0));
     setMarks(prev => ({ ...prev, [id]: num }));
   };
 
@@ -299,7 +306,9 @@ export default function GPAClient() {
       totalPoints += bestGP * sub.credits;
     });
     
-    return parseFloat((totalPoints / currentBranch.totalCredits).toFixed(2));
+    return currentBranch.totalCredits > 0
+      ? parseFloat((totalPoints / currentBranch.totalCredits).toFixed(2))
+      : 0;
   }, [currentBranch, marks]);
 
   const simulatedGPA = useMemo(() => {
@@ -314,7 +323,9 @@ export default function GPAClient() {
       totalPoints += (simSelections[sub.id] || 0) * sub.credits;
     });
     
-    return parseFloat((totalPoints / currentBranch.totalCredits).toFixed(2));
+    return currentBranch.totalCredits > 0
+      ? parseFloat((totalPoints / currentBranch.totalCredits).toFixed(2))
+      : 0;
   }, [currentBranch, marks, simSelections]);
 
   // Sync simulatedGPA into the active calculator semester

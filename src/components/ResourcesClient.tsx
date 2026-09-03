@@ -22,8 +22,10 @@ import {
   Loader2,
   ChevronRight,
   ClipboardList,
+  Clock,
 } from "lucide-react";
 import dynamic from "next/dynamic";
+import { toast } from "sonner";
 import ResourceSection from "./resources/ResourceSection";
 import { cleanResourceTitle } from "@/lib/titleUtils";
 import { NotesDisclaimer } from "./NotesDisclaimer";
@@ -45,8 +47,14 @@ import {
   subjectToSlug,
   parseResourceFilter,
   parseResourceFolder,
+  buildResourcesHref,
   type ResourceFilter,
 } from "@/lib/resourceUrl";
+import {
+  getRecentResources,
+  pushRecentResource,
+  type RecentResource,
+} from "@/lib/recentResources";
 import { Button, Card, Badge } from "@/components/ui";
 
 const ResourceViewer = dynamic(() => import("./ResourceViewer"), { ssr: false });
@@ -109,6 +117,8 @@ export default function ResourcesClient({
   const [viewerResource, setViewerResource] = useState<ResourceItem | null>(
     null,
   );
+  const [viewerPage, setViewerPage] = useState<number | null>(null);
+  const [recentResources, setRecentResources] = useState<RecentResource[]>([]);
   const [summarizingResource, setSummarizingResource] =
     useState<ResourceItem | null>(null);
   const [contentResults, setContentResults] = useState<any[]>([]);
@@ -375,6 +385,12 @@ export default function ResourcesClient({
     if (match) {
       didOpenInitialView.current = true;
       setViewerResource(match);
+      const pageRaw = searchParams.get("page");
+      const pageNum = pageRaw ? Number(pageRaw) : NaN;
+      setViewerPage(Number.isFinite(pageNum) && pageNum > 0 ? pageNum : null);
+      setRecentResources(
+        pushRecentResource(match, { academicYear, branch, semester }),
+      );
       if (match.subject_name) {
         lastUserSubjectRef.current = match.subject_name;
         setSelectedSubject(match.subject_name);
@@ -388,7 +404,11 @@ export default function ResourcesClient({
         }
       }
     }
-  }, [initialView, searchParams, resources]);
+  }, [initialView, searchParams, resources, academicYear, branch, semester]);
+
+  useEffect(() => {
+    setRecentResources(getRecentResources());
+  }, []);
 
   useEffect(() => {
     if (!selectedSubject) return;
@@ -404,19 +424,63 @@ export default function ResourcesClient({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedSubject, selectedFilter, viewerResource?.id, activeFolderId]);
 
-  const openResource = useCallback((item: ResourceItem) => {
-    const folder = folderIdForResource(item);
-    if (folder) setActiveFolderId(folder);
-    setViewerResource(item);
-  }, []);
+  const openResource = useCallback(
+    (item: ResourceItem, page?: number | null) => {
+      const folder = folderIdForResource(item);
+      if (folder) setActiveFolderId(folder);
+      setViewerResource(item);
+      setViewerPage(page && page > 0 ? page : null);
+      setRecentResources(
+        pushRecentResource(item, { academicYear, branch, semester }),
+      );
+    },
+    [academicYear, branch, semester],
+  );
+
+  const shareResource = useCallback(
+    async (item: ResourceItem) => {
+      const href = buildResourcesHref({
+        academicYear,
+        branch,
+        semester,
+        subject: item.subject_name,
+        view: item.id,
+        folder: folderIdForResource(item),
+      });
+      const url =
+        typeof window !== "undefined"
+          ? `${window.location.origin}${href}`
+          : href;
+      try {
+        await navigator.clipboard.writeText(url);
+        toast.success("Share link copied");
+      } catch {
+        toast.error("Could not copy link");
+      }
+    },
+    [academicYear, branch, semester],
+  );
 
   const closeViewer = useCallback(() => {
     setViewerResource(null);
+    setViewerPage(null);
   }, []);
 
   const handleFolderChange = useCallback((folderId: string | null) => {
     setActiveFolderId(folderId);
   }, []);
+
+  const handleVaultSearch = useCallback(
+    (value: string) => {
+      setSearchQuery(value);
+      if (value.trim().length >= 3) {
+        setAiSearchQuery(value.trim());
+      } else {
+        setAiSearchQuery("");
+      }
+    },
+    [setSearchQuery, setAiSearchQuery],
+  );
 
   useEffect(() => {
     if (!aiSearchQuery.trim() || aiSearchQuery.length < 3) {
@@ -439,13 +503,16 @@ export default function ResourcesClient({
           return;
         }
         const idToken = await user.getIdToken();
-        const res = await fetch(
-          `/api/search?q=${encodeURIComponent(aiSearchQuery)}`,
-          {
-            signal: abortController.signal,
-            headers: { Authorization: `Bearer ${idToken}` },
-          },
-        );
+        const params = new URLSearchParams({
+          q: aiSearchQuery,
+          year: academicYear,
+          branch,
+          semester: String(semester),
+        });
+        const res = await fetch(`/api/search?${params.toString()}`, {
+          signal: abortController.signal,
+          headers: { Authorization: `Bearer ${idToken}` },
+        });
         if (!res.ok) {
           if (searchRequestId.current === requestId) setContentResults([]);
           return;
@@ -470,7 +537,7 @@ export default function ResourcesClient({
       clearTimeout(timer);
       abortController.abort();
     };
-  }, [aiSearchQuery]);
+  }, [aiSearchQuery, academicYear, branch, semester]);
 
   const searchedResources = useMemo(() => {
     const all = selectedSubject ? (subjectsMap[selectedSubject] ?? []) : [];
@@ -824,6 +891,44 @@ export default function ResourcesClient({
                 transition={{ duration: 0.18 }}
                 className="space-y-8"
               >
+                {recentResources.length > 0 && (
+                  <div className="rounded-xl border border-border/70 bg-surface/40 p-3">
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <Clock className="w-3.5 h-3.5 text-muted" />
+                      <p className="text-[11px] font-bold uppercase tracking-wider text-muted">
+                        Recently viewed
+                      </p>
+                    </div>
+                    <div className="flex gap-2 overflow-x-auto pb-0.5 scrollbar-none">
+                      {recentResources.slice(0, 8).map((r) => {
+                        const live = resources.find((x) => x.id === r.id);
+                        return (
+                          <button
+                            key={r.id}
+                            type="button"
+                            onClick={() => {
+                              if (live) openResource(live);
+                              else if (r.subject_name) {
+                                lastUserSubjectRef.current = r.subject_name;
+                                setSelectedSubject(r.subject_name);
+                              }
+                            }}
+                            className="shrink-0 max-w-[11rem] rounded-lg border border-border bg-card px-2.5 py-2 text-left hover:bg-surface-hover transition-colors"
+                            title={cleanResourceTitle(r.title)}
+                          >
+                            <p className="text-xs font-medium text-foreground truncate">
+                              {cleanResourceTitle(r.title)}
+                            </p>
+                            <p className="text-[10px] text-muted truncate mt-0.5">
+                              {r.subject_name}
+                            </p>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
                 <div className="flex flex-col gap-4 border-b border-border pb-5">
                   <div className="flex flex-col gap-1.5">
                     <div className="flex items-center gap-3 flex-wrap">
@@ -842,8 +947,7 @@ export default function ResourcesClient({
                             variant="ghost"
                             size="sm"
                             onClick={() => {
-                              setSearchQuery("");
-                              setAiSearchQuery("");
+                              handleVaultSearch("");
                               setSelectedFilter("all");
                               setActiveFolderId(null);
                             }}
@@ -859,6 +963,18 @@ export default function ResourcesClient({
                         {summaryHint}
                       </p>
                     )}
+                  </div>
+
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted pointer-events-none" />
+                    <input
+                      type="search"
+                      value={searchQuery}
+                      onChange={(e) => handleVaultSearch(e.target.value)}
+                      placeholder="Search files… (3+ chars for content match)"
+                      className="w-full rounded-xl border border-border bg-background pl-9 pr-3 py-2 text-sm text-foreground placeholder:text-muted outline-none focus:border-foreground/30 focus:ring-1 focus:ring-foreground/10"
+                      aria-label="Search vault"
+                    />
                   </div>
 
                   <div
@@ -1006,6 +1122,7 @@ export default function ResourcesClient({
                         folders={notesFolders}
                         onOpenResource={openResource}
                         onSummarize={setSummarizingResource}
+                        onShare={shareResource}
                         activeFolderId={activeFolderId}
                         onFolderChange={handleFolderChange}
                         highlightFileId={viewerResource?.id}
@@ -1022,6 +1139,7 @@ export default function ResourcesClient({
                         )}
                         onOpenResource={openResource}
                         onSummarize={setSummarizingResource}
+                        onShare={shareResource}
                       />
                     )}
 
@@ -1038,6 +1156,7 @@ export default function ResourcesClient({
                           )}
                           onOpenResource={openResource}
                           onSummarize={setSummarizingResource}
+                          onShare={shareResource}
                         />
                       )}
 
@@ -1049,6 +1168,7 @@ export default function ResourcesClient({
                         folders={pptFolders}
                         onOpenResource={openResource}
                         onSummarize={setSummarizingResource}
+                        onShare={shareResource}
                         activeFolderId={activeFolderId}
                         onFolderChange={handleFolderChange}
                         highlightFileId={viewerResource?.id}
@@ -1063,6 +1183,7 @@ export default function ResourcesClient({
                         folders={pyqFolders}
                         onOpenResource={openResource}
                         onSummarize={setSummarizingResource}
+                        onShare={shareResource}
                         activeFolderId={activeFolderId}
                         onFolderChange={handleFolderChange}
                         highlightFileId={viewerResource?.id}
@@ -1077,6 +1198,7 @@ export default function ResourcesClient({
                         folders={assignmentFolders}
                         onOpenResource={openResource}
                         onSummarize={setSummarizingResource}
+                        onShare={shareResource}
                         activeFolderId={activeFolderId}
                         onFolderChange={handleFolderChange}
                         highlightFileId={viewerResource?.id}
@@ -1091,6 +1213,7 @@ export default function ResourcesClient({
                         items={otherItems}
                         onOpenResource={openResource}
                         onSummarize={setSummarizingResource}
+                        onShare={shareResource}
                       />
                     )}
                   </div>
@@ -1120,6 +1243,7 @@ export default function ResourcesClient({
           onClose={closeViewer}
           assignmentSiblings={viewerSiblings}
           onOpenRelated={openResource}
+          initialPage={viewerPage}
         />
       )}
       {summarizingResource && (

@@ -24,6 +24,13 @@ export interface PlaybackControls<TState> {
   setSpeedMs: (speed: number) => void;
 }
 
+function createSessionId(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return `viz-${Math.random().toString(36).slice(2)}`;
+}
+
 export function useVisualizerPlayback<TState>(
   steps: AlgorithmStep<TState>[],
   algorithmId: string = "unknown",
@@ -31,11 +38,7 @@ export function useVisualizerPlayback<TState>(
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [speedMs, setSpeedMs] = useState(PLAYBACK_SPEED_DEFAULT_MS);
-  const sessionIdRef = useRef(
-    typeof crypto !== "undefined" && crypto.randomUUID
-      ? crypto.randomUUID()
-      : `viz-${Date.now()}`,
-  );
+  const [sessionId] = useState(createSessionId);
 
   const activeTimeMsRef = useRef(0);
   const isCompletedRef = useRef(false);
@@ -47,13 +50,13 @@ export function useVisualizerPlayback<TState>(
     (action: string) => {
       if (algorithmId !== "unknown") {
         logTelemetryEvent({
-          sessionId: sessionIdRef.current,
+          sessionId,
           algorithmId,
           action,
         }).catch(() => {});
       }
     },
-    [algorithmId],
+    [algorithmId, sessionId],
   );
 
   useEffect(() => {
@@ -77,17 +80,12 @@ export function useVisualizerPlayback<TState>(
     logAction("STEP_FORWARD");
     setCurrentStepIndex((prevIndex) => {
       if (prevIndex < stepsRef.current.length - 1) {
-        const next = prevIndex + 1;
-        if (next >= stepsRef.current.length - 1) {
-          maybeComplete();
-        }
-        return next;
+        return prevIndex + 1;
       }
       setIsPlaying(false);
-      maybeComplete();
       return prevIndex;
     });
-  }, [logAction, maybeComplete]);
+  }, [logAction]);
 
   const stepBackward = useCallback(() => {
     logAction("STEP_BACKWARD");
@@ -129,15 +127,9 @@ export function useVisualizerPlayback<TState>(
         0,
         Math.min(index, stepsRef.current.length - 1),
       );
-      if (
-        stepsRef.current.length > 0 &&
-        clampedIndex === stepsRef.current.length - 1
-      ) {
-        maybeComplete();
-      }
       setCurrentStepIndex(clampedIndex);
     },
-    [logAction, maybeComplete],
+    [logAction],
   );
 
   useEffect(() => {

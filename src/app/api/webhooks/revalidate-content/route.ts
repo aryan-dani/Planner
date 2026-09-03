@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
+import { safeEqualSecret } from "@/lib/safeEqual";
 
 export const dynamic = "force-dynamic";
 
@@ -8,7 +9,7 @@ async function isAuthorized(request: Request): Promise<boolean> {
   const bearer =
     authHeader?.startsWith("Bearer ") ? authHeader.slice(7).trim() : null;
   const cronSecret = process.env.CRON_SECRET?.trim();
-  if (cronSecret && bearer === cronSecret) return true;
+  if (cronSecret && bearer && safeEqualSecret(bearer, cronSecret)) return true;
   if (!cronSecret && process.env.NODE_ENV !== "production") return true;
   return false;
 }
@@ -22,6 +23,11 @@ export async function POST(request: Request) {
   revalidateTag("subjects", "max");
   revalidateTag("resources", "max");
   revalidateTag("syllabus", "max");
+  // Allowlist cache used by /api/resources/preview
+  revalidateTag("drive-allowlist", "max");
 
-  return NextResponse.json({ success: true, revalidated: ["subjects", "resources", "syllabus"] });
+  return NextResponse.json({
+    success: true,
+    revalidated: ["subjects", "resources", "syllabus", "drive-allowlist"],
+  });
 }

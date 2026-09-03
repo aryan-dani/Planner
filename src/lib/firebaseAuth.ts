@@ -347,26 +347,45 @@ async function completeMerge(auth: Auth): Promise<User> {
   }
 
   const ids = providerIds(current);
-  const currentIsGithubWithoutGoogle = ids.includes("github.com") && !ids.includes("google.com");
 
-  if (currentIsGithubWithoutGoogle) {
-    await current.delete();
-    const googleSignIn = await signInWithCredential(auth, googleCred);
-    const linked = await attachGithub(googleSignIn.user, githubCred);
-    clearMerge();
-    return linked;
-  }
-
+  // Google is the surviving identity — never delete Auth users.
   if (ids.includes("google.com")) {
-    await signInWithCredential(auth, githubCred);
-    if (auth.currentUser) {
-      await auth.currentUser.delete();
+    try {
+      const linked = await attachGithub(current, githubCred);
+      clearMerge();
+      return linked;
+    } catch (err: unknown) {
+      const code = (err as { code?: string })?.code;
+      if (code === "auth/credential-already-in-use" || code === "auth/provider-already-linked") {
+        clearMerge();
+        throw new Error(
+          "This GitHub account is already linked to another user. Sign in with Google and link GitHub from Profile.",
+        );
+      }
+      throw err;
     }
-    const googleSignIn = await signInWithCredential(auth, googleCred);
-    const linked = await attachGithub(googleSignIn.user, githubCred);
-    clearMerge();
-    return linked;
   }
 
-  throw new Error("Could not merge these accounts.");
+  if (ids.includes("github.com")) {
+    // Switch to Google without deleting the GitHub Auth user (may leave an orphan).
+    const googleSignIn = await signInWithCredential(auth, googleCred);
+    try {
+      const linked = await attachGithub(googleSignIn.user, githubCred);
+      clearMerge();
+      return linked;
+    } catch (err: unknown) {
+      const code = (err as { code?: string })?.code;
+      if (code === "auth/credential-already-in-use" || code === "auth/provider-already-linked") {
+        clearMerge();
+        throw new Error(
+          "Could not link GitHub onto this Google account. Sign in with Google first, then link GitHub from Profile.",
+        );
+      }
+      throw err;
+    }
+  }
+
+  throw new Error(
+    "Could not merge these accounts. Sign in with Google first, then link GitHub from Profile.",
+  );
 }

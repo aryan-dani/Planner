@@ -29,9 +29,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { auth } from '@/lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { toast } from 'sonner';
+import { localDateKey } from '@/lib/dateLocal';
 
 function getTodayString() {
-  return new Date().toISOString().split('T')[0];
+  return localDateKey();
 }
 
 export default function SrsClient() {
@@ -258,7 +259,7 @@ export default function SrsClient() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [view, currentIndex, reviewQueue, isFlipped]);
+  }, [view, currentIndex, reviewQueue, isFlipped, handleGrade]);
 
   const handleCreateDeck = (e: React.FormEvent) => {
     e.preventDefault();

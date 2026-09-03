@@ -3,19 +3,50 @@ import { FieldValue } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { isAuthFailure, requireUser } from "@/lib/apiAuth";
 import { SavedGridData } from "@/lib/visualize/grid";
+import { enforceUserRateLimit } from "@/lib/rateLimit";
 
 export const dynamic = "force-dynamic";
+
+const MAX_ROWS = 40;
+const MAX_COLS = 40;
+const MAX_WALLS = 800;
 
 function isSavedGridData(value: unknown): value is SavedGridData {
   if (!value || typeof value !== "object") return false;
   const data = value as SavedGridData;
-  return (
-    typeof data.rows === "number" &&
-    typeof data.cols === "number" &&
-    data.startPos != null &&
-    data.goalPos != null &&
-    Array.isArray(data.walls)
-  );
+  if (
+    typeof data.rows !== "number" ||
+    typeof data.cols !== "number" ||
+    data.startPos == null ||
+    data.goalPos == null ||
+    !Array.isArray(data.walls)
+  ) {
+    return false;
+  }
+  if (
+    !Number.isInteger(data.rows) ||
+    !Number.isInteger(data.cols) ||
+    data.rows < 2 ||
+    data.cols < 2 ||
+    data.rows > MAX_ROWS ||
+    data.cols > MAX_COLS ||
+    data.walls.length > MAX_WALLS
+  ) {
+    return false;
+  }
+  const inBounds = (r: number, c: number) =>
+    Number.isInteger(r) &&
+    Number.isInteger(c) &&
+    r >= 0 &&
+    c >= 0 &&
+    r < data.rows &&
+    c < data.cols;
+  if (!inBounds(data.startPos.row, data.startPos.col)) return false;
+  if (!inBounds(data.goalPos.row, data.goalPos.col)) return false;
+  for (const w of data.walls) {
+    if (!w || !inBounds(w.row, w.col)) return false;
+  }
+  return true;
 }
 
 export async function GET(request: Request) {
@@ -49,6 +80,7 @@ export async function GET(request: Request) {
     const snapshot = await db
       .collection("visualize_grids")
       .where("owner_id", "==", auth.uid)
+      .limit(100)
       .get();
 
     const grids = snapshot.docs
@@ -74,6 +106,14 @@ export async function POST(request: Request) {
   try {
     const auth = await requireUser(request);
     if (isAuthFailure(auth)) return auth;
+
+    const rate = await enforceUserRateLimit(auth.uid, "visualize-grids", 30, 60_000);
+    if (!rate.allowed) {
+      return NextResponse.json(
+        { error: "Rate limit exceeded" },
+        { status: 429, headers: { "Retry-After": String(rate.retryAfterSec) } },
+      );
+    }
 
     const body = await request.json();
     const name =
