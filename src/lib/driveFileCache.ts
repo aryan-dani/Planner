@@ -92,8 +92,12 @@ export async function fetchCachedDriveFile(
 
   const res = await fetch(url, {
     signal: opts.signal,
+    method: "GET",
+    mode: "cors",
     credentials: "omit",
     redirect: "follow",
+    // Avoid caches that a service worker might poison; app Cache API owns hits above.
+    cache: "no-store",
   });
 
   if (!res.ok) {

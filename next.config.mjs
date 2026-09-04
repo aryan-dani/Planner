@@ -91,6 +91,8 @@ const config = isDev
       },
       // Keep default Workbox page/asset caching, but do not CacheFirst/NetworkFirst third-party
       // origins (Drive PDFs must stay on the app Cache API, not Workbox).
+      // Google Drive/usercontent hosts must NOT be handled by the SW at all — NetworkOnly
+      // still intercepts fetch() and strips/breaks CORS for drive.usercontent.google.com.
       extendDefaultRuntimeCaching: true,
       workboxOptions: {
         skipWaiting: true,
@@ -98,10 +100,21 @@ const config = isDev
         exclude: [/\.map$/, /^manifest.*\.js$/],
         runtimeCaching: [
           {
-            urlPattern: ({ sameOrigin }) => !sameOrigin,
-            handler: 'NetworkOnly',
+            urlPattern: ({ url, sameOrigin }) => {
+              if (sameOrigin) return false;
+              const host = url.hostname;
+              if (
+                host === "drive.usercontent.google.com" ||
+                host === "drive.google.com" ||
+                host.endsWith(".googleusercontent.com")
+              ) {
+                return false;
+              }
+              return true;
+            },
+            handler: "NetworkOnly",
             options: {
-              cacheName: 'cross-origin',
+              cacheName: "cross-origin",
             },
           },
         ],
