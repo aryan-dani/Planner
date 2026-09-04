@@ -20,6 +20,8 @@ import {
   DEFAULT_SEMESTER,
 } from "@/lib/workspace";
 
+export const revalidate = 600;
+
 const FLOW = [
   { href: "/syllabus", title: "Syllabus", hint: "Units & topics" },
   { href: "/resources", title: "Vault", hint: "Notes & files" },

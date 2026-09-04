@@ -23,11 +23,9 @@ export async function POST(request: Request) {
   revalidateTag("subjects", "max");
   revalidateTag("resources", "max");
   revalidateTag("syllabus", "max");
-  // Allowlist cache used by /api/resources/preview
-  revalidateTag("drive-allowlist", "max");
 
   return NextResponse.json({
     success: true,
-    revalidated: ["subjects", "resources", "syllabus", "drive-allowlist"],
+    revalidated: ["subjects", "resources", "syllabus"],
   });
 }

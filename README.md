@@ -202,6 +202,18 @@ Phase 3 / 4 shipped:
 
 Ops still needed: deploy `firestore.rules`; optional Upstash Redis for distributed rate limits.
 
+## Hosting budget (Vercel Hobby)
+
+Stay inside the free allotments or the project pauses. Three meters matter:
+
+| Meter | Hobby included | What counts here | Rule |
+|-------|----------------|------------------|------|
+| **Fast Origin Transfer** | 10 GB / month | Bytes between CDN and Vercel Functions | Never stream PDFs/files through API routes. Browsers download from Google Drive directly (`src/lib/driveFileCache.ts`). |
+| **Fast Data Transfer** | 100 GB / month | Bytes CDN → visitors (HTML, JS, images) | Keep PWA precache small; icons optimized; no hover-prefetch of large files. |
+| **Edge / CDN Requests** | 1M / month | Every request hitting the CDN | No polling; no SW StaleWhileRevalidate on multi-MB bodies; prefer ISR HTML. |
+
+After deploy, watch **Usage → Fast Origin Transfer** for 48 hours — it should stay at KB-scale JSON/HTML only. CI enforces the no-proxy rule via `src/lib/__guards__/noFileProxy.test.ts`.
+
 ## License
 
 Proprietary License - All Rights Reserved. See [LICENSE](LICENSE) for details.

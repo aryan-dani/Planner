@@ -29,12 +29,8 @@ import { cleanResourceTitle, shortCodeLabel } from "@/lib/titleUtils";
 import NotebookViewer from "@/components/NotebookViewer";
 import PdfPreview, { type PdfPreviewHandle } from "@/components/PdfPreview";
 import CsvPreview from "@/components/CsvPreview";
-import {
-  folderIdForResource,
-  folderLabelFromId,
-  getResourceFileRole,
-} from "@/lib/resourceGroups";
-import { auth } from "@/lib/firebase";
+import { folderIdForResource, folderLabelFromId, getResourceFileRole } from "@/lib/resourceGroups";
+import { getDirectDownloadUrl } from "@/lib/driveFileCache";
 
 interface ResourceViewerProps {
   resource: ResourceItem;
@@ -72,12 +68,9 @@ function getViewerUrl(resource: ResourceItem) {
 }
 
 function getDirectUrl(resource: ResourceItem) {
-  const isDrive = resource.file_url.includes("drive.google.com");
-  if (isDrive) {
-    const driveId = getDriveFileId(resource.file_url);
-    if (driveId) {
-      return `https://drive.google.com/uc?export=download&id=${driveId}`;
-    }
+  const driveId = getDriveFileId(resource.file_url);
+  if (driveId) {
+    return getDirectDownloadUrl(driveId);
   }
   return resource.file_url;
 }
@@ -166,7 +159,8 @@ export default function ResourceViewer({
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [codeContent, setCodeContent] = useState<string | null>(null);
-  const usePdfJs = isPdf && !!driveId;
+  const [pdfDirectFailed, setPdfDirectFailed] = useState(false);
+  const usePdfJs = isPdf && !!driveId && !pdfDirectFailed;
   const usesIframePreview =
     !isTextFetch && !isNotebook && !isImage && !usePdfJs && !!embedUrl;
   const activeIframeSrc = embedUrl;
@@ -179,6 +173,7 @@ export default function ResourceViewer({
     setIsLoading(true);
     setLoadError(false);
     setCodeContent(null);
+    setPdfDirectFailed(false);
     if (isPdf && getDriveFileId(resource.file_url)) {
       setIsLoading(false);
     }
@@ -188,48 +183,56 @@ export default function ResourceViewer({
     if (!isTextFetch) return;
 
     let cancelled = false;
+    const abort = new AbortController();
 
     async function loadText() {
       setIsLoading(true);
       setLoadError(false);
       try {
-        if (driveId) {
-          const user = auth.currentUser;
-          const headers: HeadersInit = {};
-          if (user) {
-            headers.Authorization = `Bearer ${await user.getIdToken()}`;
-          }
-          const res = await fetch(`/api/resources/code?id=${driveId}`, { headers });
-          if (res.status === 413) {
-            throw new Error("File too large to preview in-app");
-          }
-          if (!res.ok) throw new Error("Failed to load file");
-          const text = await res.text();
-          if (!cancelled) {
-            setCodeContent(text);
-            setIsLoading(false);
-          }
-          return;
+        const url = driveId
+          ? getDirectDownloadUrl(driveId)
+          : resource.file_url;
+        const res = await fetch(url, {
+          signal: abort.signal,
+          credentials: "omit",
+          redirect: "follow",
+        });
+        if (!res.ok) throw new Error("Failed to load file");
+
+        const contentType = (res.headers.get("content-type") || "").toLowerCase();
+        if (contentType.includes("text/html")) {
+          throw new Error("drive interstitial");
         }
 
-        const res = await fetch(resource.file_url);
-        if (!res.ok) throw new Error("Failed to load file");
+        const totalHeader = res.headers.get("content-length");
+        const total = totalHeader ? Number(totalHeader) : null;
+        const MAX_TEXT_BYTES = 8 * 1024 * 1024;
+        if (total !== null && Number.isFinite(total) && total > MAX_TEXT_BYTES) {
+          throw new Error("File too large to preview in-app");
+        }
+
         const text = await res.text();
+        if (new TextEncoder().encode(text).length > MAX_TEXT_BYTES) {
+          throw new Error("File too large to preview in-app");
+        }
         if (!cancelled) {
           setCodeContent(text);
           setIsLoading(false);
         }
-      } catch {
+      } catch (err) {
+        if (abort.signal.aborted || cancelled) return;
         if (!cancelled) {
           setLoadError(true);
           setIsLoading(false);
         }
+        void err;
       }
     }
 
     loadText();
     return () => {
       cancelled = true;
+      abort.abort();
     };
   }, [isTextFetch, resource.file_url, driveId]);
 
@@ -619,8 +622,9 @@ export default function ResourceViewer({
                 }
               }}
               onFail={() => {
-                setLoadError(true);
-                setIsLoading(false);
+                setPdfDirectFailed(true);
+                setIsLoading(true);
+                setLoadError(false);
               }}
             />
           ) : usesIframePreview && activeIframeSrc ? (

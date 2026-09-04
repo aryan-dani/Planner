@@ -40,9 +40,10 @@ export const metadata: Metadata = {
     icon: [
       { url: '/favicon.ico', sizes: 'any' },
       { url: '/utility-logo.svg', type: 'image/svg+xml' },
-      { url: '/utility-logo.png', type: 'image/png', sizes: '512x512' },
+      { url: '/icon-192x192.png', type: 'image/png', sizes: '192x192' },
+      { url: '/icon-512x512.png', type: 'image/png', sizes: '512x512' },
     ],
-    apple: [{ url: '/utility-logo.png', sizes: '180x180', type: 'image/png' }],
+    apple: [{ url: '/apple-icon.png', sizes: '180x180', type: 'image/png' }],
   },
   openGraph: {
     title: 'Utility',
@@ -50,13 +51,13 @@ export const metadata: Metadata = {
     type: 'website',
     url: 'https://utilityos.tech',
     siteName: 'Utility',
-    images: [{ url: '/utility-logo.png', width: 512, height: 512, alt: 'Utility' }],
+    images: [{ url: '/utility-logo-og.png', width: 512, height: 512, alt: 'Utility' }],
   },
   twitter: {
     card: 'summary',
     title: 'Utility',
     description: 'A premium academic workspace. Access your syllabus, resources, AI assistant, and planner in one place.',
-    images: ['/utility-logo.png'],
+    images: ['/utility-logo-og.png'],
   },
   appleWebApp: {
     capable: true,

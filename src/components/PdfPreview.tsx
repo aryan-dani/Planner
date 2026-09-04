@@ -18,7 +18,7 @@ import {
   ZoomIn,
   ZoomOut,
 } from "lucide-react";
-import { fetchCachedPdf } from "@/lib/pdfPreviewCache";
+import { fetchCachedDriveFile, type DriveFetchProgress } from "@/lib/driveFileCache";
 import { cn } from "@/lib/cn";
 
 export type PdfPreviewHandle = {
@@ -43,6 +43,12 @@ type PdfDocument = Awaited<ReturnType<PdfModule["getDocument"]>["promise"]>;
 type FindHit = { page: number; snippet: string; occurrence: number };
 
 const BUFFER_PAGES = 2;
+
+function formatBytes(n: number): string {
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+  return `${(n / (1024 * 1024)).toFixed(1)} MB`;
+}
 
 function PdfPage({
   pdf,
@@ -173,6 +179,8 @@ const PdfPreview = forwardRef<PdfPreviewHandle, PdfPreviewProps>(
     const [scale, setScale] = useState(1.15);
     const [failed, setFailed] = useState(false);
     const [loading, setLoading] = useState(true);
+    const [downloadProgress, setDownloadProgress] =
+      useState<DriveFetchProgress | null>(null);
     const [textReady, setTextReady] = useState(false);
     const [heights, setHeights] = useState<Record<number, number>>({});
     const [visible, setVisible] = useState<Set<number>>(new Set([1, 2, 3]));
@@ -193,8 +201,10 @@ const PdfPreview = forwardRef<PdfPreviewHandle, PdfPreviewProps>(
     useEffect(() => {
       const gen = ++genRef.current;
       let cancelled = false;
+      const abort = new AbortController();
       setLoading(true);
       setFailed(false);
+      setDownloadProgress(null);
       setTextReady(false);
       setPdf(null);
       setHits([]);
@@ -209,7 +219,14 @@ const PdfPreview = forwardRef<PdfPreviewHandle, PdfPreviewProps>(
         try {
           const mod = await import("pdfjs-dist");
           mod.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
-          const blob = await fetchCachedPdf(driveId, ext);
+          const blob = await fetchCachedDriveFile(driveId, {
+            signal: abort.signal,
+            onProgress: (p) => {
+              if (!cancelled && gen === genRef.current) {
+                setDownloadProgress(p);
+              }
+            },
+          });
           if (cancelled || gen !== genRef.current) return;
           const data = await blob.arrayBuffer();
           if (cancelled || gen !== genRef.current) return;
@@ -226,6 +243,7 @@ const PdfPreview = forwardRef<PdfPreviewHandle, PdfPreviewProps>(
           setJumpValue("1");
           setVisible(new Set([1, 2, Math.min(3, doc.numPages)]));
           setLoading(false);
+          setDownloadProgress(null);
 
           const texts: string[] = [];
           for (let i = 1; i <= doc.numPages; i++) {
@@ -240,17 +258,21 @@ const PdfPreview = forwardRef<PdfPreviewHandle, PdfPreviewProps>(
           pageTextRef.current = texts;
           setTextReady(true);
           onReadyRef.current?.();
-        } catch {
+        } catch (err) {
+          if (abort.signal.aborted || cancelled) return;
           if (!cancelled && gen === genRef.current) {
             setFailed(true);
             setLoading(false);
+            setDownloadProgress(null);
             onFailRef.current?.();
           }
+          void err;
         }
       })();
 
       return () => {
         cancelled = true;
+        abort.abort();
         if (docRef.current) {
           void docRef.current.destroy().catch(() => {});
           docRef.current = null;
@@ -537,9 +559,39 @@ const PdfPreview = forwardRef<PdfPreviewHandle, PdfPreviewProps>(
 
         <div ref={scrollRef} className="flex-1 overflow-auto pdf-scroll p-4 sm:p-6">
           {loading && !failed && (
-            <div className="flex flex-col items-center justify-center gap-3 py-16 text-muted">
+            <div className="flex flex-col items-center justify-center gap-3 py-16 text-muted w-full max-w-sm mx-auto px-4">
               <span className="loading-orb" aria-hidden />
-              <p className="text-sm font-medium">Loading PDF…</p>
+              <p className="text-sm font-medium">
+                {downloadProgress
+                  ? downloadProgress.total
+                    ? `Downloading ${formatBytes(downloadProgress.loaded)} / ${formatBytes(downloadProgress.total)}`
+                    : `Downloading ${formatBytes(downloadProgress.loaded)}…`
+                  : "Loading PDF…"}
+              </p>
+              {downloadProgress && downloadProgress.total && downloadProgress.total > 0 && (
+                <div
+                  className="h-1.5 w-full rounded-full bg-surface overflow-hidden border border-border"
+                  role="progressbar"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={Math.min(
+                    100,
+                    Math.round(
+                      (downloadProgress.loaded / downloadProgress.total) * 100,
+                    ),
+                  )}
+                >
+                  <div
+                    className="h-full bg-foreground transition-[width] duration-150 ease-out"
+                    style={{
+                      width: `${Math.min(
+                        100,
+                        (downloadProgress.loaded / downloadProgress.total) * 100,
+                      )}%`,
+                    }}
+                  />
+                </div>
+              )}
             </div>
           )}
 

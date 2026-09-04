@@ -53,6 +53,12 @@ const config = isDev
       skipWaiting: false,
       cacheOnFrontEndNav: false,
       aggressiveFrontEndNavCaching: false,
+      // Keep heavy assets out of the install-time precache (fetch on demand).
+      publicExcludes: [
+        "!pdf.worker.min.mjs",
+        "!utility-logo.png",
+        "!utility-logo-og.png",
+      ],
       workboxOptions: {
         skipWaiting: false,
         navigateFallback: '/~offline',
@@ -62,23 +68,9 @@ const config = isDev
           /^\/admin/,
           /^\/api/,
         ],
-        runtimeCaching: [
-          {
-            urlPattern: ({ url }) =>
-              url.pathname.startsWith("/api/resources/preview"),
-            handler: "StaleWhileRevalidate",
-            options: {
-              cacheName: "utility-pdf-preview",
-              expiration: {
-                maxEntries: 48,
-                maxAgeSeconds: 7 * 24 * 60 * 60,
-              },
-              cacheableResponse: {
-                statuses: [200],
-              },
-            },
-          },
-        ],
+        exclude: [/\.map$/, /^manifest.*\.js$/],
+        // No runtimeCaching for Drive/PDF — app Cache API owns that (avoids SWR re-downloads).
+        runtimeCaching: [],
       },
       fallback: {
         document: '/~offline',
