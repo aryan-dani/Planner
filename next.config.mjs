@@ -23,12 +23,15 @@ const nextConfig = {
   async headers() {
     const csp = [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://va.vercel-scripts.com",
+      // apis.google.com: Firebase Auth (gapi iframe for popup/redirect sign-in).
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://va.vercel-scripts.com https://apis.google.com",
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: blob: https:",
       "font-src 'self' data:",
-      "connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.firebase.com https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://drive.usercontent.google.com https://vitals.vercel-insights.com https://*.google.com wss://*.firebaseio.com",
-      "frame-src https://drive.google.com https://*.google.com https://view.officeapps.live.com",
+      // *.googleusercontent.com: Google avatar + Drive download redirects (fetched via SW).
+      "connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.firebase.com https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://drive.usercontent.google.com https://*.googleusercontent.com https://vitals.vercel-insights.com https://*.google.com wss://*.firebaseio.com",
+      // *.firebaseapp.com + accounts.google.com: Firebase Auth helper iframes.
+      "frame-src https://drive.google.com https://*.google.com https://accounts.google.com https://*.firebaseapp.com https://view.officeapps.live.com",
       "worker-src 'self' blob:",
       "object-src 'none'",
       "base-uri 'self'",
