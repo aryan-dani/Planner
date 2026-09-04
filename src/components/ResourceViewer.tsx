@@ -30,11 +30,7 @@ import NotebookViewer from "@/components/NotebookViewer";
 import PdfPreview, { type PdfPreviewHandle } from "@/components/PdfPreview";
 import CsvPreview from "@/components/CsvPreview";
 import { folderIdForResource, folderLabelFromId, getResourceFileRole } from "@/lib/resourceGroups";
-import {
-  getDirectDownloadUrl,
-  fetchCachedDriveFile,
-} from "@/lib/driveFileCache";
-import { toast } from "sonner";
+import { getDirectDownloadUrl, matchCachedDriveFile } from "@/lib/driveFileCache";
 
 const FOCUSABLE =
   'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])';
@@ -167,8 +163,8 @@ export default function ResourceViewer({
   const [loadError, setLoadError] = useState(false);
   const [codeContent, setCodeContent] = useState<string | null>(null);
   const [pdfDirectFailed, setPdfDirectFailed] = useState(false);
-  const [savingOffline, setSavingOffline] = useState(false);
-  const usePdfJs = isPdf && !!driveId && !pdfDirectFailed;
+  const [hasCachedPdf, setHasCachedPdf] = useState(false);
+  const usePdfJs = isPdf && !!driveId && hasCachedPdf && !pdfDirectFailed;
   const usesIframePreview =
     !isTextFetch && !isNotebook && !isImage && !usePdfJs && !!embedUrl;
   const activeIframeSrc = embedUrl;
@@ -182,10 +178,29 @@ export default function ResourceViewer({
     setLoadError(false);
     setCodeContent(null);
     setPdfDirectFailed(false);
+    setHasCachedPdf(false);
     if (isPdf && getDriveFileId(resource.file_url)) {
       setIsLoading(false);
     }
   }, [embedUrl, resource.file_url, resource.id, isPdf]);
+
+  useEffect(() => {
+    if (!isPdf || !driveId) {
+      setHasCachedPdf(false);
+      return;
+    }
+    let cancelled = false;
+    matchCachedDriveFile(driveId)
+      .then((blob) => {
+        if (!cancelled) setHasCachedPdf(!!blob);
+      })
+      .catch(() => {
+        if (!cancelled) setHasCachedPdf(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isPdf, driveId, resource.id]);
 
   useEffect(() => {
     if (!isTextFetch) return;
@@ -197,10 +212,17 @@ export default function ResourceViewer({
       setIsLoading(true);
       setLoadError(false);
       try {
-        const url = driveId
-          ? getDirectDownloadUrl(driveId)
-          : resource.file_url;
-        const res = await fetch(url, {
+        if (driveId) {
+          const cached = await matchCachedDriveFile(driveId);
+          if (!cached) throw new Error("not cached");
+          const text = await cached.text();
+          if (!cancelled) {
+            setCodeContent(text);
+            setIsLoading(false);
+          }
+          return;
+        }
+        const res = await fetch(resource.file_url, {
           signal: abort.signal,
           credentials: "omit",
           redirect: "follow",
@@ -470,42 +492,6 @@ export default function ResourceViewer({
         >
           <Download className="h-4 w-4" />
         </a>
-        {driveId && (
-          <button
-            type="button"
-            disabled={savingOffline}
-            onClick={async () => {
-              if (!driveId || savingOffline) return;
-              setSavingOffline(true);
-              const toastId = toast.loading("Saving offline…");
-              try {
-                await fetchCachedDriveFile(driveId, {
-                  onProgress: (p) => {
-                    if (p.total && p.total > 0) {
-                      const pct = Math.min(
-                        99,
-                        Math.round((p.loaded / p.total) * 100),
-                      );
-                      toast.loading(`Saving offline… ${pct}%`, { id: toastId });
-                    }
-                  },
-                });
-                toast.success("Saved for offline viewing", { id: toastId });
-              } catch (err) {
-                const msg =
-                  err instanceof Error ? err.message : "Could not save offline";
-                toast.error(msg, { id: toastId });
-              } finally {
-                setSavingOffline(false);
-              }
-            }}
-            className="hidden sm:flex h-8 px-2 items-center justify-center rounded-lg text-xs font-semibold text-muted transition-colors hover:bg-surface hover:text-foreground disabled:opacity-50"
-            title="Save offline copy in this browser"
-            aria-label="Save offline"
-          >
-            {savingOffline ? "Saving…" : "Save offline"}
-          </button>
-        )}
         <button
           type="button"
           onClick={onClose}

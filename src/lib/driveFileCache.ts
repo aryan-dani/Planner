@@ -71,6 +71,26 @@ export async function clearDriveFileCache(): Promise<void> {
   await caches.delete(CACHE_NAME);
 }
 
+/** Read a previously cached Drive file. Never hits the network (avoids CORS 403). */
+export async function matchCachedDriveFile(
+  driveId: string,
+): Promise<Blob | null> {
+  if (!driveId) return null;
+  const cache = await openCache();
+  if (!cache) return null;
+  const hit = await cache.match(cacheKey(driveId));
+  if (!hit) return null;
+  return hit.blob();
+}
+
+/**
+ * Cache-first Drive download.
+ *
+ * Google's `drive.usercontent.google.com/download` often returns 403 and no
+ * `Access-Control-Allow-Origin` for cross-origin fetch(). Callers that preview
+ * files should use `matchCachedDriveFile` + Drive iframe instead of this.
+ * This network path is only for an explicit user "save offline" action.
+ */
 export async function fetchCachedDriveFile(
   driveId: string,
   opts: FetchCachedDriveFileOptions = {},
@@ -81,13 +101,10 @@ export async function fetchCachedDriveFile(
   const maxBytes = opts.maxBytes ?? CLIENT_SOFT_CAP_BYTES;
   const cache = await openCache();
 
-  if (cache) {
-    const hit = await cache.match(url);
-    if (hit) {
-      const blob = await hit.blob();
-      opts.onProgress?.({ loaded: blob.size, total: blob.size });
-      return blob;
-    }
+  const cached = await matchCachedDriveFile(driveId);
+  if (cached) {
+    opts.onProgress?.({ loaded: cached.size, total: cached.size });
+    return cached;
   }
 
   const res = await fetch(url, {
@@ -96,7 +113,6 @@ export async function fetchCachedDriveFile(
     mode: "cors",
     credentials: "omit",
     redirect: "follow",
-    // Avoid caches that a service worker might poison; app Cache API owns hits above.
     cache: "no-store",
   });
 

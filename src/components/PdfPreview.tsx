@@ -18,7 +18,7 @@ import {
   ZoomIn,
   ZoomOut,
 } from "lucide-react";
-import { fetchCachedDriveFile, type DriveFetchProgress } from "@/lib/driveFileCache";
+import { matchCachedDriveFile, type DriveFetchProgress } from "@/lib/driveFileCache";
 import { setReadingProgress } from "@/lib/readingProgress";
 import { cn } from "@/lib/cn";
 
@@ -212,7 +212,6 @@ const PdfPreview = forwardRef<PdfPreviewHandle, PdfPreviewProps>(
     useEffect(() => {
       const gen = ++genRef.current;
       let cancelled = false;
-      const abort = new AbortController();
       setLoading(true);
       setFailed(false);
       setDownloadProgress(null);
@@ -230,14 +229,10 @@ const PdfPreview = forwardRef<PdfPreviewHandle, PdfPreviewProps>(
         try {
           const mod = await import("pdfjs-dist");
           mod.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
-          const blob = await fetchCachedDriveFile(driveId, {
-            signal: abort.signal,
-            onProgress: (p) => {
-              if (!cancelled && gen === genRef.current) {
-                setDownloadProgress(p);
-              }
-            },
-          });
+          // Only render with pdf.js when bytes are already in the Cache API.
+          // Cross-origin fetch to drive.usercontent.google.com is 403/CORS.
+          const blob = await matchCachedDriveFile(driveId);
+          if (!blob) throw new Error("not cached");
           if (cancelled || gen !== genRef.current) return;
           const data = await blob.arrayBuffer();
           if (cancelled || gen !== genRef.current) return;
@@ -270,8 +265,8 @@ const PdfPreview = forwardRef<PdfPreviewHandle, PdfPreviewProps>(
           setTextReady(true);
           onReadyRef.current?.();
         } catch (err) {
-          if (abort.signal.aborted || cancelled) return;
-          if (!cancelled && gen === genRef.current) {
+          if (cancelled) return;
+          if (gen === genRef.current) {
             setFailed(true);
             setLoading(false);
             setDownloadProgress(null);
@@ -283,7 +278,6 @@ const PdfPreview = forwardRef<PdfPreviewHandle, PdfPreviewProps>(
 
       return () => {
         cancelled = true;
-        abort.abort();
         if (docRef.current) {
           void docRef.current.destroy().catch(() => {});
           docRef.current = null;
