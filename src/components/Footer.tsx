@@ -70,8 +70,8 @@ function FooterInner() {
         </div>
 
         <div className="pt-8 border-t border-border/30 flex flex-col sm:flex-row justify-between items-center gap-4">
-          <p className="text-xs text-muted/60">
-            © {new Date().getFullYear()} Utility. Built for efficiency.
+          <p className="text-xs text-muted/60" suppressHydrationWarning>
+            © 2026 Utility. Built for efficiency.
           </p>
           <div className="flex items-center gap-6">
             <a

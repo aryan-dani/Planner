@@ -1,11 +1,13 @@
 import type { Metadata, Viewport } from 'next';
 import { Inter, Newsreader } from 'next/font/google';
+import Script from 'next/script';
 import { Suspense } from 'react';
 import './globals.css';
 import Navigation from '@/components/Navigation';
 import ConditionalFooter from '@/components/ConditionalFooter';
 import { Providers } from '@/components/Providers';
 import InstallPrompt from '@/components/pwa/InstallPrompt';
+import { SW_RECOVERY_SCRIPT } from '@/components/pwa/swRecoveryScript';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 
 const inter = Inter({
@@ -78,6 +80,11 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body className={`${inter.className} antialiased min-h-screen bg-background text-foreground overflow-x-hidden`}>
+        <Script
+          id="utility-sw-recovery"
+          strategy="beforeInteractive"
+          dangerouslySetInnerHTML={{ __html: SW_RECOVERY_SCRIPT }}
+        />
         <a
           href="#main-content"
           className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[9999] focus:rounded-md focus:bg-foreground focus:px-4 focus:py-2 focus:text-sm focus:text-background"

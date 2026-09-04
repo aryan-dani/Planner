@@ -495,7 +495,10 @@ function NavigationInner() {
                 <Search className="w-3.5 h-3.5 text-muted group-hover:text-foreground transition-colors" />
                 <span className="font-medium">Search…</span>
               </span>
-              <kbd className="hidden sm:inline-flex px-1.5 py-0.5 text-[10px] font-semibold bg-background border border-border rounded-md text-muted">
+              <kbd
+                className="hidden sm:inline-flex px-1.5 py-0.5 text-[10px] font-semibold bg-background border border-border rounded-md text-muted"
+                suppressHydrationWarning
+              >
                 {isMac ? "⌘K" : "Ctrl+K"}
               </kbd>
             </button>
