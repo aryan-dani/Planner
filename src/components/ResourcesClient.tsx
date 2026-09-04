@@ -112,12 +112,11 @@ export default function ResourcesClient() {
   const initialFolder = searchParams.get("folder");
   const initialSubject = searchParams.get("subject");
 
+  // Defaults only for first paint — URL deep-links apply in useEffect after mount
+  // so static SSR (empty searchParams) matches the client hydration pass.
   const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
-  const [selectedFilter, setSelectedFilter] =
-    useState<ResourceFilter>(initialFilter);
-  const [activeFolderId, setActiveFolderId] = useState<string | null>(
-    () => parseResourceFolder(initialFolder),
-  );
+  const [selectedFilter, setSelectedFilter] = useState<ResourceFilter>("all");
+  const [activeFolderId, setActiveFolderId] = useState<string | null>(null);
   const [viewerResource, setViewerResource] = useState<ResourceItem | null>(
     null,
   );

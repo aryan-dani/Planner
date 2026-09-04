@@ -1,21 +1,23 @@
 'use client';
 
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
-import { Suspense } from 'react';
+import { useAcademicStore } from '@/store/academicStore';
 
-function FooterInner() {
-  const searchParams = useSearchParams();
-  const branch = searchParams.get('branch');
-  const semester = searchParams.get('semester');
+export default function Footer() {
+  const academicYear = useAcademicStore((s) => s.academicYear);
+  const branch = useAcademicStore((s) => s.branch);
+  const semester = useAcademicStore((s) => s.semester);
 
+  // Use the Zustand store (same on SSR + first client paint). Never read
+  // useSearchParams here — static pages omit the query string on the server,
+  // which mismatched hrefs and contributed to hydration errors.
   const getLinkWithParams = (href: string) => {
     if (href.startsWith('http') || href.startsWith('//')) return href;
     const params = new URLSearchParams();
-    if (branch) params.set('branch', branch);
-    if (semester) params.set('semester', semester);
-    const queryString = params.toString();
-    return queryString ? `${href}?${queryString}` : href;
+    params.set('year', academicYear);
+    params.set('branch', branch);
+    params.set('semester', String(semester));
+    return `${href}?${params.toString()}`;
   };
 
   return (
@@ -87,13 +89,5 @@ function FooterInner() {
         </div>
       </div>
     </footer>
-  );
-}
-
-export default function Footer() {
-  return (
-    <Suspense fallback={null}>
-      <FooterInner />
-    </Suspense>
   );
 }

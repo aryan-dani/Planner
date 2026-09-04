@@ -32,12 +32,6 @@ import dynamic from "next/dynamic";
 import { useAcademicStore, AcademicYear, Branch, Semester } from "../store/academicStore";
 import { startNavigationProgress } from "./NavigationProgress";
 import {
-  DEFAULT_ACADEMIC_YEAR,
-  DEFAULT_BRANCH,
-  DEFAULT_SEMESTER,
-  parseAcademicYear,
-  parseBranch,
-  parseSemester,
   readStoredWorkspace,
   resolveWorkspace,
   writeStoredWorkspace,
@@ -157,24 +151,11 @@ function NavigationInner() {
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const storeAcademicYear = useAcademicStore((s) => s.academicYear);
-  const storeBranch = useAcademicStore((s) => s.branch);
-  const storeSemester = useAcademicStore((s) => s.semester);
-  const urlWorkspace = resolveWorkspace(
-    {
-      year: searchParams.get("year"),
-      branch: searchParams.get("branch"),
-      semester: searchParams.get("semester"),
-    },
-    {
-      academicYear: storeAcademicYear,
-      branch: storeBranch,
-      semester: storeSemester,
-    },
-  );
-  const academicYear = urlWorkspace.academicYear;
-  const branch = urlWorkspace.branch;
-  const semester = urlWorkspace.semester;
+  // Display store values only — never searchParams during render. Static SSR has no
+  // query string, so reading URL here caused React #418 (Current/2026–2027 vs Archive/2025–2026).
+  const academicYear = useAcademicStore((s) => s.academicYear);
+  const branch = useAcademicStore((s) => s.branch);
+  const semester = useAcademicStore((s) => s.semester);
 
   const {
     setAcademicYear,
@@ -192,23 +173,11 @@ function NavigationInner() {
   const [isMac, setIsMac] = useState(false);
   const { theme, setTheme } = useTheme();
   const prefsAppliedRef = useRef(false);
+  const didHydrateWorkspace = useRef(false);
 
   useEffect(() => {
     const saved = localStorage.getItem("sidebar-collapsed");
     if (saved) setCollapsed(saved === "true");
-    const stored = readStoredWorkspace();
-    if (stored) {
-      const resolved = resolveWorkspace(
-        {
-          year: searchParams.get("year"),
-          branch: searchParams.get("branch"),
-          semester: searchParams.get("semester"),
-        },
-        stored,
-      );
-      setWorkspace(resolved.academicYear, resolved.branch, resolved.semester);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- hydrate once from localStorage
   }, []);
 
   const handleCollapseToggle = () => {
@@ -225,17 +194,28 @@ function NavigationInner() {
     );
   }, []);
 
+  // URL wins, then localStorage, then store defaults — only after mount so SSR HTML matches.
   useEffect(() => {
     const urlYear = searchParams.get("year");
     const urlBranch = searchParams.get("branch");
     const urlSemester = searchParams.get("semester");
-    if (!urlYear && !urlBranch && !urlSemester) return;
-    const fromUrl = resolveWorkspace({
-      year: urlYear,
-      branch: urlBranch,
-      semester: urlSemester,
-    });
-    setWorkspace(fromUrl.academicYear, fromUrl.branch, fromUrl.semester);
+    const hasUrl = !!(urlYear || urlBranch || urlSemester);
+    const stored = !didHydrateWorkspace.current ? readStoredWorkspace() : null;
+    didHydrateWorkspace.current = true;
+
+    if (!hasUrl && !stored) return;
+
+    const resolved = resolveWorkspace(
+      { year: urlYear, branch: urlBranch, semester: urlSemester },
+      hasUrl
+        ? null
+        : {
+            academicYear: stored?.academicYear,
+            branch: stored?.branch,
+            semester: stored?.semester,
+          },
+    );
+    setWorkspace(resolved.academicYear, resolved.branch, resolved.semester);
   }, [
     searchParams.get("year"),
     searchParams.get("branch"),
@@ -354,18 +334,9 @@ function NavigationInner() {
     pathname.startsWith("/planner");
 
   const renderNavLink = useCallback((link: NavLinkItem) => {
-    const currentParams = searchParamsRef.current;
-    const yParam =
-      parseAcademicYear(currentParams.get("year")) ??
-      storeAcademicYear ??
-      DEFAULT_ACADEMIC_YEAR;
-    const bParam =
-      parseBranch(currentParams.get("branch")) ?? storeBranch ?? DEFAULT_BRANCH;
-    const sParam =
-      parseSemester(currentParams.get("semester")) ??
-      storeSemester ??
-      DEFAULT_SEMESTER;
-    const finalHref = `${link.href}?year=${encodeURIComponent(yParam)}&branch=${bParam}&semester=${sParam}`;
+    // Prefer store scope for hrefs so static SSR matches the first client paint.
+    // URL deep-links sync into the store after mount via the effect above.
+    const finalHref = `${link.href}?year=${encodeURIComponent(academicYear)}&branch=${branch}&semester=${semester}`;
     const active = isActive(link.href);
     return (
       <Link
@@ -399,7 +370,7 @@ function NavigationInner() {
         )}
       </Link>
     );
-  }, [collapsed, isActive, setSearchQuery, storeAcademicYear, storeBranch, storeSemester]);
+  }, [collapsed, isActive, setSearchQuery, academicYear, branch, semester]);
 
   const renderSidebarContent = (isMobile: boolean = false) => {
     const isCollapsed = collapsed && !isMobile;
