@@ -42,6 +42,17 @@ export function subjectToSlug(subject: string): string {
   return encodeURIComponent(subject);
 }
 
+/** Parse a 1-based page number from RAG section labels like "Page 12". */
+export function pageFromSectionLabel(
+  label: string | undefined,
+): number | null {
+  if (!label) return null;
+  const m = label.match(/page\s*(\d+)/i);
+  if (!m) return null;
+  const n = Number(m[1]);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
 /** Normalize folder deep-link ids: scoped or legacy assignment-1, unit-2, year-2024, other */
 export function parseResourceFolder(
   value: string | null | undefined,

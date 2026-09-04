@@ -10,7 +10,8 @@ async function isAuthorized(request: Request): Promise<boolean> {
     authHeader?.startsWith("Bearer ") ? authHeader.slice(7).trim() : null;
   const cronSecret = process.env.CRON_SECRET?.trim();
   if (cronSecret && bearer && safeEqualSecret(bearer, cronSecret)) return true;
-  if (!cronSecret && process.env.NODE_ENV !== "production") return true;
+  // Local next dev only: allow missing CRON_SECRET when not on Vercel
+  if (!cronSecret && !process.env.VERCEL) return true;
   return false;
 }
 

@@ -335,3 +335,41 @@ export const getSyllabusFile = (
   ["syllabus-cache", academicYear, branch, semester.toString()],
   { revalidate: 3600, tags: ["syllabus", "resources"] }
 )();
+
+export type HomeStats = {
+  subjects: number;
+  resources: number;
+  branches: number;
+  semesters: number;
+};
+
+async function fetchHomeStatsFromGlobal(): Promise<HomeStats | null> {
+  try {
+    const db = adminDb();
+    const snap = await db.collection("stats").doc("global").get();
+    if (!snap.exists) return null;
+    const d = snap.data() || {};
+    const subjects = Number(d.subjects);
+    const resources = Number(d.resources);
+    const branches = Number(d.branches);
+    const semesters = Number(d.semesters);
+    if (
+      ![subjects, resources, branches, semesters].every((n) =>
+        Number.isFinite(n),
+      )
+    ) {
+      return null;
+    }
+    return { subjects, resources, branches, semesters };
+  } catch (err) {
+    console.warn("stats/global read failed:", err);
+    return null;
+  }
+}
+
+export const getHomeStats = () =>
+  unstable_cache(
+    () => fetchHomeStatsFromGlobal(),
+    ["home-stats-global"],
+    { revalidate: 600, tags: ["subjects", "resources"] },
+  )();

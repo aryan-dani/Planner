@@ -43,6 +43,7 @@ import {
   writeStoredWorkspace,
 } from "@/lib/workspace";
 import { ScopeSelector } from "@/components/academic/ScopeSelector";
+import { fetchAdminStatus } from "@/lib/adminStatus";
 
 const NavUserMenu = dynamic(() => import("./NavUserMenu"), {
   ssr: false,
@@ -188,7 +189,7 @@ function NavigationInner() {
   const [collapsed, setCollapsed] = useState(false);
   const [userEmail, setUserEmail] = useState<string | undefined>();
   const [isAdmin, setIsAdmin] = useState(false);
-  const [isMac, setIsMac] = useState(true);
+  const [isMac, setIsMac] = useState(false);
   const { theme, setTheme } = useTheme();
   const prefsAppliedRef = useRef(false);
 
@@ -318,16 +319,11 @@ function NavigationInner() {
           if (!cancelled) setIsAdmin(false);
           return;
         }
-        const token = await user.getIdToken();
-        const res = await fetch("/api/admin/me", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!res.ok) {
-          if (!cancelled) setIsAdmin(false);
-          return;
-        }
-        const data = await res.json();
-        if (!cancelled) setIsAdmin(!!data.isAdmin);
+        const { isAdmin: admin } = await fetchAdminStatus(
+          () => user.getIdToken(),
+          user.uid,
+        );
+        if (!cancelled) setIsAdmin(admin);
       } catch {
         if (!cancelled) setIsAdmin(false);
       }

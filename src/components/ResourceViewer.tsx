@@ -30,7 +30,14 @@ import NotebookViewer from "@/components/NotebookViewer";
 import PdfPreview, { type PdfPreviewHandle } from "@/components/PdfPreview";
 import CsvPreview from "@/components/CsvPreview";
 import { folderIdForResource, folderLabelFromId, getResourceFileRole } from "@/lib/resourceGroups";
-import { getDirectDownloadUrl } from "@/lib/driveFileCache";
+import {
+  getDirectDownloadUrl,
+  fetchCachedDriveFile,
+} from "@/lib/driveFileCache";
+import { toast } from "sonner";
+
+const FOCUSABLE =
+  'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])';
 
 interface ResourceViewerProps {
   resource: ResourceItem;
@@ -160,6 +167,7 @@ export default function ResourceViewer({
   const [loadError, setLoadError] = useState(false);
   const [codeContent, setCodeContent] = useState<string | null>(null);
   const [pdfDirectFailed, setPdfDirectFailed] = useState(false);
+  const [savingOffline, setSavingOffline] = useState(false);
   const usePdfJs = isPdf && !!driveId && !pdfDirectFailed;
   const usesIframePreview =
     !isTextFetch && !isNotebook && !isImage && !usePdfJs && !!embedUrl;
@@ -246,6 +254,8 @@ export default function ResourceViewer({
   }, [usesIframePreview, isLoading, activeIframeSrc]);
 
   useEffect(() => {
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+
     function handleKeyDown(event: KeyboardEvent) {
       const isMod = event.ctrlKey || event.metaKey || event.altKey;
 
@@ -266,6 +276,31 @@ export default function ResourceViewer({
       if (isMod && event.key.toLowerCase() === "f" && usePdfJs) {
         event.preventDefault();
         pdfRef.current?.openFind();
+        return;
+      }
+
+      if (event.key === "Tab") {
+        if (!containerRef.current) return;
+        const nodes = Array.from(
+          containerRef.current.querySelectorAll<HTMLElement>(FOCUSABLE),
+        ).filter(
+          (el) => !el.hasAttribute("disabled") && el.offsetParent !== null,
+        );
+        if (nodes.length === 0) return;
+        const firstElement = nodes[0];
+        const lastElement = nodes[nodes.length - 1];
+
+        if (event.shiftKey) {
+          if (document.activeElement === firstElement) {
+            lastElement.focus();
+            event.preventDefault();
+          }
+        } else {
+          if (document.activeElement === lastElement) {
+            firstElement.focus();
+            event.preventDefault();
+          }
+        }
         return;
       }
 
@@ -295,43 +330,22 @@ export default function ResourceViewer({
         event.preventDefault();
         externalRef.current?.click();
       }
-
-      if (event.key === "Tab") {
-        if (!containerRef.current) return;
-        const focusableElements = containerRef.current.querySelectorAll(
-          'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])'
-        );
-        if (focusableElements.length === 0) return;
-        const firstElement = focusableElements[0] as HTMLElement;
-        const lastElement = focusableElements[
-          focusableElements.length - 1
-        ] as HTMLElement;
-
-        if (event.shiftKey) {
-          if (document.activeElement === firstElement) {
-            lastElement.focus();
-            event.preventDefault();
-          }
-        } else {
-          if (document.activeElement === lastElement) {
-            firstElement.focus();
-            event.preventDefault();
-          }
-        }
-      }
     }
 
     document.body.style.overflow = "hidden";
     document.body.style.overscrollBehavior = "none";
     document.documentElement.style.overscrollBehavior = "none";
     window.addEventListener("keydown", handleKeyDown);
-    containerRef.current?.focus();
+    requestAnimationFrame(() => {
+      containerRef.current?.focus();
+    });
 
     return () => {
       document.body.style.overflow = "";
       document.body.style.overscrollBehavior = "";
       document.documentElement.style.overscrollBehavior = "";
       window.removeEventListener("keydown", handleKeyDown);
+      previouslyFocused?.focus?.();
     };
   }, [onClose, usePdfJs]);
 
@@ -456,6 +470,42 @@ export default function ResourceViewer({
         >
           <Download className="h-4 w-4" />
         </a>
+        {driveId && (
+          <button
+            type="button"
+            disabled={savingOffline}
+            onClick={async () => {
+              if (!driveId || savingOffline) return;
+              setSavingOffline(true);
+              const toastId = toast.loading("Saving offline…");
+              try {
+                await fetchCachedDriveFile(driveId, {
+                  onProgress: (p) => {
+                    if (p.total && p.total > 0) {
+                      const pct = Math.min(
+                        99,
+                        Math.round((p.loaded / p.total) * 100),
+                      );
+                      toast.loading(`Saving offline… ${pct}%`, { id: toastId });
+                    }
+                  },
+                });
+                toast.success("Saved for offline viewing", { id: toastId });
+              } catch (err) {
+                const msg =
+                  err instanceof Error ? err.message : "Could not save offline";
+                toast.error(msg, { id: toastId });
+              } finally {
+                setSavingOffline(false);
+              }
+            }}
+            className="hidden sm:flex h-8 px-2 items-center justify-center rounded-lg text-xs font-semibold text-muted transition-colors hover:bg-surface hover:text-foreground disabled:opacity-50"
+            title="Save offline copy in this browser"
+            aria-label="Save offline"
+          >
+            {savingOffline ? "Saving…" : "Save offline"}
+          </button>
+        )}
         <button
           type="button"
           onClick={onClose}
@@ -612,6 +662,7 @@ export default function ResourceViewer({
               ext={extension || "pdf"}
               title={cleanResourceTitle(resource.title)}
               fallbackUrl={driveViewUrl}
+              resourceId={resource.id}
               onReady={() => {
                 setIsLoading(false);
                 setLoadError(false);

@@ -6,7 +6,7 @@ import {
   streamText,
 } from "ai";
 import { isAuthFailure, requireUser } from "@/lib/apiAuth";
-import { enforceUserRateLimit } from "@/lib/rateLimit";
+import { enforceAiRateLimit } from "@/lib/rateLimit";
 import { DEFAULT_ACADEMIC_YEAR, DEFAULT_BRANCH, DEFAULT_SEMESTER } from "@/lib/workspace";
 import { z } from "zod";
 import { routeQuery, compactHistory, stripInvalidCitations, validMarkerSet, modelForIntent } from "@/lib/agent/router";
@@ -17,12 +17,14 @@ import { embedQuery } from "@/lib/rag/embed";
 import { CHAT_TEMPERATURE, EMBED_DIMS } from "@/lib/rag/config";
 import type { RetrievalResult, RetrievalSource } from "@/lib/rag/types";
 
+export const maxDuration = 30;
+
 const messagePartSchema = z.object({
   text: z.string().optional(),
 }).passthrough();
 
 const chatMessageSchema = z.object({
-  role: z.enum(["user", "assistant", "system"]).optional(),
+  role: z.enum(["user", "assistant"]).optional(),
   content: z.string().max(8000).optional(),
   parts: z.array(messagePartSchema).max(50).optional(),
 }).passthrough();
@@ -148,8 +150,14 @@ export async function POST(req: Request) {
   const auth = await requireUser(req);
   if (isAuthFailure(auth)) return auth;
 
-  const rate = await enforceUserRateLimit(auth.uid, "chat", 30, 60_000);
+  const rate = await enforceAiRateLimit(auth.uid, "chat", 30, 60_000);
   if (!rate.allowed) {
+    if (rate.unavailable) {
+      return new Response(JSON.stringify({ error: "rate limiter unavailable" }), {
+        status: 503,
+        headers: { "Retry-After": String(rate.retryAfterSec), "Content-Type": "application/json" },
+      });
+    }
     return new Response(JSON.stringify({ error: "Rate limit exceeded. Try again shortly." }), {
       status: 429,
       headers: { "Retry-After": String(rate.retryAfterSec), "Content-Type": "application/json" },

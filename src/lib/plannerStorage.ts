@@ -65,7 +65,14 @@ export function writePlannerMonth(
   stored: PlannerMonthStored,
 ): void {
   if (typeof window === "undefined") return;
-  localStorage.setItem(plannerStorageKey(year, month), JSON.stringify(stored));
+  try {
+    localStorage.setItem(
+      plannerStorageKey(year, month),
+      JSON.stringify(stored),
+    );
+  } catch {
+    // quota / private mode
+  }
 }
 
 /** Increment focus stats on a planner task for the given ISO date. Returns true if updated. */

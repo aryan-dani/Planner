@@ -29,6 +29,8 @@ interface ResourceSectionProps {
   onOpenResource: (item: ResourceItem) => void;
   onSummarize: (item: ResourceItem) => void;
   onShare?: (item: ResourceItem) => void;
+  onFavorite?: (item: ResourceItem) => void;
+  favoriteIds?: Set<string>;
   defaultExpanded?: boolean;
   relatedCodesById?: Record<string, ResourceItem[]>;
   /** Folder id to keep expanded / scroll into view */
@@ -75,6 +77,8 @@ export default function ResourceSection({
   onOpenResource,
   onSummarize,
   onShare,
+  onFavorite,
+  favoriteIds,
   defaultExpanded = true,
   relatedCodesById = {},
   activeFolderId = null,
@@ -250,6 +254,8 @@ export default function ResourceSection({
                           onOpenResource={onOpenResource}
                           onSummarize={onSummarize}
                           onShare={onShare}
+                          onFavorite={onFavorite}
+                          isFavorite={favoriteIds?.has(item.id)}
                           highlight={
                             highlightFileId === item.id ||
                             activeFolderId === folder.id
@@ -268,6 +274,8 @@ export default function ResourceSection({
                         onOpenResource={onOpenResource}
                         onSummarize={onSummarize}
                         onShare={onShare}
+                        onFavorite={onFavorite}
+                        favoriteIds={favoriteIds}
                         highlightFileId={highlightFileId}
                         activeFolderId={activeFolderId}
                         scrollToId={activeFolderId}

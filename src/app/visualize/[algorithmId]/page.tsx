@@ -1,7 +1,6 @@
 import { notFound } from "next/navigation";
 import { getAlgorithm } from "@/lib/visualize/catalog";
 import { VisualizerWorkspace } from "@/components/visualize/VisualizerWorkspace";
-import { structureFromParam } from "@/lib/visualize/structure";
 
 export function generateStaticParams() {
   return [
@@ -33,21 +32,12 @@ export async function generateMetadata({
 
 export default async function VisualizerPage({
   params,
-  searchParams,
 }: {
   params: Promise<{ algorithmId: string }>;
-  searchParams: Promise<{ grid?: string; structure?: string }>;
 }) {
   const { algorithmId } = await params;
-  const { grid, structure } = await searchParams;
   const algorithm = getAlgorithm(algorithmId);
   if (!algorithm) notFound();
 
-  return (
-    <VisualizerWorkspace
-      algorithm={algorithm}
-      gridId={grid}
-      structure={structureFromParam(structure)}
-    />
-  );
+  return <VisualizerWorkspace algorithm={algorithm} />;
 }

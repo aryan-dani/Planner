@@ -1,3 +1,4 @@
+import { createHash } from "crypto";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { FieldValue } from "firebase-admin/firestore";
 import {
@@ -14,6 +15,28 @@ interface CacheEntry<T> {
 }
 
 const retrievalMemory = new Map<string, CacheEntry<RetrievalResult>>();
+const SEMANTIC_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
+function normalizeQuery(query: string): string {
+  return query.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+export function semanticCacheDocId(params: {
+  query: string;
+  academicYear?: string;
+  branch: string;
+  semester: number;
+  resourceId?: string | null;
+}): string {
+  const key = [
+    normalizeQuery(params.query),
+    params.academicYear || "2026-2027",
+    params.branch,
+    String(params.semester),
+    params.resourceId || "",
+  ].join("|");
+  return createHash("sha256").update(key).digest("hex");
+}
 
 export function getRetrievalCache(key: string): RetrievalResult | null {
   const entry = retrievalMemory.get(key);
@@ -59,6 +82,24 @@ export async function lookupSemanticCache(params: {
         : await embedQuery(params.query);
     const db = adminDb();
 
+    // Exact deterministic hit first
+    const docId = semanticCacheDocId(params);
+    const exact = await db.collection("semantic_cache").doc(docId).get();
+    if (exact.exists) {
+      const data = exact.data()!;
+      const expiresAt = data.expires_at
+        ? new Date(data.expires_at).getTime()
+        : data.created_at
+          ? new Date(data.created_at).getTime() + SEMANTIC_TTL_MS
+          : 0;
+      if (Date.now() < expiresAt && data.response) {
+        return {
+          response: data.response as string,
+          sources: data.sources,
+        };
+      }
+    }
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let ref: any = db
       .collection("semantic_cache")
@@ -81,11 +122,15 @@ export async function lookupSemanticCache(params: {
     });
 
     const snap = await vectorQuery.get();
-    for (const doc of snap.docs) {
-      const data = doc.data();
-      const distance = doc.get("_distance") as number;
-      const createdAt = data.created_at ? new Date(data.created_at).getTime() : 0;
-      const fresh = Date.now() - createdAt < 7 * 24 * 60 * 60 * 1000;
+    for (const docSnap of snap.docs) {
+      const data = docSnap.data();
+      const distance = docSnap.get("_distance") as number;
+      const expiresAt = data.expires_at
+        ? new Date(data.expires_at).getTime()
+        : data.created_at
+          ? new Date(data.created_at).getTime() + SEMANTIC_TTL_MS
+          : 0;
+      const fresh = Date.now() < expiresAt;
 
       if (fresh && distance <= SEMANTIC_CACHE_DISTANCE && data.response) {
         return {
@@ -125,20 +170,28 @@ export async function storeSemanticCache(params: {
       }
     }
 
-    await db.collection("semantic_cache").add({
-      uid: params.uid,
-      prompt: params.query,
-      academic_year: params.academicYear || "2026-2027",
-      branch: params.branch,
-      semester: params.semester,
-      resource_id: params.resourceId || null,
-      response: params.response,
-      sources: params.sources || null,
-      created_at: new Date().toISOString(),
-      ...(queryEmbedding?.length === EMBED_DIMS
-        ? { query_embedding: FieldValue.vector(queryEmbedding) }
-        : {}),
-    });
+    const now = Date.now();
+    const expiresAt = new Date(now + SEMANTIC_TTL_MS).toISOString();
+    const docId = semanticCacheDocId(params);
+
+    await db.collection("semantic_cache").doc(docId).set(
+      {
+        uid: params.uid,
+        prompt: params.query,
+        academic_year: params.academicYear || "2026-2027",
+        branch: params.branch,
+        semester: params.semester,
+        resource_id: params.resourceId || null,
+        response: params.response,
+        sources: params.sources || null,
+        created_at: new Date(now).toISOString(),
+        expires_at: expiresAt,
+        ...(queryEmbedding?.length === EMBED_DIMS
+          ? { query_embedding: FieldValue.vector(queryEmbedding) }
+          : {}),
+      },
+      { merge: true },
+    );
   } catch (err) {
     console.warn("Semantic cache store failed:", err);
   }

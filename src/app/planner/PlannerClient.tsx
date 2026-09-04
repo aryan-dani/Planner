@@ -15,6 +15,8 @@ import { parsePrompt, mergeEntries } from '@/lib/promptParser';
 import { plannerStorageKey } from '@/lib/plannerStorage';
 import { toast } from 'sonner';
 import { Button, Modal, Badge } from '@/components/ui';
+import { authFetch } from '@/lib/authFetch';
+import { getSoonestUpcomingExam } from '@/lib/examCountdown';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -375,16 +377,13 @@ function PromptModal({
     setLoading(true);
     setError(null);
     try {
-      const user = auth.currentUser;
-      if (!user) {
+      if (!auth.currentUser) {
         throw new Error('Please sign in to use AI plan parsing.');
       }
-      const idToken = await user.getIdToken();
-      const res = await fetch('/api/planner/parse', {
+      const res = await authFetch('/api/planner/parse', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${idToken}`,
         },
         body: JSON.stringify({ prompt: text, month, year }),
       });
@@ -882,9 +881,14 @@ export default function PlannerClient() {
   const skipLocalStampRef = useRef(false);
   const lastWrittenDataRef = useRef<string>('');
   const lastPushedSnapshotRef = useRef<string | null>(null);
+  const [upcomingExam, setUpcomingExam] = useState<ReturnType<typeof getSoonestUpcomingExam>>(null);
 
   const today = todayISO();
   const calendarDays = useMemo(() => getCalendarDays(month, year), [month, year]);
+
+  useEffect(() => {
+    setUpcomingExam(getSoonestUpcomingExam());
+  }, [planData, month, year]);
 
   // ── Init ──
   useEffect(() => {
@@ -956,15 +960,12 @@ export default function PlannerClient() {
     if (!user) return;
     setSyncing(true);
     try {
-      const firebaseUser = auth.currentUser;
-      if (!firebaseUser) return;
-      const idToken = await firebaseUser.getIdToken();
+      if (!auth.currentUser) return;
 
-      const res = await fetch('/api/planner', {
+      const res = await authFetch('/api/planner', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${idToken}`
         },
         body: JSON.stringify({
           month,
@@ -988,6 +989,7 @@ export default function PlannerClient() {
       setLastSynced(new Date());
     } catch (e) {
       console.error('Sync error:', e);
+      toast.error('Cloud sync failed. Changes are still saved locally.');
     } finally {
       setSyncing(false);
     }
@@ -998,15 +1000,9 @@ export default function PlannerClient() {
     cloudHydratingRef.current = true;
     setSyncing(true);
     try {
-      const firebaseUser = auth.currentUser;
-      if (!firebaseUser) return;
-      const idToken = await firebaseUser.getIdToken();
+      if (!auth.currentUser) return;
 
-      const res = await fetch(`/api/planner?month=${month}&year=${year}`, {
-        headers: {
-          'Authorization': `Bearer ${idToken}`
-        }
-      });
+      const res = await authFetch(`/api/planner?month=${month}&year=${year}`);
 
       if (!res.ok) throw new Error(await res.text());
       const resData = await res.json();
@@ -1071,6 +1067,7 @@ export default function PlannerClient() {
       }
     } catch (e) {
       console.error(e);
+      toast.error('Could not load plan from cloud.');
     } finally {
       cloudHydratingRef.current = false;
       setSyncing(false);
@@ -1272,15 +1269,12 @@ export default function PlannerClient() {
       return;
     }
     try {
-      const firebaseUser = auth.currentUser;
-      if (!firebaseUser) return;
-      const idToken = await firebaseUser.getIdToken();
+      if (!auth.currentUser) return;
 
-      const res = await fetch('/api/planner/collaborators', {
+      const res = await authFetch('/api/planner/collaborators', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${idToken}`
         },
         body: JSON.stringify({
           planId: planMeta.id,
@@ -1307,15 +1301,10 @@ export default function PlannerClient() {
 
   const removeCollaborator = async (id: string) => {
     try {
-      const firebaseUser = auth.currentUser;
-      if (!firebaseUser) return;
-      const idToken = await firebaseUser.getIdToken();
+      if (!auth.currentUser) return;
 
-      const res = await fetch(`/api/planner/collaborators?id=${id}`, {
+      const res = await authFetch(`/api/planner/collaborators?id=${id}`, {
         method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${idToken}`
-        }
       });
 
       if (!res.ok) throw new Error(await res.text());
@@ -1471,6 +1460,19 @@ export default function PlannerClient() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2 min-w-0 w-full sm:w-auto">
+            {upcomingExam && (
+              <span
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-foreground border border-border rounded-full px-2.5 py-1 bg-surface"
+                title={upcomingExam.text}
+              >
+                <CalendarDays className="w-3.5 h-3.5 text-muted" />
+                {upcomingExam.daysUntil === 0
+                  ? "Exam today"
+                  : upcomingExam.daysUntil === 1
+                    ? "Exam tomorrow"
+                    : `Exam in ${upcomingExam.daysUntil}d`}
+              </span>
+            )}
             {/* Cloud sync */}
             {user ? (
               <div className="flex items-center gap-1.5 text-xs text-muted">

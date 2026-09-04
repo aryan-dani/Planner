@@ -8,7 +8,7 @@ export const CONTEXT_BUDGET_CHARS = 6000;
 export const EMBED_DIMS = 768;
 export const EMBED_MODEL = "gemini-embedding-001";
 
-export const BM25_CANDIDATE_LIMIT = 150;
+export const BM25_CANDIDATE_LIMIT = 80;
 export const VECTOR_CANDIDATE_LIMIT = 60;
 export const MAX_CHUNKS_PER_RESOURCE = 3;
 export const NEIGHBOR_EXPANSION_TOP = 3;

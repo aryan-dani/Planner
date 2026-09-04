@@ -13,7 +13,8 @@ import {
 import AuthButtons from "./AuthButtons";
 import HomeHeatmap from "./HomeHeatmap";
 import HomeStats from "./HomeStats";
-import { getResourcesFromDB, getSubjectsFromDB } from "@/lib/dataFetcher";
+import HomeExamCountdown from "@/components/HomeExamCountdown";
+import { getResourcesFromDB, getSubjectsFromDB, getHomeStats } from "@/lib/dataFetcher";
 import { BRANCHES, SEMESTERS } from "@/lib/academic/scope";
 import {
   DEFAULT_ACADEMIC_YEAR,
@@ -99,23 +100,33 @@ const FEATURES = [
 export default async function Home() {
   let subjectCount = 0;
   let resourceCount = 0;
+  let branchCount: number = BRANCHES.length;
+  let semesterCount: number = SEMESTERS.length;
   try {
-    const year = DEFAULT_ACADEMIC_YEAR;
-    const semester = DEFAULT_SEMESTER;
-    const results = await Promise.all(
-      BRANCHES.map(async (branch) => {
-        const [subjects, resources] = await Promise.all([
-          getSubjectsFromDB(year, branch, semester),
-          getResourcesFromDB(year, branch, semester),
-        ]);
-        return {
-          subjects: subjects.length,
-          resources: resources.length,
-        };
-      }),
-    );
-    subjectCount = results.reduce((sum, r) => sum + r.subjects, 0);
-    resourceCount = results.reduce((sum, r) => sum + r.resources, 0);
+    const globalStats = await getHomeStats();
+    if (globalStats) {
+      subjectCount = globalStats.subjects;
+      resourceCount = globalStats.resources;
+      branchCount = globalStats.branches || BRANCHES.length;
+      semesterCount = globalStats.semesters || SEMESTERS.length;
+    } else {
+      const year = DEFAULT_ACADEMIC_YEAR;
+      const semester = DEFAULT_SEMESTER;
+      const results = await Promise.all(
+        BRANCHES.map(async (branch) => {
+          const [subjects, resources] = await Promise.all([
+            getSubjectsFromDB(year, branch, semester),
+            getResourcesFromDB(year, branch, semester),
+          ]);
+          return {
+            subjects: subjects.length,
+            resources: resources.length,
+          };
+        }),
+      );
+      subjectCount = results.reduce((sum, r) => sum + r.subjects, 0);
+      resourceCount = results.reduce((sum, r) => sum + r.resources, 0);
+    }
   } catch (err) {
     console.error("HomeStats fetch failed:", err);
   }
@@ -138,8 +149,11 @@ export default async function Home() {
           A structured workspace for syllabi, course materials, planning, and AI
           study help. Built for MIT-WPU branches.
         </p>
-        <div className="flex justify-center">
-          <AuthButtons />
+        <div className="flex flex-col items-center gap-4">
+          <div className="flex justify-center">
+            <AuthButtons />
+          </div>
+          <HomeExamCountdown />
         </div>
       </section>
 
@@ -220,8 +234,8 @@ export default async function Home() {
       <HomeStats
         subjects={subjectCount}
         resources={resourceCount}
-        semesters={SEMESTERS.length}
-        branches={BRANCHES.length}
+        semesters={semesterCount}
+        branches={branchCount}
       />
     </div>
   );

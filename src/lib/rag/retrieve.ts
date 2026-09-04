@@ -84,7 +84,27 @@ async function lexicalCandidates(
     }
   }
 
-  const snap = await ref.limit(BM25_CANDIDATE_LIMIT).get();
+  const snap = await ref
+    .select(
+      "resource_id",
+      "chunk_index",
+      "text",
+      "section_label",
+      "heading",
+      "academic_year",
+      "branch",
+      "semester",
+      "subject_id",
+      "subject_name",
+      "category",
+      "title",
+      "file_url",
+      "chunk_tokens",
+      "token_count",
+      "content_hash",
+    )
+    .limit(BM25_CANDIDATE_LIMIT)
+    .get();
   return (
     snap.docs.map((doc: FirebaseFirestore.QueryDocumentSnapshot) => ({
       id: doc.id,
@@ -332,6 +352,7 @@ export async function retrieve(params: RetrieveParams): Promise<RetrievalResult>
     );
   }
 
+  // Skip widen when lexical already returned enough hits (>= 5).
   if (lexical.length === 0 && vector.length === 0 && branch && !resourceId) {
     widened = true;
     lexical = await lexicalCandidates(

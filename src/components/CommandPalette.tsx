@@ -25,6 +25,7 @@ import {
   BookUser,
   FlaskConical,
   Waypoints,
+  HelpCircle,
 } from 'lucide-react';
 import { useAcademicStore } from '../store/academicStore';
 import { matchesAcademicYear } from '@/lib/academic/scope';
@@ -32,6 +33,9 @@ import { db } from '../lib/firebase';
 import { collection, query as firestoreQuery, where, getDocs } from 'firebase/firestore';
 import { startNavigationProgress } from './NavigationProgress';
 import { subjectToSlug } from '@/lib/resourceUrl';
+import { fetchAdminStatus } from '@/lib/adminStatus';
+import { workspaceQuery } from '@/lib/workspace';
+import { toast } from 'sonner';
 
 interface CommandItem {
   id: string;
@@ -79,7 +83,7 @@ export default function CommandPalette() {
   const { academicYear, branch, semester, isCommandPaletteOpen, setCommandPaletteOpen } = useAcademicStore();
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
-  const [isMac, setIsMac] = useState(true);
+  const [isMac, setIsMac] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [dynamicSubjects, setDynamicSubjects] = useState<Array<{ id: string; name: string }>>([]);
 
@@ -99,16 +103,11 @@ export default function CommandPalette() {
           if (!cancelled) setIsAdmin(false);
           return;
         }
-        const token = await user.getIdToken();
-        const res = await fetch('/api/admin/me', {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!res.ok) {
-          if (!cancelled) setIsAdmin(false);
-          return;
-        }
-        const data = await res.json();
-        if (!cancelled) setIsAdmin(!!data.isAdmin);
+        const { isAdmin: admin } = await fetchAdminStatus(
+          () => user.getIdToken(),
+          user.uid,
+        );
+        if (!cancelled) setIsAdmin(admin);
       } catch {
         if (!cancelled) setIsAdmin(false);
       }
@@ -183,36 +182,45 @@ export default function CommandPalette() {
         return;
       }
 
+      const qs = workspaceQuery(academicYear, branch, semester);
       const key = e.key.toLowerCase();
       const shortcutMap: Record<string, () => void> = {
         t: () => {
-          navigate('/timer?mode=work&start=true');
+          navigate(`/timer?mode=work&start=true&${qs}`);
           setCommandPaletteOpen(false);
         },
         b: () => {
-          navigate('/timer?mode=break&start=true');
+          navigate(`/timer?mode=break&start=true&${qs}`);
           setCommandPaletteOpen(false);
         },
         a: () => {
-          navigate('/ask');
+          navigate(`/ask?${qs}`);
           setCommandPaletteOpen(false);
         },
         g: () => {
-          navigate('/gpa');
+          navigate(`/gpa?${qs}`);
           setCommandPaletteOpen(false);
         },
         r: () => {
-          navigate('/srs');
+          navigate(`/srs?${qs}`);
           setCommandPaletteOpen(false);
         },
         s: () => {
-          navigate('/syllabus');
+          navigate(`/syllabus?${qs}`);
           setCommandPaletteOpen(false);
         },
         c: () => {
-          navigate('/community');
+          navigate(`/community?${qs}`);
           setCommandPaletteOpen(false);
-        }
+        },
+        '?': () => {
+          setCommandPaletteOpen(true);
+          setQuery('?');
+        },
+        '/': () => {
+          setCommandPaletteOpen(true);
+          setQuery('?');
+        },
       };
 
       if (shortcutMap[key]) {
@@ -223,7 +231,7 @@ export default function CommandPalette() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isCommandPaletteOpen, setCommandPaletteOpen, router]);
+  }, [isCommandPaletteOpen, setCommandPaletteOpen, academicYear, branch, semester]);
 
   // Focus input when modal opens
   useEffect(() => {
@@ -237,7 +245,24 @@ export default function CommandPalette() {
 
   // Define dynamic command items
   const items = useMemo<CommandItem[]>(() => {
+    const qs = workspaceQuery(academicYear, branch, semester);
     const baseItems: CommandItem[] = [
+      {
+        id: 'help-shortcuts',
+        title: 'Keyboard shortcuts help',
+        category: 'Quick Actions',
+        icon: HelpCircle,
+        badge: '?',
+        hint: 'Alt+T timer · Alt+B break · Alt+A ask · Alt+G GPA · Alt+R SRS · Alt+S syllabus · Alt+C community · Viewer: Ctrl+F find, Esc close, F fullscreen, D download, O open',
+        action: () => {
+          toast.message('Shortcuts', {
+            description:
+              'Alt+T timer · Alt+B break · Alt+A ask · Alt+G GPA · Alt+R SRS · Alt+S syllabus · Alt+C community. Viewer: Ctrl/⌘+F find, Esc close, F fullscreen, D download, O open tab.',
+            duration: 8000,
+          });
+          setCommandPaletteOpen(false);
+        },
+      },
       // Quick Actions
       {
         id: 'timer-start',
@@ -247,7 +272,7 @@ export default function CommandPalette() {
         shortcut: 'T',
         badge: 'Focus',
         action: () => {
-          navigate('/timer?mode=work&start=true');
+          navigate(`/timer?mode=work&start=true&${qs}`);
           setCommandPaletteOpen(false);
         },
       },
@@ -259,7 +284,7 @@ export default function CommandPalette() {
         shortcut: 'B',
         badge: 'Rest',
         action: () => {
-          navigate('/timer?mode=break&start=true');
+          navigate(`/timer?mode=break&start=true&${qs}`);
           setCommandPaletteOpen(false);
         },
       },
@@ -271,7 +296,7 @@ export default function CommandPalette() {
         shortcut: 'A',
         badge: 'AI RAG',
         action: () => {
-          navigate('/ask');
+          navigate(`/ask?${qs}`);
           setCommandPaletteOpen(false);
         },
       },
@@ -283,7 +308,7 @@ export default function CommandPalette() {
         shortcut: 'G',
         badge: 'Simulator',
         action: () => {
-          navigate('/gpa');
+          navigate(`/gpa?${qs}`);
           setCommandPaletteOpen(false);
         },
       },
@@ -295,7 +320,7 @@ export default function CommandPalette() {
         shortcut: 'R',
         badge: 'Active Recall',
         action: () => {
-          navigate('/srs');
+          navigate(`/srs?${qs}`);
           setCommandPaletteOpen(false);
         },
       },
@@ -308,7 +333,7 @@ export default function CommandPalette() {
         icon: Layers,
         badge: 'Recall',
         action: () => {
-          navigate('/srs');
+          navigate(`/srs?${qs}`);
           setCommandPaletteOpen(false);
         },
       },
@@ -320,7 +345,7 @@ export default function CommandPalette() {
         shortcut: 'C',
         badge: 'Social',
         action: () => {
-          navigate('/community');
+          navigate(`/community?${qs}`);
           setCommandPaletteOpen(false);
         },
       },
@@ -373,7 +398,7 @@ export default function CommandPalette() {
         shortcut: 'S',
         badge: 'Curriculum',
         action: () => {
-          navigate('/syllabus');
+          navigate(`/syllabus?${qs}`);
           setCommandPaletteOpen(false);
         },
       },
@@ -383,7 +408,7 @@ export default function CommandPalette() {
         category: 'Navigation',
         icon: FileText,
         action: () => {
-          navigate('/resources');
+          navigate(`/resources?${qs}`);
           setCommandPaletteOpen(false);
         },
       },
@@ -393,7 +418,7 @@ export default function CommandPalette() {
         category: 'Navigation',
         icon: CalendarCheck,
         action: () => {
-          navigate('/planner');
+          navigate(`/planner?${qs}`);
           setCommandPaletteOpen(false);
         },
       },

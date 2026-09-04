@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, Suspense, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { auth } from "@/lib/firebase";
 import {
@@ -59,6 +59,13 @@ function LoginContent() {
   const router = useRouter();
 
   const redirectTo = sanitizeRedirectTo(searchParams.get("redirectTo"));
+  const redirectedRef = useRef(false);
+
+  const goAfterAuth = (target?: string | null) => {
+    if (redirectedRef.current) return;
+    redirectedRef.current = true;
+    router.push(target != null ? sanitizeRedirectTo(target) : redirectTo);
+  };
 
   // If already logged in, redirect after merge handling completes
   useEffect(() => {
@@ -70,32 +77,36 @@ function LoginContent() {
         const outcome = await consumeRedirectResult(auth);
         if (cancelled) return;
         mergeHandled = true;
-        const next = takeRememberedRedirectTo() || redirectTo;
+        const remembered = takeRememberedRedirectTo();
+        const next = remembered
+          ? sanitizeRedirectTo(remembered)
+          : redirectTo;
         if (outcome.status === "linked") {
-          router.push(next);
+          goAfterAuth(next);
         } else if (
           outcome.status === "needs-github-confirm" ||
           outcome.status === "needs-google-confirm"
         ) {
-          router.push("/profile");
+          goAfterAuth("/profile");
         } else if (auth.currentUser) {
-          router.push(redirectTo);
+          goAfterAuth(redirectTo);
         }
       } catch {
         mergeHandled = true;
-        if (auth.currentUser) router.push(redirectTo);
+        if (auth.currentUser) goAfterAuth(redirectTo);
       }
     })();
 
     const unsubscribe = auth.onAuthStateChanged((user) => {
       if (!mergeHandled || !user) return;
-      router.push(redirectTo);
+      goAfterAuth(redirectTo);
     });
 
     return () => {
       cancelled = true;
       unsubscribe();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- redirect once per mount
   }, [redirectTo, router]);
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -105,7 +116,7 @@ function LoginContent() {
 
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      router.push(redirectTo);
+      goAfterAuth(redirectTo);
     } catch (err: any) {
       setError(getFriendlyErrorMessage(err.code || err.message));
       setLoading(false);
@@ -122,7 +133,7 @@ function LoginContent() {
         rememberRedirectTo(redirectTo);
         return;
       }
-      router.push(redirectTo);
+      goAfterAuth(redirectTo);
     } catch (err: any) {
       setError(getFriendlyErrorMessage(err.code || err.message));
       setGoogleLoading(false);
@@ -139,12 +150,12 @@ function LoginContent() {
         rememberRedirectTo(redirectTo);
         return;
       }
-      router.push(redirectTo);
+      goAfterAuth(redirectTo);
     } catch (err: any) {
       try {
         const linked = await linkGithubOverGoogleAccount(auth, err);
         if (linked) {
-          router.push(redirectTo);
+          goAfterAuth(redirectTo);
           return;
         }
       } catch (linkErr: any) {

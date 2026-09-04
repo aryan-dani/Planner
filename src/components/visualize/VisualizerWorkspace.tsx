@@ -3,8 +3,9 @@
 import dynamic from "next/dynamic";
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { StructureToggle } from "@/components/visualize/StructureToggle";
-import { VisualizeStructure } from "@/lib/visualize/structure";
+import { structureFromParam } from "@/lib/visualize/structure";
 import { HowToUse } from "@/components/visualize/LessonChrome";
 import { fadeUp, stagger } from "@/components/visualize/motion";
 import { motion } from "framer-motion";
@@ -57,8 +58,6 @@ function WorkspaceLoading() {
 
 interface VisualizerWorkspaceProps {
   algorithm: AlgorithmMeta;
-  gridId?: string;
-  structure?: VisualizeStructure;
 }
 
 const PATH_ALGORITHM_IDS = new Set([
@@ -69,11 +68,12 @@ const PATH_ALGORITHM_IDS = new Set([
   "a-star",
 ]);
 
-function VisualizerWorkspaceInner({
-  algorithm,
-  gridId,
-  structure = "graph",
-}: VisualizerWorkspaceProps) {
+function VisualizerWorkspaceInner({ algorithm }: VisualizerWorkspaceProps) {
+  const searchParams = useSearchParams();
+  const gridId = searchParams.get("grid") ?? undefined;
+  const structure = structureFromParam(
+    searchParams.get("structure") ?? undefined,
+  );
   const [loadedGrid, setLoadedGrid] = useState<SavedGridData | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 

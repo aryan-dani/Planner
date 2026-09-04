@@ -7,6 +7,7 @@ import ReactMarkdown from 'react-markdown';
 import { X, Brain, Copy, Check, Info, Layers } from 'lucide-react';
 import { auth } from '@/lib/firebase';
 import { NotesDisclaimer } from './NotesDisclaimer';
+import { authFetch } from '@/lib/authFetch';
 
 interface SummaryModalProps {
   resourceId: string;
@@ -34,9 +35,7 @@ export default function SummaryModal({ resourceId, resourceTitle, onClose }: Sum
         if (!user) {
           throw new Error('Please sign in to generate AI summaries.');
         }
-        const idToken = await user.getIdToken();
-        const res = await fetch(`/api/resources/summarize?id=${resourceId}`, {
-          headers: { Authorization: `Bearer ${idToken}` },
+        const res = await authFetch(`/api/resources/summarize?id=${resourceId}`, {
           signal: abortController.signal,
         });
         if (!active) return;

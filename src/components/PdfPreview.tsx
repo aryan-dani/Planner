@@ -19,6 +19,7 @@ import {
   ZoomOut,
 } from "lucide-react";
 import { fetchCachedDriveFile, type DriveFetchProgress } from "@/lib/driveFileCache";
+import { setReadingProgress } from "@/lib/readingProgress";
 import { cn } from "@/lib/cn";
 
 export type PdfPreviewHandle = {
@@ -33,6 +34,8 @@ interface PdfPreviewProps {
   ext?: string;
   title: string;
   fallbackUrl: string;
+  /** When set, page changes are persisted to localStorage for resume. */
+  resourceId?: string;
   onReady?: () => void;
   onFail?: () => void;
 }
@@ -75,6 +78,7 @@ function PdfPage({
   useEffect(() => {
     let cancelled = false;
     let layer: InstanceType<PdfModule["TextLayer"]> | null = null;
+    let renderTask: { cancel: () => void } | null = null;
 
     async function paint() {
       const page = await pdf.getPage(pageNumber);
@@ -98,7 +102,9 @@ function PdfPage({
       if (!ctx) return;
       const transform =
         outputScale !== 1 ? [outputScale, 0, 0, outputScale, 0, 0] : undefined;
-      await page.render({ canvasContext: ctx, viewport, canvas, transform }).promise;
+      const task = page.render({ canvasContext: ctx, viewport, canvas, transform });
+      renderTask = task;
+      await task.promise;
       if (cancelled) return;
 
       textEl.replaceChildren();
@@ -142,6 +148,11 @@ function PdfPage({
     void paint().catch(() => {});
     return () => {
       cancelled = true;
+      try {
+        renderTask?.cancel();
+      } catch {
+        /* ignore */
+      }
       layer?.cancel();
     };
   }, [pdf, pdfjs, pageNumber, scale, findQuery, activeOccurrence, onHeight]);
@@ -160,7 +171,7 @@ function PdfPage({
 
 const PdfPreview = forwardRef<PdfPreviewHandle, PdfPreviewProps>(
   function PdfPreview(
-    { driveId, ext = "pdf", title, fallbackUrl, onReady, onFail },
+    { driveId, ext = "pdf", title, fallbackUrl, resourceId, onReady, onFail },
     ref,
   ) {
     const scrollRef = useRef<HTMLDivElement>(null);
@@ -323,23 +334,29 @@ const PdfPreview = forwardRef<PdfPreviewHandle, PdfPreviewProps>(
 
       const observer = new IntersectionObserver(
         (entries) => {
-          setVisible((prev) => {
-            const next = new Set(prev);
-            for (const e of entries) {
-              const num = Number((e.target as HTMLElement).dataset.pdfPage);
-              if (!num) continue;
-              if (e.isIntersecting) {
-                for (let i = num - BUFFER_PAGES; i <= num + BUFFER_PAGES; i++) {
-                  if (i >= 1 && i <= pageCount) next.add(i);
-                }
-                if (e.intersectionRatio > 0.4) {
-                  setPage(num);
-                  setJumpValue(String(num));
-                }
+          const nextVisible = new Set<number>();
+          let currentPage: number | null = null;
+          for (const e of entries) {
+            const num = Number((e.target as HTMLElement).dataset.pdfPage);
+            if (!num) continue;
+            if (e.isIntersecting) {
+              for (let i = num - BUFFER_PAGES; i <= num + BUFFER_PAGES; i++) {
+                if (i >= 1 && i <= pageCount) nextVisible.add(i);
+              }
+              if (e.intersectionRatio > 0.4) {
+                currentPage = num;
               }
             }
-            return next;
+          }
+          setVisible((prev) => {
+            const merged = new Set(prev);
+            for (const n of nextVisible) merged.add(n);
+            return merged;
           });
+          if (currentPage != null) {
+            setPage(currentPage);
+            setJumpValue(String(currentPage));
+          }
         },
         { root, threshold: [0.05, 0.4] },
       );
@@ -348,6 +365,15 @@ const PdfPreview = forwardRef<PdfPreviewHandle, PdfPreviewProps>(
       nodes.forEach((n) => observer.observe(n));
       return () => observer.disconnect();
     }, [pageCount, pdf, scale]);
+
+    // Debounced reading progress
+    useEffect(() => {
+      if (!resourceId || page < 1) return;
+      const timer = window.setTimeout(() => {
+        setReadingProgress(resourceId, page);
+      }, 400);
+      return () => window.clearTimeout(timer);
+    }, [resourceId, page]);
 
     useEffect(() => {
       if (!textReady) {

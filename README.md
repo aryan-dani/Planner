@@ -56,6 +56,10 @@ GEMINI_API_KEY=
 # Protect /api/webhooks/* (required in production)
 CRON_SECRET=
 
+# Upstash Redis REST (required in Vercel production for AI rate limits)
+UPSTASH_REDIS_REST_URL=
+UPSTASH_REDIS_REST_TOKEN=
+
 # Optional: URL GitHub Actions POSTs after sync+index (e.g. https://utilityos.tech/api/webhooks/revalidate-content)
 VERCEL_REVALIDATE_URL=
 
@@ -86,6 +90,8 @@ Set these on the Vercel project for **Production**, then redeploy:
 | `ADMIN_EMAILS` | Server-only admin allowlist (Sync Now, admin APIs) |
 | `GH_PAT` (workflow scope) | **Recommended** — Sync Now dispatches `storage-sync.yml` (sync + index) |
 | `CRON_SECRET` | Authorizes webhook revalidate / manual sync |
+| `UPSTASH_REDIS_REST_URL` | Distributed AI rate limits (required in Production) |
+| `UPSTASH_REDIS_REST_TOKEN` | Upstash REST auth token (required in Production) |
 | `VERCEL_REVALIDATE_URL` | GitHub Actions POSTs here after sync+index |
 | `ISHANI_API_URL` | Campus seating / directory / labs — set to `https://api.aryandani.com` (Ishani’s public FastAPI) |
 

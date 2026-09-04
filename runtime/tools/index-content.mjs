@@ -17,6 +17,8 @@ import { FieldValue } from "firebase-admin/firestore";
 const SUPPORTED_EXTS = [".pdf", ".docx", ".pptx", ".xlsx"];
 const PAGE_SIZE = 500;
 const RESOURCE_CONCURRENCY = 2;
+const CONTENT_MAX_CHARS = 6000;
+const SEARCH_TOKENS_MAX = 800;
 
 function hashBuffer(buffer) {
   return crypto.createHash("sha256").update(buffer).digest("hex");
@@ -80,7 +82,82 @@ async function deleteStaleChunks(resourceId, keepCount) {
   }
 }
 
-export default async function indexContent() {
+function excerptContent(text) {
+  if (!text || typeof text !== "string") return "";
+  return text.length > CONTENT_MAX_CHARS
+    ? text.substring(0, CONTENT_MAX_CHARS)
+    : text;
+}
+
+function buildSearchTokens(text) {
+  return [
+    ...new Set(
+      text
+        .toLowerCase()
+        .split(/\W+/)
+        .filter((w) => w.length >= 3),
+    ),
+  ].slice(0, SEARCH_TOKENS_MAX);
+}
+
+/** Rewrite oversized resource_content.content fields to 6k excerpts (no full reindex). */
+async function shrinkContentFields() {
+  console.log("\n🗜️  Shrinking oversized resource_content fields…\n");
+  let scanned = 0;
+  let shrunk = 0;
+  let offset = 0;
+
+  while (true) {
+    const { data } = await select("resource_content", {
+      columns: "id, resource_id, content, search_tokens",
+      limit: PAGE_SIZE,
+      offset,
+    });
+    if (!data.length) break;
+
+    for (const doc of data) {
+      scanned++;
+      const content = typeof doc.content === "string" ? doc.content : "";
+      const tokens = Array.isArray(doc.search_tokens) ? doc.search_tokens : [];
+      const needsShrink =
+        content.length > CONTENT_MAX_CHARS || tokens.length > SEARCH_TOKENS_MAX;
+      if (!needsShrink) continue;
+
+      const excerpt = excerptContent(content);
+      await upsert(
+        "resource_content",
+        {
+          id: doc.id || doc.resource_id,
+          resource_id: doc.resource_id || doc.id,
+          content: excerpt,
+          search_tokens: buildSearchTokens(excerpt),
+          snippet: excerpt.substring(0, 500),
+        },
+        "resource_id",
+      );
+      shrunk++;
+      console.log(
+        `  ✅ Shrunk ${doc.resource_id || doc.id} (${content.length} → ${excerpt.length} chars)`,
+      );
+    }
+
+    if (data.length < PAGE_SIZE) break;
+    offset += PAGE_SIZE;
+  }
+
+  console.log(`\n✨ Shrink complete. Scanned ${scanned}, shrunk ${shrunk}.\n`);
+}
+
+export default async function indexContent(options = {}) {
+  const shrinkOnly =
+    options.shrinkContent === true ||
+    process.argv.includes("--shrink-content");
+
+  if (shrinkOnly) {
+    await shrinkContentFields();
+    return;
+  }
+
   console.log("\n🔍 Starting Hybrid Content Indexing…\n");
 
   const hasGemini = Boolean(process.env.GEMINI_API_KEY);
@@ -186,20 +263,21 @@ export default async function indexContent() {
           .replace(/\\u0000/g, "")
           .replace(/\x00/g, "");
 
-        // Legacy resource_content (summarize API)
-        const legacyTokens = [...new Set(cleanText.toLowerCase().split(/\W+/).filter((w) => w.length >= 3))].slice(0, 5000);
+        // Legacy resource_content (summarize API) — store short excerpt only
+        const excerpt = excerptContent(cleanText);
+        const legacyTokens = buildSearchTokens(excerpt);
         await upsert(
           "resource_content",
           {
             id: res.id,
             resource_id: res.id,
-            content: cleanText.length > 800000 ? cleanText.substring(0, 800000) : cleanText,
+            content: excerpt,
             pages,
             last_indexed: new Date().toISOString(),
             title: res.title || "",
             subject_name: subjectName,
             file_url: res.file_url || "",
-            snippet: cleanText.substring(0, 500),
+            snippet: excerpt.substring(0, 500),
             branch,
             semester,
             academic_year: academicYear,

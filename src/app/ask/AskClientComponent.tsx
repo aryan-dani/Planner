@@ -41,13 +41,14 @@ import { useSRSStore } from '@/store/srsStore';
 import { useSearchParams, useRouter } from 'next/navigation';
 import AcademicBreadcrumb from '@/components/AcademicBreadcrumb';
 import Link from 'next/link';
-import { buildResourcesHref } from '@/lib/resourceUrl';
+import { buildResourcesHref, pageFromSectionLabel } from '@/lib/resourceUrl';
 import type { ResourceItem } from '@/lib/dataFetcher';
-import type { AcademicYear, Branch, Semester } from '@/store/academicStore';
+import { useWorkspaceResources } from '@/lib/useWorkspaceResources';
 import { Button, Select } from '@/components/ui';
 import { SourceCardList, renderWithCitations } from '@/components/ask/SourceCard';
 import type { RetrievalSource } from '@/lib/rag/types';
 import { stripInvalidCitations, validMarkerSet } from '@/lib/agent/router';
+import { authFetch, getAuthHeaders } from '@/lib/authFetch';
 
 const SUGGESTED_PROMPTS = [
   'Explain overfitting vs underfitting in Machine Learning with examples',
@@ -85,14 +86,6 @@ function stabilizeStreamingMarkdown(content: string): string {
     return `${content}\n\`\`\``;
   }
   return content;
-}
-
-function pageFromSectionLabel(label: string | undefined): number | null {
-  if (!label) return null;
-  const m = label.match(/page\s*(\d+)/i);
-  if (!m) return null;
-  const n = Number(m[1]);
-  return Number.isFinite(n) && n > 0 ? n : null;
 }
 
 function injectCitationChips(
@@ -319,27 +312,21 @@ export interface ChatSession {
 
 const EMPTY_ARRAY: any[] = [];
 
-interface AskClientProps {
-  initialWorkspace: { academicYear: AcademicYear; branch: Branch; semester: Semester };
-  initialSubjects: string[];
-  initialResources: ResourceItem[];
-}
-
-export default function AskClient({
-  initialWorkspace,
-  initialSubjects,
-  initialResources,
-}: AskClientProps) {
+export default function AskClient() {
   const { academicYear, branch, semester } = useAcademicStore();
-  const [subjects, setSubjects] = useState<string[]>(initialSubjects);
+  const {
+    resources,
+    subjects,
+    loading: catalogLoading,
+  } = useWorkspaceResources();
   const [activeTab, setActiveTab] = useState<'chat' | 'flashcards' | 'quiz'>('chat');
 
   const searchParams = useSearchParams();
   const router = useRouter();
 
   // Grounded Document Chat States
-  const [resources, setResources] = useState<ResourceItem[]>(initialResources);
   const [selectedResourceId, setSelectedResourceId] = useState<string>('all');
+  void catalogLoading;
 
   // Speech Recognition States
   const [isListening, setIsListening] = useState(false);
@@ -393,46 +380,7 @@ export default function AskClient({
   const [isGeneratingQuiz, setIsGeneratingQuiz] = useState(false);
   const [quizSubmitted, setQuizSubmitted] = useState(false);
 
-  // Refresh grounded context when workspace changes (skip duplicate mount fetch)
-  useEffect(() => {
-    if (
-      academicYear === initialWorkspace.academicYear &&
-      branch === initialWorkspace.branch &&
-      semester === initialWorkspace.semester
-    ) {
-      setSubjects(initialSubjects);
-      setResources(initialResources);
-      return;
-    }
-
-    const abortController = new AbortController();
-    fetch(
-      `/api/resources/list?year=${encodeURIComponent(academicYear)}&branch=${branch}&semester=${semester}`,
-      {
-      signal: abortController.signal,
-    })
-      .then(async (res) => {
-        if (!res.ok) return;
-        const data = await res.json();
-        if (Array.isArray(data.resources)) {
-          setResources(data.resources);
-          const names = Array.from(
-            new Set<string>(
-              (data.resources as ResourceItem[])
-                .map((r) => r.subject_name)
-                .filter((name): name is string => typeof name === "string" && name.length > 0),
-            ),
-          ).sort((a, b) => a.localeCompare(b));
-          setSubjects(names);
-        }
-      })
-      .catch((err) => {
-        if (err?.name !== 'AbortError') {
-          console.error('Error loading resources for Ask AI:', err);
-        }
-      });
-    return () => abortController.abort();
-  }, [academicYear, branch, semester, initialWorkspace.academicYear, initialWorkspace.branch, initialWorkspace.semester, initialSubjects, initialResources]);
+  // Workspace catalog is loaded via useWorkspaceResources (shared module cache)
 
   // Initialize Speech Recognition
   useEffect(() => {
@@ -460,6 +408,14 @@ export default function AskClient({
         recognitionRef.current = rec;
       }
     }
+    return () => {
+      try {
+        recognitionRef.current?.abort?.();
+      } catch {
+        /* ignore */
+      }
+      recognitionRef.current = null;
+    };
   }, []);
 
   const toggleListening = () => {
@@ -488,16 +444,7 @@ export default function AskClient({
     () =>
       new DefaultChatTransport({
         api: '/api/chat',
-        headers: async (): Promise<Record<string, string>> => {
-          const user = auth.currentUser;
-          if (!user) return {};
-          try {
-            const idToken = await user.getIdToken();
-            return { Authorization: `Bearer ${idToken}` };
-          } catch {
-            return {};
-          }
-        },
+        headers: async (): Promise<Record<string, string>> => getAuthHeaders(),
         body: chatBody,
       }),
     [chatBody],
@@ -756,6 +703,8 @@ export default function AskClient({
     }
   };
 
+  const autoFiredRef = useRef(false);
+
   useEffect(() => {
     const tab = searchParams.get('tab');
     const topic = searchParams.get('topic');
@@ -775,7 +724,7 @@ export default function AskClient({
       setInput(prompt);
     }
   }, [searchParams]);
-  
+
   // Auto-resize textarea when input state updates (handles both programmatic set and typing)
   useEffect(() => {
     if (inputRef.current) {
@@ -900,8 +849,8 @@ export default function AskClient({
   }, []);
 
   // Generate Flashcards API Call
-  const handleGenerateFlashcards = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleGenerateFlashcards = async (e?: React.FormEvent) => {
+    e?.preventDefault();
     if (!flashcardTopic.trim() || isGeneratingFlashcards) return;
     setIsGeneratingFlashcards(true);
     setFlashcards([]);
@@ -910,18 +859,13 @@ export default function AskClient({
     setKnownCards({});
 
     try {
-      const user = auth.currentUser;
-      if (!user) {
+      if (!auth.currentUser) {
         toast.error('Please sign in to generate flashcards.');
         return;
       }
-      const idToken = await user.getIdToken();
-      const res = await fetch('/api/study', {
+      const res = await authFetch('/api/study', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${idToken}`,
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           type: 'flashcards',
           topic: flashcardTopic,
@@ -949,20 +893,17 @@ export default function AskClient({
     if (flashcards.length === 0 || isPublishingDeck) return;
     setIsPublishingDeck(true);
     try {
-      const user = auth.currentUser;
-      if (!user) {
+      if (!auth.currentUser) {
         toast.error("Sign in to publish a deck.");
         return;
       }
-      const idToken = await user.getIdToken();
-      const authorName = user.email ? user.email.split('@')[0] : 'Anonymous Scholar';
+      const authorName = auth.currentUser.email
+        ? auth.currentUser.email.split('@')[0]
+        : 'Anonymous Scholar';
 
-      const res = await fetch('/api/community-decks', {
+      const res = await authFetch('/api/community-decks', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${idToken}`,
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           title: flashcardTopic || 'Academic Flashcards',
           branch,
@@ -986,8 +927,8 @@ export default function AskClient({
   };
 
   // Generate Quiz API Call
-  const handleGenerateQuiz = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleGenerateQuiz = async (e?: React.FormEvent) => {
+    e?.preventDefault();
     if (!quizTopic.trim() || isGeneratingQuiz) return;
     setIsGeneratingQuiz(true);
     setQuizQuestions([]);
@@ -995,18 +936,13 @@ export default function AskClient({
     setQuizSubmitted(false);
 
     try {
-      const user = auth.currentUser;
-      if (!user) {
+      if (!auth.currentUser) {
         toast.error('Please sign in to generate a quiz.');
         return;
       }
-      const idToken = await user.getIdToken();
-      const res = await fetch('/api/study', {
+      const res = await authFetch('/api/study', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${idToken}`,
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           type: 'quiz',
           topic: quizTopic,
@@ -1029,6 +965,25 @@ export default function AskClient({
       setIsGeneratingQuiz(false);
     }
   };
+
+  // Honor ?auto=true&topic=… from Syllabus deep-links (fire once).
+  useEffect(() => {
+    if (autoFiredRef.current) return;
+    if (searchParams.get('auto') !== 'true') return;
+    const topic = searchParams.get('topic');
+    if (!topic?.trim()) return;
+    const tab = searchParams.get('tab');
+    if (tab === 'flashcards') {
+      if (flashcardTopic !== topic) return;
+      autoFiredRef.current = true;
+      void handleGenerateFlashcards();
+    } else if (tab === 'quiz') {
+      if (quizTopic !== topic) return;
+      autoFiredRef.current = true;
+      void handleGenerateQuiz();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional once-per-mount auto fire
+  }, [searchParams, flashcardTopic, quizTopic]);
 
   const calculateQuizScore = () => {
     let correct = 0;
@@ -1229,6 +1184,15 @@ export default function AskClient({
                 </span>
               )}
             </div>
+
+            {status === 'error' && (
+              <div
+                role="alert"
+                className="mx-4 sm:mx-6 mt-3 shrink-0 rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2.5 text-sm text-destructive"
+              >
+                Something went wrong generating a reply. Check your connection and try again.
+              </div>
+            )}
 
             <div ref={scrollContainerRef} className="min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain px-4 sm:px-6 py-6 relative [overflow-anchor:none]">
               {messages.length === 0 ? (

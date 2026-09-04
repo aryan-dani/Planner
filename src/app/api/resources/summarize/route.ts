@@ -3,15 +3,23 @@ import { GROQ_FAST_MODEL } from '@/lib/groqModels';
 import { generateText } from 'ai';
 import { adminDb } from '@/lib/firebaseAdmin';
 import { isAuthFailure, requireUser } from '@/lib/apiAuth';
-import { enforceUserRateLimit } from '@/lib/rateLimit';
+import { enforceAiRateLimit } from '@/lib/rateLimit';
 import { NextResponse } from 'next/server';
+
+export const maxDuration = 30;
 
 export async function GET(request: Request) {
   const auth = await requireUser(request);
   if (isAuthFailure(auth)) return auth;
 
-  const rate = await enforceUserRateLimit(auth.uid, "summarize", 20, 60_000);
+  const rate = await enforceAiRateLimit(auth.uid, "summarize", 20, 60_000);
   if (!rate.allowed) {
+    if (rate.unavailable) {
+      return NextResponse.json(
+        { error: "rate limiter unavailable" },
+        { status: 503, headers: { "Retry-After": String(rate.retryAfterSec) } },
+      );
+    }
     return NextResponse.json(
       { error: "Rate limit exceeded. Try again shortly." },
       { status: 429, headers: { "Retry-After": String(rate.retryAfterSec) } },

@@ -83,8 +83,22 @@ export default function NavUserMenu({
                 firebaseUser.email?.split("@")[0] ||
                 "Student",
               provider,
-              lastActive: new Date().toISOString(),
             };
+
+            const existingLastActive =
+              snap.exists() && typeof snap.data()?.lastActive === "string"
+                ? snap.data()!.lastActive
+                : null;
+            const lastActiveMs = existingLastActive
+              ? new Date(existingLastActive).getTime()
+              : 0;
+            const DAY_MS = 24 * 60 * 60 * 1000;
+            if (
+              !Number.isFinite(lastActiveMs) ||
+              Date.now() - lastActiveMs >= DAY_MS
+            ) {
+              updateData.lastActive = new Date().toISOString();
+            }
 
             if (snap.exists()) {
               const data = snap.data();
@@ -111,6 +125,7 @@ export default function NavUserMenu({
               updateData.academic_year = workspaceRef.current.academicYear;
               updateData.branch = workspaceRef.current.branch;
               updateData.semester = workspaceRef.current.semester;
+              updateData.lastActive = new Date().toISOString();
               await setDoc(userPrefsRef, updateData, { merge: true });
             }
           })

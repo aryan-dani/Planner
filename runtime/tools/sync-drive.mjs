@@ -105,6 +105,8 @@ async function syncDrive(options = {}) {
     const liveSubjectIds = new Set();
     const liveResourceIds = new Set();
     const syncedSubjectIds = new Set();
+    const uniqueBranches = new Set();
+    const uniqueSemesters = new Set();
 
     for (const file of files) {
       // Expected path: [optional_branch_parent/]Semester_Branch/Category/Subject/File
@@ -174,6 +176,8 @@ async function syncDrive(options = {}) {
         stats.subjects++;
       }
       liveSubjectIds.add(subjectId);
+      uniqueBranches.add(branch);
+      uniqueSemesters.add(semester);
 
       // 2. Sync Resource to Firestore
       // Instead of forcing a download, use the Google Drive preview link so it opens nicely in an iframe
@@ -343,6 +347,22 @@ async function syncDrive(options = {}) {
     console.log(`   - Subjects Synced: ${liveSubjectIds.size}`);
     console.log(`   - Subjects Deleted: ${stats.deletedSubjects}`);
     console.log(`   - Files Skipped: ${stats.skipped}\n`);
+
+    if (!dryRun) {
+      await db.collection("stats").doc("global").set(
+        {
+          subjects: liveSubjectIds.size,
+          resources: liveResourceIds.size,
+          branches: uniqueBranches.size,
+          semesters: uniqueSemesters.size,
+          updated_at: new Date().toISOString(),
+        },
+        { merge: true },
+      );
+      console.log(
+        `📊 Wrote stats/global (${liveSubjectIds.size} subjects, ${liveResourceIds.size} resources).\n`,
+      );
+    }
   } catch (error) {
     console.error(`\n❌ Sync failed: ${error.message}`);
     if (error.stack) console.error(error.stack);

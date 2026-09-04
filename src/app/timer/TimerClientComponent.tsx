@@ -367,14 +367,11 @@ export default function TimerClient() {
         body: mode === 'work' ? "Time for a break!" : "Break is over, back to work!",
         icon: "/utility-logo.webp"
       });
+    } else if ("Notification" in window && Notification.permission === "default") {
+      // Request only after the first completed session (not on mount).
+      void Notification.requestPermission();
     }
   }, [timeLeft, isActive, mode, sessions, playSound, switchMode, logFocusSession, workTime]);
-
-  useEffect(() => {
-    if ("Notification" in window && Notification.permission === "default") {
-      Notification.requestPermission();
-    }
-  }, []);
 
   useEffect(() => {
     if (isActive) {

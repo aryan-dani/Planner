@@ -100,10 +100,10 @@ export async function GET(request: Request) {
     }
 
     return NextResponse.json({ subjects, resources: resourcesList });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error fetching admin resources:", error);
     return NextResponse.json(
-      { error: error.message || "Failed to fetch admin resources" },
+      { error: "Failed to fetch admin resources" },
       { status: 500 }
     );
   }
@@ -172,10 +172,10 @@ export async function DELETE(request: Request) {
     revalidateTag("subjects", "max");
 
     return NextResponse.json({ success: true });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error deleting resource:", error);
     return NextResponse.json(
-      { error: error.message || "Failed to delete resource" },
+      { error: "Failed to delete resource" },
       { status: 500 }
     );
   }

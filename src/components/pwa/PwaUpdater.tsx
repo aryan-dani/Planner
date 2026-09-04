@@ -3,6 +3,17 @@
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
+/** Clear only Workbox SW caches; never touch utility-pdf-v2. */
+async function clearWorkboxCaches() {
+  if (!('caches' in window)) return;
+  const keys = await caches.keys();
+  await Promise.all(
+    keys
+      .filter((key) => key.startsWith('workbox-'))
+      .map((key) => caches.delete(key)),
+  );
+}
+
 export default function PwaUpdater() {
   const [registration, setRegistration] = useState<ServiceWorkerRegistration | null>(null);
 
@@ -61,12 +72,9 @@ export default function PwaUpdater() {
       if (!refreshing) {
         refreshing = true;
         
-        // Cache busting: clear caches before reloading
+        // Cache busting: clear Workbox caches before reloading
         try {
-          if ('caches' in window) {
-            const keys = await caches.keys();
-            await Promise.all(keys.map(key => caches.delete(key)));
-          }
+          await clearWorkboxCaches();
         } catch (e) {
           console.error('Failed to clear caches:', e);
         }
@@ -94,10 +102,7 @@ export default function PwaUpdater() {
           // Fallback reload in case controllerchange doesn't fire or takes too long
           setTimeout(async () => {
             try {
-              if ('caches' in window) {
-                const keys = await caches.keys();
-                await Promise.all(keys.map(key => caches.delete(key)));
-              }
+              await clearWorkboxCaches();
             } catch (e) {
               console.error('Failed to clear caches in fallback:', e);
             }
@@ -111,4 +116,3 @@ export default function PwaUpdater() {
 
   return null;
 }
-

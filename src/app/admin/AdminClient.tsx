@@ -25,6 +25,8 @@ import { useRouter } from "next/navigation";
 import type { Branch, Semester } from "@/lib/academic/scope";
 import { BRANCH_OPTIONS, SEMESTER_OPTIONS } from "@/lib/academic/scope";
 import { Select } from "@/components/ui/Select";
+import { fetchAdminStatus } from "@/lib/adminStatus";
+import { authFetch } from "@/lib/authFetch";
 
 interface Subject {
   id: string;
@@ -68,20 +70,10 @@ export default function AdminClient() {
   const [message, setMessage] = useState("");
   const [syncingDrive, setSyncingDrive] = useState(false);
 
-  const getAdminBearerHeaders = useCallback(async (): Promise<HeadersInit> => {
-    const user = auth.currentUser;
-    if (!user) {
-      throw new Error("You must be signed in as an admin.");
-    }
-    const idToken = await user.getIdToken();
-    return { Authorization: `Bearer ${idToken}` };
-  }, []);
-
   const fetchUsers = useCallback(async () => {
     setLoadingUsers(true);
     try {
-      const headers = await getAdminBearerHeaders();
-      const res = await fetch("/api/admin/users", { headers });
+      const res = await authFetch("/api/admin/users");
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
       setUsersList(data.users || []);
@@ -90,7 +82,7 @@ export default function AdminClient() {
     } finally {
       setLoadingUsers(false);
     }
-  }, [getAdminBearerHeaders]);
+  }, []);
 
   useEffect(() => {
     if (tab === "users") {
@@ -107,16 +99,11 @@ export default function AdminClient() {
         return;
       }
       try {
-        const idToken = await user.getIdToken();
-        const res = await fetch("/api/admin/me", {
-          headers: { Authorization: `Bearer ${idToken}` },
-        });
-        if (res.ok) {
-          const data = await res.json();
-          setIsAdmin(!!data.isAdmin);
-        } else {
-          setIsAdmin(false);
-        }
+        const { isAdmin: admin } = await fetchAdminStatus(
+          () => user.getIdToken(),
+          user.uid,
+        );
+        setIsAdmin(admin);
       } catch {
         setIsAdmin(false);
       } finally {
@@ -135,16 +122,11 @@ export default function AdminClient() {
     setSyncingDrive(true);
     setMessage("");
     try {
-      const user = auth.currentUser;
-      if (!user) {
+      if (!auth.currentUser) {
         throw new Error("You must be signed in to sync Drive.");
       }
-      const idToken = await user.getIdToken();
-      const response = await fetch("/api/webhooks/storage-sync", {
+      const response = await authFetch("/api/webhooks/storage-sync", {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${idToken}`,
-        },
       });
       const text = await response.text();
       let data;
@@ -173,10 +155,8 @@ export default function AdminClient() {
     if (!isAdmin) return;
     setLoadingResources(true);
     try {
-      const headers = await getAdminBearerHeaders();
-      const res = await fetch(
+      const res = await authFetch(
         `/api/admin/resources?branch=${branch}&semester=${semester}`,
-        { headers },
       );
       if (!res.ok) {
         throw new Error(await res.text());
@@ -189,7 +169,7 @@ export default function AdminClient() {
     } finally {
       setLoadingResources(false);
     }
-  }, [branch, semester, getAdminBearerHeaders, isAdmin]);
+  }, [branch, semester, isAdmin]);
 
   useEffect(() => {
     fetchAdminData();
@@ -203,10 +183,8 @@ export default function AdminClient() {
     )
       return;
     try {
-      const headers = await getAdminBearerHeaders();
-      const res = await fetch(`/api/admin/resources?id=${id}`, {
+      const res = await authFetch(`/api/admin/resources?id=${id}`, {
         method: "DELETE",
-        headers,
       });
       if (!res.ok) {
         throw new Error(await res.text());
@@ -227,12 +205,10 @@ export default function AdminClient() {
 
   const saveEdit = async (id: string) => {
     try {
-      const headers = await getAdminBearerHeaders();
-      const res = await fetch("/api/admin/resources", {
+      const res = await authFetch("/api/admin/resources", {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          ...headers,
         },
         body: JSON.stringify({
           id,

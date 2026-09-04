@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import { FieldValue } from "firebase-admin/firestore";
+import { z } from "zod";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { isAuthFailure, requireUser } from "@/lib/apiAuth";
 import { localDateKey } from "@/lib/dateLocal";
+import { enforceUserRateLimit } from "@/lib/rateLimit";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +30,13 @@ const ALLOWED_ACTIONS = new Set([
   "summary_generated",
 ]);
 
+const postSchema = z.object({
+  actionType: z
+    .string()
+    .refine((v) => ALLOWED_ACTIONS.has(v), { message: "Invalid actionType" }),
+  count: z.number().int().min(1).max(100),
+});
+
 function daysAgoLocal(days: number): string {
   const d = new Date();
   d.setDate(d.getDate() - days);
@@ -43,42 +52,30 @@ export async function GET(request: Request) {
     const db = adminDb();
     const since = daysAgoLocal(365);
 
-    // Prefer date-filtered query; fall back to in-memory filter if index missing.
-    let logs: Array<{ logged_date: string; count: number; action_type: string }> = [];
-    try {
-      const snapshot = await db
-        .collection("activity_logs")
-        .where("user_id", "==", userId)
-        .where("logged_date", ">=", since)
-        .limit(2000)
-        .get();
-      logs = snapshot.docs.map((docSnap) => {
-        const d = docSnap.data();
-        return {
-          logged_date: d.logged_date as string,
-          count: d.count as number,
-          action_type: d.action_type as string,
-        };
-      });
-    } catch {
-      const snapshot = await db
-        .collection("activity_logs")
-        .where("user_id", "==", userId)
-        .limit(2000)
-        .get();
-      logs = snapshot.docs
-        .map((docSnap) => {
-          const d = docSnap.data();
-          return {
-            logged_date: d.logged_date as string,
-            count: d.count as number,
-            action_type: d.action_type as string,
-          };
-        })
-        .filter((log) => log.logged_date && log.logged_date >= since);
+    const snapshot = await db
+      .collection("activity_logs")
+      .where("user_id", "==", userId)
+      .where("logged_date", ">=", since)
+      .limit(400)
+      .get();
+
+    const counts: Record<string, number> = {};
+    for (const docSnap of snapshot.docs) {
+      const d = docSnap.data();
+      const date = d.logged_date as string | undefined;
+      const count = Number(d.count) || 0;
+      if (!date || count <= 0) continue;
+      counts[date] = (counts[date] || 0) + count;
     }
 
-    return NextResponse.json({ logs });
+    return NextResponse.json(
+      { counts },
+      {
+        headers: {
+          "Cache-Control": "private, max-age=300",
+        },
+      },
+    );
   } catch (error) {
     console.error("Error fetching activity logs:", error);
     return NextResponse.json(
@@ -93,29 +90,34 @@ export async function POST(request: Request) {
     const auth = await requireUser(request);
     if (isAuthFailure(auth)) return auth;
 
+    const rate = await enforceUserRateLimit(auth.uid, "activity", 60, 60_000);
+    if (!rate.allowed) {
+      return NextResponse.json(
+        { error: "Rate limit exceeded. Try again shortly." },
+        {
+          status: 429,
+          headers: { "Retry-After": String(rate.retryAfterSec) },
+        },
+      );
+    }
+
     const userId = auth.uid;
-    const body = await request.json();
-    const { actionType, count } = body;
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    }
 
-    if (typeof actionType !== "string" || !ALLOWED_ACTIONS.has(actionType)) {
+    const parsed = postSchema.safeParse(body);
+    if (!parsed.success) {
       return NextResponse.json(
-        { error: "Invalid actionType" },
+        { error: "Invalid actionType or count" },
         { status: 400 },
       );
     }
 
-    if (
-      typeof count !== "number" ||
-      !Number.isFinite(count) ||
-      count < 1 ||
-      count > 100
-    ) {
-      return NextResponse.json(
-        { error: "count must be a number between 1 and 100" },
-        { status: 400 },
-      );
-    }
-
+    const { actionType, count } = parsed.data;
     const today = localDateKey();
     const docId = `${userId}_${actionType}_${today}`;
     const db = adminDb();

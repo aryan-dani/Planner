@@ -28,6 +28,7 @@ import {
 import { logActivity } from "@/lib/activity";
 import { toast } from "sonner";
 import { Button, Badge, Card, Modal, Segmented } from "@/components/ui";
+import { authFetch } from "@/lib/authFetch";
 
 const WHATSAPP_COMMUNITY_URL =
   "https://chat.whatsapp.com/IptJTcvj4F848iY2riZ3YZ";
@@ -120,12 +121,10 @@ export default function CommunityClient({
     );
 
     try {
-      const idToken = await user.getIdToken();
-      const res = await fetch(`/api/community-decks/${deckId}`, {
+      const res = await authFetch(`/api/community-decks/${deckId}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${idToken}`,
         },
         body: JSON.stringify({ action: "upvote" }),
       });
@@ -167,13 +166,8 @@ export default function CommunityClient({
 
     setIsDeleting(deckId);
     try {
-      const user = auth.currentUser;
-      const idToken = user ? await user.getIdToken() : "";
-      const res = await fetch(`/api/community-decks/${deckId}`, {
+      const res = await authFetch(`/api/community-decks/${deckId}`, {
         method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${idToken}`,
-        },
       });
       if (!res.ok) {
         const data = await res.json();

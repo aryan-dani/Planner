@@ -33,7 +33,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ users });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Failed to fetch users";
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error("Error fetching users:", error);
+    return NextResponse.json({ error: "Failed to fetch users" }, { status: 500 });
   }
 }

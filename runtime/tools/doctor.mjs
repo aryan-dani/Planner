@@ -52,12 +52,12 @@ const ENV_CHECKS = [
   {
     key: "UPSTASH_REDIS_REST_URL",
     required: false,
-    note: "Distributed rate limits (optional)",
+    note: "Distributed AI rate limits (warn if missing; required on Vercel production)",
   },
   {
     key: "UPSTASH_REDIS_REST_TOKEN",
     required: false,
-    note: "Distributed rate limits (optional)",
+    note: "Upstash REST token (warn if missing; required on Vercel production)",
   },
 ];
 

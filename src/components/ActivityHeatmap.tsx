@@ -5,11 +5,6 @@ import { auth } from '@/lib/firebase';
 import { Flame, Trophy, Calendar, Zap, Info } from 'lucide-react';
 import { ACTIVITY_STORAGE_KEY, localDateKey } from '@/lib/activity';
 
-interface ActivityLog {
-  logged_date: string;
-  count: number;
-}
-
 const STORAGE_KEY = ACTIVITY_STORAGE_KEY;
 const WEEK_COUNT = 53;
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const;
@@ -66,18 +61,14 @@ export default function ActivityHeatmap() {
         });
         if (!res.ok) throw new Error(await res.text());
         const data = await res.json();
-        const cloudMap: Record<string, number> = {};
-
-        (data.logs || []).forEach((item: ActivityLog) => {
-          if (item.logged_date && item.count) {
-            cloudMap[item.logged_date] = (cloudMap[item.logged_date] || 0) + Number(item.count);
-          }
-        });
+        const cloudMap: Record<string, number> =
+          data.counts && typeof data.counts === "object" ? data.counts : {};
 
         setActivityMap((prev) => {
           const merged = { ...prev };
           Object.keys(cloudMap).forEach((date) => {
-            merged[date] = Math.max(merged[date] || 0, cloudMap[date]);
+            const n = Number(cloudMap[date]) || 0;
+            if (n > 0) merged[date] = Math.max(merged[date] || 0, n);
           });
           localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
           return merged;

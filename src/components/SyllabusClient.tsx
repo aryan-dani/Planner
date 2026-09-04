@@ -43,15 +43,8 @@ import { buildResourcesHref } from '@/lib/resourceUrl';
 import AcademicBreadcrumb from '@/components/AcademicBreadcrumb';
 import Link from 'next/link';
 import { Button, Card, Badge, Input, Select, Segmented, Modal } from '@/components/ui';
-
-interface SyllabusClientProps {
-  subjects: SubjectItem[];
-  academicYear: string;
-  branch: string;
-  semester: number;
-  syllabusUrl?: string | null;
-  initialResources: ResourceItem[];
-}
+import { useWorkspaceResources } from '@/lib/useWorkspaceResources';
+import PageSkeleton from '@/components/PageSkeleton';
 
 interface ResourceItemExt extends ResourceItem {
   subject_name: string;
@@ -255,12 +248,32 @@ function getModulesForSubject(name: string) {
   ];
 }
 
-export default function SyllabusClient({ subjects, academicYear, branch, semester, syllabusUrl, initialResources }: SyllabusClientProps) {
+export default function SyllabusClient() {
   const { searchQuery } = useAcademicStore();
+  const {
+    resources: catalogResources,
+    subjects: subjectNames,
+    syllabusUrl,
+    loading: catalogLoading,
+    academicYear,
+    branch,
+    semester,
+  } = useWorkspaceResources();
+
+  const subjects: SubjectItem[] = useMemo(
+    () =>
+      subjectNames.map((name) => ({
+        id: name,
+        name,
+        branch,
+        semester,
+      })),
+    [subjectNames, branch, semester],
+  );
   const [expandedSubject, setExpandedSubject] = useState<string | null>(null);
   const [progressMap, setProgressMap] = useState<Record<string, boolean | string>>({});
   const [mounted, setMounted] = useState(false);
-  const resources = initialResources as ResourceItemExt[];
+  const resources = catalogResources as ResourceItemExt[];
 
   // Scheduler Modal State
   const [plannerModalOpen, setPlannerModalOpen] = useState(false);
@@ -474,10 +487,12 @@ export default function SyllabusClient({ subjects, academicYear, branch, semeste
     return BookOpen;
   };
 
-  if (!mounted) {
+  if (!mounted || catalogLoading) {
     return (
       <div className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 py-12 flex justify-center items-center h-[50vh]">
-        <span className="text-sm font-semibold text-muted">Initializing dashboard...</span>
+        <span className="text-sm font-semibold text-muted">
+          {catalogLoading ? "Loading syllabus…" : "Initializing dashboard..."}
+        </span>
       </div>
     );
   }

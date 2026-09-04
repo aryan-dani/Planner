@@ -37,7 +37,9 @@ Commands:
                       --subject=<name>  Limit sync + prune to matching subjects
                       --dry-run         Print actions without writing
   index             Index resource contents into Firestore for RAG search
-  purge-cache       Purge semantic cache entries older than 30 days
+                      --shrink-content  Truncate oversized resource_content
+                                        fields to 6k chars (no full reindex)
+  purge-cache       Purge expired semantic cache entries
   doctor            Check env vars + Firestore collection health
   
 Examples:
@@ -110,7 +112,9 @@ async function main() {
       }
 
       case "index": {
-        await indexContent();
+        await indexContent({
+          shrinkContent: args.includes("--shrink-content"),
+        });
         break;
       }
 

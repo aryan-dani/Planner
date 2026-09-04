@@ -23,6 +23,7 @@ import {
   ChevronRight,
   ClipboardList,
   Clock,
+  Star,
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { toast } from "sonner";
@@ -48,6 +49,7 @@ import {
   parseResourceFilter,
   parseResourceFolder,
   buildResourcesHref,
+  pageFromSectionLabel,
   type ResourceFilter,
 } from "@/lib/resourceUrl";
 import {
@@ -55,21 +57,19 @@ import {
   pushRecentResource,
   type RecentResource,
 } from "@/lib/recentResources";
+import {
+  getFavoriteResources,
+  toggleFavoriteResource,
+  type FavoriteResource,
+} from "@/lib/favoriteResources";
+import { getReadingProgress } from "@/lib/readingProgress";
+import { authFetch } from "@/lib/authFetch";
+import { useWorkspaceResources } from "@/lib/useWorkspaceResources";
 import { Button, Card, Badge } from "@/components/ui";
+import PageSkeleton from "@/components/PageSkeleton";
 
 const ResourceViewer = dynamic(() => import("./ResourceViewer"), { ssr: false });
 const SummaryModal = dynamic(() => import("./SummaryModal"), { ssr: false });
-
-interface ResourcesClientProps {
-  initialResources: ResourceItem[];
-  academicYear: string;
-  branch: string;
-  semester: number;
-  initialSubject?: string | null;
-  initialFilter?: ResourceFilter;
-  initialView?: string | null;
-  initialFolder?: string | null;
-}
 
 const RESOURCE_FILTERS: { value: ResourceFilter; label: string; Icon: any }[] =
   [
@@ -93,21 +93,25 @@ function filterLabel(filter: ResourceFilter): string | null {
   return match?.label ?? filter;
 }
 
-export default function ResourcesClient({
-  initialResources,
-  academicYear,
-  branch,
-  semester,
-  initialSubject = null,
-  initialFilter = "all",
-  initialView = null,
-  initialFolder = null,
-}: ResourcesClientProps) {
+export default function ResourcesClient() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { searchQuery, setSearchQuery, aiSearchQuery, setAiSearchQuery } =
     useAcademicStore();
+  const {
+    resources,
+    loading: catalogLoading,
+    academicYear,
+    branch,
+    semester,
+  } = useWorkspaceResources();
+
+  const initialFilter = parseResourceFilter(searchParams.get("filter"));
+  const initialView = searchParams.get("view");
+  const initialFolder = searchParams.get("folder");
+  const initialSubject = searchParams.get("subject");
+
   const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
   const [selectedFilter, setSelectedFilter] =
     useState<ResourceFilter>(initialFilter);
@@ -119,6 +123,9 @@ export default function ResourcesClient({
   );
   const [viewerPage, setViewerPage] = useState<number | null>(null);
   const [recentResources, setRecentResources] = useState<RecentResource[]>([]);
+  const [favoriteResources, setFavoriteResources] = useState<FavoriteResource[]>(
+    [],
+  );
   const [summarizingResource, setSummarizingResource] =
     useState<ResourceItem | null>(null);
   const [contentResults, setContentResults] = useState<any[]>([]);
@@ -134,8 +141,6 @@ export default function ResourcesClient({
   const subjectPendingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchRequestId = useRef(0);
 
-  const resources = initialResources;
-
   useEffect(() => {
     if (prevScopeRef.current === scopeKey) return;
     prevScopeRef.current = scopeKey;
@@ -149,8 +154,8 @@ export default function ResourcesClient({
   }, [scopeKey]);
 
   useEffect(() => {
-    setIsScopeLoading(false);
-  }, [initialResources]);
+    if (!catalogLoading) setIsScopeLoading(false);
+  }, [catalogLoading, resources]);
 
   useEffect(() => {
     return () => {
@@ -166,6 +171,7 @@ export default function ResourcesClient({
       folder?: string | null;
     }) => {
       const params = new URLSearchParams(searchParams.toString());
+      params.set("year", academicYear);
       params.set("branch", branch);
       params.set("semester", String(semester));
 
@@ -408,7 +414,30 @@ export default function ResourcesClient({
 
   useEffect(() => {
     setRecentResources(getRecentResources());
+    setFavoriteResources(getFavoriteResources());
   }, []);
+
+  const favoriteIds = useMemo(
+    () => new Set(favoriteResources.map((f) => f.id)),
+    [favoriteResources],
+  );
+
+  const handleFavorite = useCallback(
+    (item: ResourceItem) => {
+      const next = toggleFavoriteResource(item, {
+        academicYear,
+        branch,
+        semester,
+      });
+      setFavoriteResources(next);
+      toast.success(
+        next.some((f) => f.id === item.id)
+          ? "Added to favorites"
+          : "Removed from favorites",
+      );
+    },
+    [academicYear, branch, semester],
+  );
 
   useEffect(() => {
     if (!selectedSubject) return;
@@ -429,7 +458,9 @@ export default function ResourcesClient({
       const folder = folderIdForResource(item);
       if (folder) setActiveFolderId(folder);
       setViewerResource(item);
-      setViewerPage(page && page > 0 ? page : null);
+      const explicit = page && page > 0 ? page : null;
+      const saved = explicit ? null : getReadingProgress(item.id);
+      setViewerPage(explicit ?? saved);
       setRecentResources(
         pushRecentResource(item, { academicYear, branch, semester }),
       );
@@ -499,19 +530,18 @@ export default function ResourcesClient({
           if (searchRequestId.current === requestId) {
             setContentResults([]);
             setIsSearchingContent(false);
+            toast.message("Sign in for content search");
           }
           return;
         }
-        const idToken = await user.getIdToken();
         const params = new URLSearchParams({
           q: aiSearchQuery,
           year: academicYear,
           branch,
           semester: String(semester),
         });
-        const res = await fetch(`/api/search?${params.toString()}`, {
+        const res = await authFetch(`/api/search?${params.toString()}`, {
           signal: abortController.signal,
-          headers: { Authorization: `Bearer ${idToken}` },
         });
         if (!res.ok) {
           if (searchRequestId.current === requestId) setContentResults([]);
@@ -720,6 +750,10 @@ export default function ResourcesClient({
     selectedFilter === "all" || selectedFilter === "question-bank";
   const showOther = selectedFilter === "all" || selectedFilter === "other";
 
+  if (catalogLoading && resources.length === 0) {
+    return <PageSkeleton variant="split" />;
+  }
+
   return (
     <div className="flex-1 w-full max-w-7xl mx-auto page-gutter py-8 min-h-[80vh]">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-3 gap-4">
@@ -891,17 +925,18 @@ export default function ResourcesClient({
                 transition={{ duration: 0.18 }}
                 className="space-y-8"
               >
-                {recentResources.length > 0 && (
+                {favoriteResources.length > 0 && (
                   <div className="rounded-xl border border-border/70 bg-surface/40 p-3">
                     <div className="flex items-center gap-1.5 mb-2">
-                      <Clock className="w-3.5 h-3.5 text-muted" />
+                      <Star className="w-3.5 h-3.5 text-muted" />
                       <p className="text-[11px] font-bold uppercase tracking-wider text-muted">
-                        Recently viewed
+                        Favorites
                       </p>
                     </div>
                     <div className="flex gap-2 overflow-x-auto pb-0.5 scrollbar-none">
-                      {recentResources.slice(0, 8).map((r) => {
+                      {favoriteResources.slice(0, 8).map((r) => {
                         const live = resources.find((x) => x.id === r.id);
+                        const resume = getReadingProgress(r.id);
                         return (
                           <button
                             key={r.id}
@@ -921,6 +956,47 @@ export default function ResourcesClient({
                             </p>
                             <p className="text-[10px] text-muted truncate mt-0.5">
                               {r.subject_name}
+                              {resume ? ` · Resume p.${resume}` : ""}
+                            </p>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {recentResources.length > 0 && (
+                  <div className="rounded-xl border border-border/70 bg-surface/40 p-3">
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <Clock className="w-3.5 h-3.5 text-muted" />
+                      <p className="text-[11px] font-bold uppercase tracking-wider text-muted">
+                        Recently viewed
+                      </p>
+                    </div>
+                    <div className="flex gap-2 overflow-x-auto pb-0.5 scrollbar-none">
+                      {recentResources.slice(0, 8).map((r) => {
+                        const live = resources.find((x) => x.id === r.id);
+                        const resume = getReadingProgress(r.id);
+                        return (
+                          <button
+                            key={r.id}
+                            type="button"
+                            onClick={() => {
+                              if (live) openResource(live);
+                              else if (r.subject_name) {
+                                lastUserSubjectRef.current = r.subject_name;
+                                setSelectedSubject(r.subject_name);
+                              }
+                            }}
+                            className="shrink-0 max-w-[11rem] rounded-lg border border-border bg-card px-2.5 py-2 text-left hover:bg-surface-hover transition-colors"
+                            title={cleanResourceTitle(r.title)}
+                          >
+                            <p className="text-xs font-medium text-foreground truncate">
+                              {cleanResourceTitle(r.title)}
+                            </p>
+                            <p className="text-[10px] text-muted truncate mt-0.5">
+                              {r.subject_name}
+                              {resume ? ` · Resume p.${resume}` : ""}
                             </p>
                           </button>
                         );
@@ -1077,7 +1153,12 @@ export default function ResourcesClient({
                                 const resource = resources.find(
                                   (r) => r.id === result.resource_id,
                                 );
-                                if (resource) openResource(resource);
+                                if (resource) {
+                                  const page = pageFromSectionLabel(
+                                    result.section_label,
+                                  );
+                                  openResource(resource, page);
+                                }
                               }}
                               onKeyDown={(e) => {
                                 if (e.key === "Enter" || e.key === " ") {
@@ -1085,7 +1166,12 @@ export default function ResourcesClient({
                                   const resource = resources.find(
                                     (r) => r.id === result.resource_id,
                                   );
-                                  if (resource) openResource(resource);
+                                  if (resource) {
+                                    const page = pageFromSectionLabel(
+                                      result.section_label,
+                                    );
+                                    openResource(resource, page);
+                                  }
                                 }
                               }}
                               className="group text-left cursor-pointer flex flex-col justify-between h-full shadow-xs"
@@ -1123,6 +1209,8 @@ export default function ResourcesClient({
                         onOpenResource={openResource}
                         onSummarize={setSummarizingResource}
                         onShare={shareResource}
+                        onFavorite={handleFavorite}
+                        favoriteIds={favoriteIds}
                         activeFolderId={activeFolderId}
                         onFolderChange={handleFolderChange}
                         highlightFileId={viewerResource?.id}
@@ -1140,6 +1228,8 @@ export default function ResourcesClient({
                         onOpenResource={openResource}
                         onSummarize={setSummarizingResource}
                         onShare={shareResource}
+                        onFavorite={handleFavorite}
+                        favoriteIds={favoriteIds}
                       />
                     )}
 
@@ -1157,6 +1247,8 @@ export default function ResourcesClient({
                           onOpenResource={openResource}
                           onSummarize={setSummarizingResource}
                           onShare={shareResource}
+                          onFavorite={handleFavorite}
+                          favoriteIds={favoriteIds}
                         />
                       )}
 
@@ -1169,6 +1261,8 @@ export default function ResourcesClient({
                         onOpenResource={openResource}
                         onSummarize={setSummarizingResource}
                         onShare={shareResource}
+                        onFavorite={handleFavorite}
+                        favoriteIds={favoriteIds}
                         activeFolderId={activeFolderId}
                         onFolderChange={handleFolderChange}
                         highlightFileId={viewerResource?.id}
@@ -1184,6 +1278,8 @@ export default function ResourcesClient({
                         onOpenResource={openResource}
                         onSummarize={setSummarizingResource}
                         onShare={shareResource}
+                        onFavorite={handleFavorite}
+                        favoriteIds={favoriteIds}
                         activeFolderId={activeFolderId}
                         onFolderChange={handleFolderChange}
                         highlightFileId={viewerResource?.id}
@@ -1199,6 +1295,8 @@ export default function ResourcesClient({
                         onOpenResource={openResource}
                         onSummarize={setSummarizingResource}
                         onShare={shareResource}
+                        onFavorite={handleFavorite}
+                        favoriteIds={favoriteIds}
                         activeFolderId={activeFolderId}
                         onFolderChange={handleFolderChange}
                         highlightFileId={viewerResource?.id}
@@ -1214,6 +1312,8 @@ export default function ResourcesClient({
                         onOpenResource={openResource}
                         onSummarize={setSummarizingResource}
                         onShare={shareResource}
+                        onFavorite={handleFavorite}
+                        favoriteIds={favoriteIds}
                       />
                     )}
                   </div>

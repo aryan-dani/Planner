@@ -18,14 +18,14 @@ service cloud.firestore {
       return signedIn() && request.resource.data.owner_id == request.auth.uid;
     }
 
-    // Public catalog (Drive sync writes via Admin SDK — bypasses rules)
+    // Catalog (Drive sync writes via Admin SDK — bypasses rules)
     match /subjects/{id} {
-      allow read: if true;
+      allow read: if request.auth != null;
       allow write: if false;
     }
 
     match /resources/{id} {
-      allow read: if true;
+      allow read: if request.auth != null;
       allow write: if false;
     }
 
@@ -62,7 +62,9 @@ service cloud.firestore {
         resource.data.is_public == true
       );
       allow create: if isOwnerFieldOnCreate();
-      allow update, delete: if isOwnerField();
+      allow update: if isOwnerField() &&
+        request.resource.data.owner_id == resource.data.owner_id;
+      allow delete: if isOwnerField();
     }
 
     match /planner_collaborators/{id} {

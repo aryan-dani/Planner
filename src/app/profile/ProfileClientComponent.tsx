@@ -37,7 +37,9 @@ import {
   ExternalLink,
   CheckCircle2,
   Sparkles,
+  HardDrive,
 } from "lucide-react";
+import { clearDriveFileCache } from "@/lib/driveFileCache";
 import { ScopeSelector } from "@/components/academic/ScopeSelector";
 
 // Helper to generate self-contained SVG base64 Data URLs for monochrome avatars
@@ -708,6 +710,31 @@ export default function ProfileClientComponent() {
                   );
                 })}
               </div>
+            </div>
+
+            {/* Offline cache */}
+            <div className="bg-card border border-border/80 rounded-2xl p-6 shadow-xs flex flex-col gap-4">
+              <h3 className="text-sm font-bold text-foreground pb-3 border-b border-border/50 flex items-center gap-2">
+                <HardDrive className="w-4 h-4 text-muted" />
+                Offline files
+              </h3>
+              <p className="text-xs text-muted leading-relaxed">
+                PDFs saved with “Save offline” are stored in this browser only. Clearing frees storage and requires re-download.
+              </p>
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    await clearDriveFileCache();
+                    toast.success("Offline files cleared");
+                  } catch {
+                    toast.error("Could not clear offline cache");
+                  }
+                }}
+                className="self-start inline-flex items-center gap-2 rounded-xl border border-border bg-surface px-3.5 py-2.5 text-xs font-semibold text-foreground hover:bg-surface-hover transition-colors"
+              >
+                Clear offline files
+              </button>
             </div>
 
             {/* Connected accounts */}

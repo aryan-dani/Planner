@@ -1,6 +1,7 @@
 import { performRAGSearch } from '@/lib/ragSearch';
 import { NextResponse } from 'next/server';
 import { isAuthFailure, requireUser } from '@/lib/apiAuth';
+import { enforceUserRateLimit } from '@/lib/rateLimit';
 import { DEFAULT_ACADEMIC_YEAR, DEFAULT_BRANCH, DEFAULT_SEMESTER } from '@/lib/workspace';
 import { z } from 'zod';
 
@@ -11,6 +12,14 @@ const searchSchema = z.object({
 export async function GET(request: Request) {
   const auth = await requireUser(request);
   if (isAuthFailure(auth)) return auth;
+
+  const rate = await enforceUserRateLimit(auth.uid, 'search', 20, 60_000);
+  if (!rate.allowed) {
+    return NextResponse.json(
+      { error: 'Rate limit exceeded. Try again shortly.' },
+      { status: 429, headers: { 'Retry-After': String(rate.retryAfterSec) } },
+    );
+  }
 
   const { searchParams } = new URL(request.url);
   const query = searchParams.get('q');

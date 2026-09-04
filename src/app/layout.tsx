@@ -110,7 +110,7 @@ export default function RootLayout({
           </div>
           <InstallPrompt />
         </Providers>
-        <SpeedInsights />
+        <SpeedInsights sampleRate={0.1} />
       </body>
     </html>
   );

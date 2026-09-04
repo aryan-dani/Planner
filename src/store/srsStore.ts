@@ -42,10 +42,13 @@ interface SRSState {
 const DECKS_KEY = 'utility_srs_decks';
 const CARDS_KEY = 'utility_srs_cards';
 const META_KEY = 'utility_srs_meta';
+const SYNC_DEBOUNCE_MS = 5_000;
 
 type SRSMeta = { updated_at: string };
 
 let cloudHydrating = false;
+let syncTimer: ReturnType<typeof setTimeout> | null = null;
+let pagehideRegistered = false;
 
 function readLocalMeta(): SRSMeta | null {
   if (typeof window === 'undefined') return null;
@@ -76,6 +79,59 @@ function getNextReviewDate(box: number): string {
   const d = new Date();
   d.setDate(d.getDate() + days);
   return localDateKey(d);
+}
+
+async function writeSrsToCloud(): Promise<void> {
+  const user = auth.currentUser;
+  if (!user || cloudHydrating) return;
+
+  const state = useSRSStore.getState();
+  useSRSStore.setState({ syncing: true });
+  try {
+    const updatedAt = new Date().toISOString();
+    const payload = {
+      decks: state.decks,
+      cards: state.cards,
+      updated_at: updatedAt,
+    };
+
+    const docRef = doc(db, 'srs_data', user.uid);
+    await setDoc(docRef, {
+      user_id: user.uid,
+      data: payload,
+      updated_at: updatedAt,
+    }, { merge: true });
+    writeLocalMeta(updatedAt);
+  } catch (e) {
+    console.error('Firebase SRS sync error:', e);
+  } finally {
+    useSRSStore.setState({ syncing: false });
+  }
+}
+
+function scheduleSyncToCloud() {
+  if (syncTimer != null) clearTimeout(syncTimer);
+  syncTimer = setTimeout(() => {
+    syncTimer = null;
+    void writeSrsToCloud();
+  }, SYNC_DEBOUNCE_MS);
+}
+
+/** Flush any pending debounced SRS cloud sync immediately. */
+export async function flushSyncToCloud(): Promise<void> {
+  if (syncTimer != null) {
+    clearTimeout(syncTimer);
+    syncTimer = null;
+  }
+  await writeSrsToCloud();
+}
+
+function ensurePagehideFlush() {
+  if (typeof window === 'undefined' || pagehideRegistered) return;
+  pagehideRegistered = true;
+  window.addEventListener('pagehide', () => {
+    void flushSyncToCloud();
+  });
 }
 
 export const useSRSStore = create<SRSState>((set, get) => ({
@@ -109,6 +165,7 @@ export const useSRSStore = create<SRSState>((set, get) => ({
     }
 
     set({ decks, cards, initialized: true });
+    ensurePagehideFlush();
     get().pullFromCloud().catch(console.error);
   },
 
@@ -183,7 +240,10 @@ export const useSRSStore = create<SRSState>((set, get) => ({
     const nextCards = get().cards.map((c) => {
       if (c.id === cardId) {
         const nextBox = gotIt ? Math.min(c.box + 1, 5) : 1;
-        const nextReviewDate = getNextReviewDate(nextBox);
+        // Failed cards reset to box 1 and are due again today.
+        const nextReviewDate = gotIt
+          ? getNextReviewDate(nextBox)
+          : getTodayString();
         return {
           ...c,
           box: nextBox,
@@ -215,36 +275,14 @@ export const useSRSStore = create<SRSState>((set, get) => ({
   },
 
   syncToCloud: async () => {
-    const user = auth.currentUser;
-    if (!user || cloudHydrating) return;
-
-    set({ syncing: true });
-    try {
-      const updatedAt = new Date().toISOString();
-      const payload = {
-        decks: get().decks,
-        cards: get().cards,
-        updated_at: updatedAt,
-      };
-      
-      const docRef = doc(db, 'srs_data', user.uid);
-      await setDoc(docRef, {
-        user_id: user.uid,
-        data: payload,
-        updated_at: updatedAt,
-      }, { merge: true });
-      writeLocalMeta(updatedAt);
-    } catch (e) {
-      console.error('Firebase SRS sync error:', e);
-    } finally {
-      set({ syncing: false });
-    }
+    scheduleSyncToCloud();
   },
 
   pullFromCloud: async () => {
     const user = auth.currentUser;
     if (!user) return;
 
+    ensurePagehideFlush();
     cloudHydrating = true;
     set({ syncing: true });
     try {
@@ -272,7 +310,9 @@ export const useSRSStore = create<SRSState>((set, get) => ({
               writeLocalMeta(cloudData.updated_at);
             }
           } else if (localUpdated > 0) {
-            await get().syncToCloud();
+            // Clear guard before push so syncToCloud / writeSrsToCloud can run.
+            cloudHydrating = false;
+            await flushSyncToCloud();
           }
         }
       }

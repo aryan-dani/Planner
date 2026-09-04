@@ -92,3 +92,23 @@ export async function enforceUserRateLimit(
 ) {
   return checkRateLimit(`${route}:${uid}`, limit, windowMs);
 }
+
+/**
+ * AI routes: in Vercel production, require Upstash (no silent in-memory fallback).
+ * Local/preview may fall back to checkRateLimit (memory or Upstash if configured).
+ */
+export async function enforceAiRateLimit(
+  uid: string,
+  route: string,
+  limit: number,
+  windowMs: number,
+): Promise<{ allowed: boolean; retryAfterSec: number; unavailable?: boolean }> {
+  if (process.env.VERCEL_ENV === "production") {
+    const url = process.env.UPSTASH_REDIS_REST_URL?.trim();
+    const token = process.env.UPSTASH_REDIS_REST_TOKEN?.trim();
+    if (!url || !token) {
+      return { allowed: false, retryAfterSec: 60, unavailable: true };
+    }
+  }
+  return checkRateLimit(`${route}:${uid}`, limit, windowMs);
+}

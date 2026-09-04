@@ -9,13 +9,6 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-function isProduction(): boolean {
-  return (
-    process.env.NODE_ENV === "production" ||
-    process.env.VERCEL_ENV === "production"
-  );
-}
-
 function getGithubToken(): string | null {
   const token = process.env.GH_PAT || process.env.GITHUB_TOKEN;
   return token?.trim() || null;
@@ -52,13 +45,8 @@ async function isAuthorized(request: Request): Promise<boolean> {
     }
   }
 
-  // Production: never allow unauthenticated sync (require CRON_SECRET or admin token)
-  if (isProduction()) {
-    return false;
-  }
-
-  // Local/dev only: allow when CRON_SECRET is unset
-  if (!cronSecret) {
+  // Local next dev only: allow when CRON_SECRET is unset and not on Vercel
+  if (!cronSecret && !process.env.VERCEL) {
     return true;
   }
 
@@ -164,12 +152,10 @@ async function handleSync(request: Request) {
             "GitHub Actions sync+index queued. Drive sync and content indexing will run in CI. Check the Actions tab in a few minutes.",
         });
       } catch (err) {
-        const actionsError =
-          err instanceof Error ? err.message : String(err);
         console.error("❌ GitHub Actions dispatch failed:", err);
         if (!runInProcess) {
           return NextResponse.json(
-            { success: false, error: actionsError },
+            { success: false, error: "Failed to dispatch sync workflow" },
             { status: 502 },
           );
         }
@@ -180,7 +166,8 @@ async function handleSync(request: Request) {
         return NextResponse.json({
           success: true,
           mode: "in-process-fallback",
-          message: `GitHub Actions dispatch failed (${actionsError}). In-process Drive sync queued instead (indexing requires a working GH_PAT).`,
+          message:
+            "GitHub Actions dispatch failed. In-process Drive sync queued instead (indexing requires a working GH_PAT).",
         });
       }
     }
@@ -195,10 +182,9 @@ async function handleSync(request: Request) {
         "In-process Google Drive sync queued. Set GH_PAT on Vercel for full sync+index via GitHub Actions.",
     });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : String(error);
     console.error("❌ Webhook handler failed:", error);
     return NextResponse.json(
-      { success: false, error: message },
+      { success: false, error: "Sync request failed" },
       { status: 500 },
     );
   }
