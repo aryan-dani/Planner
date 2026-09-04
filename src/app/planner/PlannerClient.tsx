@@ -558,12 +558,12 @@ function ShareModal({
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<'editor' | 'viewer'>('editor');
   const [copied, setCopied] = useState(false);
+  const sharePath = planId ? `/planner/shared/${planId}` : '';
 
   if (!isOpen) return null;
 
-  const shareUrl = planId ? `${typeof window !== 'undefined' ? window.location.origin : ''}/planner/shared/${planId}` : '';
-
   const handleCopy = () => {
+    const shareUrl = `${window.location.origin}${sharePath}`;
     navigator.clipboard.writeText(shareUrl);
     setCopied(true);
     toast.success('Link copied!');
@@ -641,7 +641,7 @@ function ShareModal({
                 <div className="flex gap-2">
                   <div className="flex-1 bg-surface border border-border rounded-lg px-3 py-2 flex items-center gap-2 overflow-hidden">
                     <Link2 className="w-3.5 h-3.5 text-muted flex-shrink-0" />
-                    <span className="text-xs text-muted truncate font-mono">{shareUrl}</span>
+                    <span className="text-xs text-muted truncate font-mono">{sharePath}</span>
                   </div>
                   <button
                     onClick={handleCopy}

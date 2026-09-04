@@ -3,13 +3,13 @@
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
-/** Clear only Workbox SW caches; never touch utility-pdf-v2. */
+/** Clear SW/runtime caches on update; never touch utility-pdf-v2 (Drive PDF Cache API). */
 async function clearWorkboxCaches() {
   if (!('caches' in window)) return;
   const keys = await caches.keys();
   await Promise.all(
     keys
-      .filter((key) => key.startsWith('workbox-'))
+      .filter((key) => key !== 'utility-pdf-v2' && !key.startsWith('utility-pdf'))
       .map((key) => caches.delete(key)),
   );
 }

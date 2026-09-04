@@ -80,19 +80,26 @@ const config = isDev
         "!utility-logo.png",
         "!utility-logo-og.png",
       ],
+      // Offline document only via NetworkFirst handlerDidError — never App Shell navigateFallback
+      // (that serves /~offline for every navigation and causes React hydration #418).
+      fallbacks: {
+        document: '/~offline',
+      },
+      // Keep default Workbox page/asset caching, but do not CacheFirst/NetworkFirst third-party
+      // origins (Drive PDFs must stay on the app Cache API, not Workbox).
+      extendDefaultRuntimeCaching: true,
       workboxOptions: {
         skipWaiting: false,
-        navigateFallback: '/~offline',
-        navigateFallbackDenylist: [
-          /^\/admin/,
-          /^\/api/,
-        ],
         exclude: [/\.map$/, /^manifest.*\.js$/],
-        // No runtimeCaching for Drive/PDF — app Cache API owns that (avoids SWR re-downloads).
-        runtimeCaching: [],
-      },
-      fallback: {
-        document: '/~offline',
+        runtimeCaching: [
+          {
+            urlPattern: ({ sameOrigin }) => !sameOrigin,
+            handler: 'NetworkOnly',
+            options: {
+              cacheName: 'cross-origin',
+            },
+          },
+        ],
       },
     })(nextConfig);
 
