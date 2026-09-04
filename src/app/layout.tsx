@@ -8,6 +8,7 @@ import ConditionalFooter from '@/components/ConditionalFooter';
 import { Providers } from '@/components/Providers';
 import InstallPrompt from '@/components/pwa/InstallPrompt';
 import { SW_RECOVERY_SCRIPT } from '@/components/pwa/swRecoveryScript';
+import { Analytics } from '@vercel/analytics/next';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 
 const inter = Inter({
@@ -117,6 +118,7 @@ export default function RootLayout({
           </div>
           <InstallPrompt />
         </Providers>
+        <Analytics />
         <SpeedInsights sampleRate={0.1} />
       </body>
     </html>

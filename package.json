@@ -32,6 +32,7 @@
     "@ai-sdk/groq": "^3.0.39",
     "@ai-sdk/react": "^3.0.184",
     "@ducanh2912/next-pwa": "^10.2.9",
+    "@vercel/analytics": "^2.0.1",
     "@vercel/speed-insights": "^2.0.0",
     "ai": "^6.0.182",
     "fflate": "^0.8.2",
