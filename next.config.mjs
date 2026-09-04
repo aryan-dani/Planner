@@ -71,7 +71,8 @@ const config = isDev
       dest: 'public',
       disable: false,
       register: true,
-      skipWaiting: false,
+      // Activate updated SW immediately so clients are not stuck on a broken waiting worker.
+      skipWaiting: true,
       cacheOnFrontEndNav: false,
       aggressiveFrontEndNavCaching: false,
       // Keep heavy assets out of the install-time precache (fetch on demand).
@@ -89,7 +90,8 @@ const config = isDev
       // origins (Drive PDFs must stay on the app Cache API, not Workbox).
       extendDefaultRuntimeCaching: true,
       workboxOptions: {
-        skipWaiting: false,
+        skipWaiting: true,
+        clientsClaim: true,
         exclude: [/\.map$/, /^manifest.*\.js$/],
         runtimeCaching: [
           {

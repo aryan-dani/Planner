@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { toast } from 'sonner';
 
 /** Clear SW/runtime caches on update; never touch utility-pdf-v2 (Drive PDF Cache API). */
@@ -14,9 +14,17 @@ async function clearWorkboxCaches() {
   );
 }
 
-export default function PwaUpdater() {
-  const [registration, setRegistration] = useState<ServiceWorkerRegistration | null>(null);
+function isOfflineShellWhileOnline() {
+  if (!navigator.onLine) return false;
+  const h1 = document.querySelector('h1')?.textContent?.trim();
+  return h1 === "You're Offline";
+}
 
+function activateWorker(worker: ServiceWorker) {
+  worker.postMessage({ type: 'SKIP_WAITING' });
+}
+
+export default function PwaUpdater() {
   useEffect(() => {
     if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return;
 
@@ -29,58 +37,89 @@ export default function PwaUpdater() {
       return;
     }
 
-    // Check for updates periodically
+    const applyWaiting = (worker: ServiceWorker, { force }: { force: boolean }) => {
+      if (force || isOfflineShellWhileOnline()) {
+        activateWorker(worker);
+        return;
+      }
+      toast.info('A new version of Utility is available.', {
+        description: 'Click update to load the latest improvements.',
+        action: {
+          label: 'Update Now',
+          onClick: () => {
+            activateWorker(worker);
+            setTimeout(async () => {
+              try {
+                await clearWorkboxCaches();
+              } catch (e) {
+                console.error('Failed to clear caches in fallback:', e);
+              }
+              window.location.reload();
+            }, 2000);
+          },
+        },
+        duration: 15000,
+      });
+    };
+
     const checkForUpdates = async () => {
-      if (navigator.serviceWorker.controller) {
-        try {
-          const reg = await navigator.serviceWorker.ready;
-          await reg.update();
-        } catch (err) {
-          console.error('Failed to update service worker:', err);
+      try {
+        const reg = await navigator.serviceWorker.ready;
+        await reg.update();
+        if (reg.waiting) {
+          applyWaiting(reg.waiting, { force: isOfflineShellWhileOnline() });
         }
+      } catch (err) {
+        console.error('Failed to update service worker:', err);
       }
     };
 
-    // Check on mount
-    navigator.serviceWorker.ready.then((reg) => {
-      setRegistration(reg);
-
-      // Check if there is already an update waiting
+    navigator.serviceWorker.ready.then(async (reg) => {
       if (reg.waiting) {
-        triggerToast(reg.waiting);
+        applyWaiting(reg.waiting, { force: isOfflineShellWhileOnline() });
       }
 
-      // Listen for new service workers installing
       reg.addEventListener('updatefound', () => {
         const newWorker = reg.installing;
         if (!newWorker) return;
 
         newWorker.addEventListener('statechange', () => {
           if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-            triggerToast(newWorker);
+            applyWaiting(newWorker, { force: isOfflineShellWhileOnline() });
           }
         });
       });
+
+      // Stuck clients: old App Shell SW serves /~offline while online → force recovery.
+      if (isOfflineShellWhileOnline()) {
+        await reg.update();
+        if (reg.waiting) {
+          activateWorker(reg.waiting);
+        } else {
+          try {
+            await clearWorkboxCaches();
+            const regs = await navigator.serviceWorker.getRegistrations();
+            await Promise.all(regs.map((r) => r.unregister()));
+            window.location.reload();
+          } catch (e) {
+            console.error('Failed to recover from offline shell:', e);
+          }
+        }
+      }
     });
 
-    // Check for updates every hour
     const intervalId = setInterval(checkForUpdates, 3600000);
 
-    // Listen for controllerchange (refresh page once active service worker updates)
     let refreshing = false;
     const handleControllerChange = async () => {
-      if (!refreshing) {
-        refreshing = true;
-        
-        // Cache busting: clear Workbox caches before reloading
-        try {
-          await clearWorkboxCaches();
-        } catch (e) {
-          console.error('Failed to clear caches:', e);
-        }
-        
-        window.location.reload();
+      if (refreshing) return;
+      refreshing = true;
+      try {
+        await clearWorkboxCaches();
+      } catch (e) {
+        console.error('Failed to clear caches:', e);
       }
+      window.location.reload();
     };
     navigator.serviceWorker.addEventListener('controllerchange', handleControllerChange);
 
@@ -89,30 +128,6 @@ export default function PwaUpdater() {
       navigator.serviceWorker.removeEventListener('controllerchange', handleControllerChange);
     };
   }, []);
-
-  const triggerToast = (worker: ServiceWorker) => {
-    toast.info('A new version of Utility is available.', {
-      description: 'Click update to load the latest improvements.',
-      action: {
-        label: 'Update Now',
-        onClick: () => {
-          // Send skip waiting
-          worker.postMessage({ type: 'SKIP_WAITING' });
-          
-          // Fallback reload in case controllerchange doesn't fire or takes too long
-          setTimeout(async () => {
-            try {
-              await clearWorkboxCaches();
-            } catch (e) {
-              console.error('Failed to clear caches in fallback:', e);
-            }
-            window.location.reload();
-          }, 2000);
-        },
-      },
-      duration: 15000,
-    });
-  };
 
   return null;
 }
