@@ -1,8 +1,8 @@
 'use client';
 
 import { useChat } from '@ai-sdk/react';
-import { DefaultChatTransport } from 'ai';
-import { useState, useEffect, useLayoutEffect, useRef, useMemo, memo, Children, isValidElement, cloneElement, type ReactNode, type ReactElement } from 'react';
+import { DefaultChatTransport, type UIMessage } from 'ai';
+import { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback, memo, Children, isValidElement, cloneElement, type ReactNode, type ReactElement, type ComponentPropsWithoutRef } from 'react';
 import { 
   Send, 
   Trash2, 
@@ -42,13 +42,53 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import AcademicBreadcrumb from '@/components/AcademicBreadcrumb';
 import Link from 'next/link';
 import { buildResourcesHref, pageFromSectionLabel } from '@/lib/resourceUrl';
-import type { ResourceItem } from '@/lib/dataFetcher';
-import { useWorkspaceResources } from '@/lib/useWorkspaceResources';
 import { Button, Select } from '@/components/ui';
 import { SourceCardList, renderWithCitations } from '@/components/ask/SourceCard';
 import type { RetrievalSource } from '@/lib/rag/types';
 import { stripInvalidCitations, validMarkerSet } from '@/lib/agent/router';
 import { authFetch, getAuthHeaders } from '@/lib/authFetch';
+import { useWorkspaceResources } from '@/lib/useWorkspaceResources';
+
+/** Legacy persisted messages may include a plain `content` field. */
+type ChatMessage = UIMessage & { content?: string };
+
+interface SpeechRecognitionResultItem {
+  transcript: string;
+}
+
+interface SpeechRecognitionResult {
+  0: SpeechRecognitionResultItem;
+  length: number;
+}
+
+interface SpeechRecognitionResultList {
+  0: SpeechRecognitionResult;
+  length: number;
+}
+
+interface SpeechRecognitionEvent extends Event {
+  results: SpeechRecognitionResultList;
+}
+
+interface SpeechRecognition extends EventTarget {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onstart: ((this: SpeechRecognition, ev: Event) => void) | null;
+  onend: ((this: SpeechRecognition, ev: Event) => void) | null;
+  onresult: ((this: SpeechRecognition, ev: SpeechRecognitionEvent) => void) | null;
+  onerror: ((this: SpeechRecognition, ev: Event) => void) | null;
+  start(): void;
+  stop(): void;
+  abort(): void;
+}
+
+interface SpeechRecognitionWindow extends Window {
+  SpeechRecognition?: new () => SpeechRecognition;
+  webkitSpeechRecognition?: new () => SpeechRecognition;
+}
+
+type MarkdownCodeProps = ComponentPropsWithoutRef<'code'> & { inline?: boolean };
 
 const SUGGESTED_PROMPTS = [
   'Explain overfitting vs underfitting in Machine Learning with examples',
@@ -124,7 +164,7 @@ const MessageContent = memo(function MessageContent({
         remarkPlugins={[remarkGfm]}
         components={{
           pre: ({ children }) => <div className="relative group my-4">{children}</div>,
-          code: ({ inline, className, children, ...props }: any) => {
+          code: ({ inline, className, children, ...props }: MarkdownCodeProps) => {
             const match = /language-(\w+)/.exec(className || '');
             const lang = match ? match[1] : '';
             const code = String(children).replace(/\n$/, '');
@@ -195,10 +235,10 @@ const MessageContent = memo(function MessageContent({
   );
 });
 
-function getMessageContent(m: any): string {
+function getMessageContent(m: ChatMessage): string {
   if (m.content) return m.content;
   if (m.parts && Array.isArray(m.parts)) {
-    return m.parts.map((p: any) => p.text || '').join('\n');
+    return m.parts.map((p) => (p.type === 'text' ? p.text : '')).join('\n');
   }
   return '';
 }
@@ -295,7 +335,7 @@ function AddToSrsButton({ cards, defaultName }: { cards: Flashcard[]; defaultNam
             onClick={handleCreateAndAdd}
             className="w-full text-left px-3 py-2 text-xs font-bold rounded-xl text-primary bg-surface border border-border/80 hover:bg-surface-hover transition-colors mt-1"
           >
-            + Create "{defaultName.slice(0, 16)}..."
+            + Create &quot;{defaultName.slice(0, 16)}...&quot;
           </button>
         </div>
       )}
@@ -306,11 +346,41 @@ function AddToSrsButton({ cards, defaultName }: { cards: Flashcard[]; defaultNam
 export interface ChatSession {
   id: string;
   title: string;
-  messages: any[];
+  messages: ChatMessage[];
   createdAt: string;
 }
 
-const EMPTY_ARRAY: any[] = [];
+function createInitialChatSession(): ChatSession {
+  const initialId = Math.random().toString(36).slice(2, 11);
+  return {
+    id: initialId,
+    title: 'New Chat',
+    messages: [],
+    createdAt: new Date().toISOString(),
+  };
+}
+
+function loadChatSessionsFromStorage(): { sessions: ChatSession[]; activeSessionId: string } {
+  if (typeof window === 'undefined') {
+    const session = createInitialChatSession();
+    return { sessions: [session], activeSessionId: session.id };
+  }
+  const saved = localStorage.getItem('utility_chat_sessions');
+  if (saved) {
+    try {
+      const parsed = JSON.parse(saved) as ChatSession[];
+      if (parsed.length > 0) {
+        return { sessions: parsed, activeSessionId: parsed[0].id };
+      }
+    } catch (e) {
+      console.error('Failed to parse chat sessions', e);
+    }
+  }
+  const session = createInitialChatSession();
+  return { sessions: [session], activeSessionId: session.id };
+}
+
+const EMPTY_ARRAY: ChatMessage[] = [];
 
 export default function AskClient() {
   const { academicYear, branch, semester } = useAcademicStore();
@@ -330,13 +400,17 @@ export default function AskClient() {
 
   // Speech Recognition States
   const [isListening, setIsListening] = useState(false);
-  const recognitionRef = useRef<any>(null);
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
 
   // Chat History / Sessions States
-  const [sessions, setSessions] = useState<ChatSession[]>([]);
-  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
-  const [sessionsLoaded, setSessionsLoaded] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const initialChat = useMemo(() => loadChatSessionsFromStorage(), []);
+  const [sessions, setSessions] = useState<ChatSession[]>(initialChat.sessions);
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(initialChat.activeSessionId);
+  const [sidebarOpen, setSidebarOpen] = useState(() =>
+    typeof window !== 'undefined'
+      ? window.matchMedia('(min-width: 768px)').matches
+      : false,
+  );
 
   // Chat refs & state
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -356,14 +430,12 @@ export default function AskClient() {
   );
 
   useEffect(() => {
-    const mq = window.matchMedia("(min-width: 768px)");
+    const mq = window.matchMedia('(min-width: 768px)');
     const apply = () => setSidebarOpen(mq.matches);
-    apply();
-    mq.addEventListener("change", apply);
-    return () => mq.removeEventListener("change", apply);
+    mq.addEventListener('change', apply);
+    return () => mq.removeEventListener('change', apply);
   }, []);
 
-  // Flashcard state
   const [flashcardTopic, setFlashcardTopic] = useState('');
   const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
@@ -389,23 +461,25 @@ export default function AskClient() {
   // Initialize Speech Recognition
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-      if (SpeechRecognition) {
-        const rec = new SpeechRecognition();
+      const speechWindow = window as SpeechRecognitionWindow;
+      const SpeechRecognitionCtor =
+        speechWindow.SpeechRecognition || speechWindow.webkitSpeechRecognition;
+      if (SpeechRecognitionCtor) {
+        const rec = new SpeechRecognitionCtor();
         rec.continuous = false;
         rec.interimResults = false;
         rec.lang = 'en-US';
 
         rec.onstart = () => setIsListening(true);
         rec.onend = () => setIsListening(false);
-        rec.onresult = (event: any) => {
+        rec.onresult = (event: SpeechRecognitionEvent) => {
           const transcript = event.results[0][0].transcript;
           if (transcript) {
             setInput(prev => (prev ? prev + ' ' : '') + transcript);
             toast.success("Voice transcribed successfully!");
           }
         };
-        rec.onerror = (e: any) => {
+        rec.onerror = (e: Event) => {
           console.error("Speech recognition error", e);
           setIsListening(false);
         };
@@ -454,10 +528,6 @@ export default function AskClient() {
     [chatBody],
   );
 
-  const activeSession = useMemo(() => {
-    return sessions.find(s => s.id === activeSessionId);
-  }, [sessions, activeSessionId]);
-
   const chatSessionKey = useMemo(() => {
     return activeSessionId ? `${activeSessionId}-${selectedResourceId}-${academicYear}-${branch}-${semester}` : undefined;
   }, [activeSessionId, selectedResourceId, academicYear, branch, semester]);
@@ -466,11 +536,11 @@ export default function AskClient() {
     if (!activeSessionId) return EMPTY_ARRAY;
     const session = sessions.find(s => s.id === activeSessionId);
     return session ? session.messages : EMPTY_ARRAY;
-  }, [activeSessionId, sessions, sessionsLoaded]);
+  }, [activeSessionId, sessions]);
 
-  const chatHelpers = (useChat as any)({
+  const chatHelpers = useChat({
     id: chatSessionKey,
-    initialMessages,
+    messages: initialMessages,
     transport: chatTransport,
     onData: (dataPart: { type?: string; data?: unknown }) => {
       if (dataPart?.type === 'data-sources' && Array.isArray(dataPart.data)) {
@@ -542,7 +612,10 @@ export default function AskClient() {
         lastScrubbedMsgRef.current = msgId;
         setMessages((prev: typeof messages) => {
           const copy = [...prev];
-          copy[copy.length - 1] = { ...copy[copy.length - 1], parts: nextParts };
+          copy[copy.length - 1] = {
+            ...copy[copy.length - 1],
+            parts: nextParts as ChatMessage['parts'],
+          };
           return copy;
         });
       } else {
@@ -563,56 +636,35 @@ export default function AskClient() {
     }
   }, [status, messages, assistantSources, setMessages]);
 
-  // Load chat sessions on mount
-  useEffect(() => {
-    const saved = localStorage.getItem('utility_chat_sessions');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        setSessions(parsed);
-        if (parsed.length > 0) {
-          setActiveSessionId(parsed[0].id);
-        } else {
-          const initialId = Math.random().toString(36).slice(2, 11);
-          const initialSession = {
-            id: initialId,
-            title: 'New Chat',
-            messages: [],
-            createdAt: new Date().toISOString()
-          };
-          setSessions([initialSession]);
-          setActiveSessionId(initialId);
+  // Load chat sessions on mount — lazy useState initializer above
+
+  const displaySessions = useMemo(() => {
+    if (!activeSessionId || (status !== 'ready' && status !== 'error')) return sessions;
+    return sessions.map((s) => {
+      if (s.id !== activeSessionId) return s;
+      let title = s.title;
+      if (title === 'New Chat' && messages.length > 0) {
+        const firstUserMsg = messages.find((m) => m.role === 'user');
+        if (firstUserMsg) {
+          const content = getMessageContent(firstUserMsg);
+          if (content) {
+            title = content.slice(0, 30) + (content.length > 30 ? '...' : '');
+          }
         }
-      } catch (e) {
-        console.error('Failed to parse chat sessions', e);
       }
-    } else {
-      const initialId = Math.random().toString(36).slice(2, 11);
-      const initialSession = {
-        id: initialId,
-        title: 'New Chat',
-        messages: [],
-        createdAt: new Date().toISOString()
-      };
-      setSessions([initialSession]);
-      setActiveSessionId(initialId);
-    }
-    setSessionsLoaded(true);
-  }, []);
+      return { ...s, messages, title };
+    });
+  }, [sessions, activeSessionId, messages, status]);
 
-  const sessionsRef = useRef(sessions);
   useEffect(() => {
-    sessionsRef.current = sessions;
-  }, [sessions]);
-
-  // Load active session messages into useChat on mount or session switch
-  useEffect(() => {
-    if (!sessionsLoaded || !activeSessionId) return;
-    const session = sessionsRef.current.find(s => s.id === activeSessionId);
-    if (session) {
-      setMessages(session.messages);
-    }
-  }, [activeSessionId, sessionsLoaded, setMessages]);
+    if (!activeSessionId) return;
+    if (status !== 'ready' && status !== 'error') return;
+    const session = sessions.find((s) => s.id === activeSessionId);
+    if (!session) return;
+    const merged = displaySessions;
+    if (JSON.stringify(session.messages) === JSON.stringify(messages)) return;
+    localStorage.setItem('utility_chat_sessions', JSON.stringify(merged));
+  }, [activeSessionId, status, sessions, messages, displaySessions]);
 
   // Save sessions helper
   const saveSessions = (updated: ChatSession[]) => {
@@ -620,39 +672,7 @@ export default function AskClient() {
     localStorage.setItem('utility_chat_sessions', JSON.stringify(updated));
   };
 
-  // Sync current messages back to active session
-  useEffect(() => {
-    if (!activeSessionId) return;
-    if (status !== 'ready' && status !== 'error') return; // Only sync when ready or error
-    setSessions(prevSessions => {
-      const session = prevSessions.find(s => s.id === activeSessionId);
-      if (!session) return prevSessions;
- 
-      const isDiff = JSON.stringify(session.messages) !== JSON.stringify(messages);
-
-      if (isDiff) {
-        const updated = prevSessions.map(s => {
-          if (s.id === activeSessionId) {
-            let title = s.title;
-            if (title === 'New Chat' && messages.length > 0) {
-              const firstUserMsg = messages.find((m: any) => m.role === 'user');
-              if (firstUserMsg) {
-                const content = getMessageContent(firstUserMsg);
-                if (content) {
-                  title = content.slice(0, 30) + (content.length > 30 ? '...' : '');
-                }
-              }
-            }
-            return { ...s, messages, title };
-          }
-          return s;
-        });
-        localStorage.setItem('utility_chat_sessions', JSON.stringify(updated));
-        return updated;
-      }
-      return prevSessions;
-    });
-  }, [messages, activeSessionId, status]);
+  // Sync current messages back to active session — persisted via localStorage effect above
 
   const handleNewChat = () => {
     const newId = Math.random().toString(36).slice(2, 11);
@@ -697,19 +717,22 @@ export default function AskClient() {
   };
 
   const handleSwitchSession = (sessionId: string) => {
-    const session = sessions.find(s => s.id === sessionId);
+    const merged = displaySessions;
+    setSessions(merged);
+    localStorage.setItem('utility_chat_sessions', JSON.stringify(merged));
+    const session = merged.find(s => s.id === sessionId);
     if (session) {
       setActiveSessionId(sessionId);
     }
   };
 
-  const autoFiredRef = useRef(false);
-
-  useEffect(() => {
+  const searchParamsKey = searchParams.toString();
+  const [prevSearchParamsKey, setPrevSearchParamsKey] = useState(searchParamsKey);
+  if (prevSearchParamsKey !== searchParamsKey) {
+    setPrevSearchParamsKey(searchParamsKey);
     const tab = searchParams.get('tab');
     const topic = searchParams.get('topic');
     const prompt = searchParams.get('prompt');
-
     if (tab === 'flashcards' || tab === 'quiz' || tab === 'chat') {
       setActiveTab(tab);
     }
@@ -723,7 +746,7 @@ export default function AskClient() {
     if (prompt && tab === 'chat') {
       setInput(prompt);
     }
-  }, [searchParams]);
+  }
 
   // Auto-resize textarea when input state updates (handles both programmatic set and typing)
   useEffect(() => {
@@ -747,10 +770,7 @@ export default function AskClient() {
     }
 
     stickToBottomRef.current = true;
-    sendMessage({ 
-      role: 'user',
-      content: input,
-    });
+    sendMessage({ text: input });
     logActivity('ai_prompt', 1);
     setInput('');
   };
@@ -821,11 +841,10 @@ export default function AskClient() {
     t.style.height = Math.min(t.scrollHeight, 160) + 'px';
   };
 
-  const [randomPrompts, setRandomPrompts] = useState<string[]>([]);
-  useEffect(() => {
+  const [randomPrompts] = useState(() => {
     const shuffled = [...SUGGESTED_PROMPTS].sort(() => Math.random() - 0.5);
-    setRandomPrompts(shuffled.slice(0, 4));
-  }, []);
+    return shuffled.slice(0, 4);
+  });
 
   // Keep the document from growing extra viewports while the transcript streams.
   useEffect(() => {
@@ -849,9 +868,10 @@ export default function AskClient() {
   }, []);
 
   // Generate Flashcards API Call
-  const handleGenerateFlashcards = async (e?: React.FormEvent) => {
+  const handleGenerateFlashcards = useCallback(async (e?: React.FormEvent) => {
     e?.preventDefault();
     if (!flashcardTopic.trim() || isGeneratingFlashcards) return;
+    await Promise.resolve();
     setIsGeneratingFlashcards(true);
     setFlashcards([]);
     setCurrentCardIndex(0);
@@ -887,7 +907,7 @@ export default function AskClient() {
     } finally {
       setIsGeneratingFlashcards(false);
     }
-  };
+  }, [flashcardTopic, isGeneratingFlashcards, academicYear, branch, semester, subjects]);
 
   const handlePublishDeck = async () => {
     if (flashcards.length === 0 || isPublishingDeck) return;
@@ -927,9 +947,10 @@ export default function AskClient() {
   };
 
   // Generate Quiz API Call
-  const handleGenerateQuiz = async (e?: React.FormEvent) => {
+  const handleGenerateQuiz = useCallback(async (e?: React.FormEvent) => {
     e?.preventDefault();
     if (!quizTopic.trim() || isGeneratingQuiz) return;
+    await Promise.resolve();
     setIsGeneratingQuiz(true);
     setQuizQuestions([]);
     setSelectedAnswers({});
@@ -964,9 +985,9 @@ export default function AskClient() {
     } finally {
       setIsGeneratingQuiz(false);
     }
-  };
+  }, [quizTopic, isGeneratingQuiz, academicYear, branch, semester, subjects]);
 
-  // Honor ?auto=true&topic=… from Syllabus deep-links (fire once).
+  const autoFiredRef = useRef(false);
   useEffect(() => {
     if (autoFiredRef.current) return;
     if (searchParams.get('auto') !== 'true') return;
@@ -976,14 +997,17 @@ export default function AskClient() {
     if (tab === 'flashcards') {
       if (flashcardTopic !== topic) return;
       autoFiredRef.current = true;
-      void handleGenerateFlashcards();
+      void Promise.resolve().then(() => {
+        void handleGenerateFlashcards();
+      });
     } else if (tab === 'quiz') {
       if (quizTopic !== topic) return;
       autoFiredRef.current = true;
-      void handleGenerateQuiz();
+      void Promise.resolve().then(() => {
+        void handleGenerateQuiz();
+      });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional once-per-mount auto fire
-  }, [searchParams, flashcardTopic, quizTopic]);
+  }, [searchParams, flashcardTopic, quizTopic, handleGenerateFlashcards, handleGenerateQuiz]);
 
   const calculateQuizScore = () => {
     let correct = 0;
@@ -1102,7 +1126,7 @@ export default function AskClient() {
                 </div>
               </div>
               <div className="flex-1 overflow-y-auto p-2 space-y-1 custom-scrollbar">
-                {sessions.map(s => {
+                {displaySessions.map(s => {
                   const isActive = s.id === activeSessionId;
                   return (
                     <div
@@ -1217,7 +1241,7 @@ export default function AskClient() {
                 </div>
               ) : (
                 <div className="space-y-6" data-chat-log>
-                  {messages.map((m: any) => (
+                  {messages.map((m) => (
                     <div
                       key={m.id}
                       className={`flex gap-3 group/msg ${m.role === 'user' ? 'justify-end' : ''}`}
@@ -1760,7 +1784,7 @@ export default function AskClient() {
                   ) : (
                     <>
                       <p className="text-base font-bold text-foreground mb-1">Ready to submit?</p>
-                      <p className="text-xs text-muted">Make sure you've answered all questions before submitting.</p>
+                      <p className="text-xs text-muted">Make sure you&apos;ve answered all questions before submitting.</p>
                     </>
                   )}
                 </div>

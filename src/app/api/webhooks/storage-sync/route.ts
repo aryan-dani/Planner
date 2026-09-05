@@ -4,6 +4,7 @@ import syncDrive from "../../../../../runtime/tools/sync-drive.mjs";
 import { adminAuth, hasFirebaseCredentials } from "@/lib/firebaseAdmin";
 import { getAdminEmails } from "@/lib/apiAuth";
 import { safeEqualSecret } from "@/lib/safeEqual";
+import { devLog } from "@/lib/devLog";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -82,9 +83,9 @@ async function triggerGithubSyncWorkflow() {
 function queueInProcessDriveSync() {
   after(async () => {
     try {
-      console.log("🚀 Starting background Drive sync...");
+      devLog("🚀 Starting background Drive sync...");
       await syncDrive();
-      console.log("✅ Drive sync completed.");
+      devLog("✅ Drive sync completed.");
       revalidateTag("subjects", "max");
       revalidateTag("resources", "max");
       revalidateTag("syllabus", "max");
@@ -140,11 +141,11 @@ async function handleSync(request: Request) {
     // Prefer GitHub Actions (Drive sync + indexing with CI secrets).
     if (dispatchActions) {
       try {
-        console.log(
+        devLog(
           "🔔 Dispatching GitHub Actions workflow storage-sync.yml...",
         );
         await triggerGithubSyncWorkflow();
-        console.log("✅ GitHub Actions sync+index dispatched.");
+        devLog("✅ GitHub Actions sync+index dispatched.");
         return NextResponse.json({
           success: true,
           mode: "github-actions",
@@ -173,7 +174,7 @@ async function handleSync(request: Request) {
     }
 
     // In-process fallback when Actions token is not configured.
-    console.log("🔔 Queuing in-process Drive→Firestore sync...");
+    devLog("🔔 Queuing in-process Drive→Firestore sync...");
     queueInProcessDriveSync();
     return NextResponse.json({
       success: true,

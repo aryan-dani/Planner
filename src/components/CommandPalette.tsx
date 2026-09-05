@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useMemo, ComponentType } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -9,7 +9,6 @@ import {
   FileText,
   CalendarCheck,
   Brain,
-  ShieldCheck,
   Timer,
   Coffee,
   Sparkles,
@@ -26,6 +25,7 @@ import {
   FlaskConical,
   Waypoints,
   HelpCircle,
+  type LucideIcon,
 } from 'lucide-react';
 import { useAcademicStore } from '../store/academicStore';
 import { matchesAcademicYear } from '@/lib/academic/scope';
@@ -36,12 +36,13 @@ import { subjectToSlug } from '@/lib/resourceUrl';
 import { fetchAdminStatus } from '@/lib/adminStatus';
 import { workspaceQuery } from '@/lib/workspace';
 import { toast } from 'sonner';
+import { useIsMac } from '@/lib/clientHooks';
 
 interface CommandItem {
   id: string;
   title: string;
   category: 'Quick Actions' | 'Navigation' | 'Subjects';
-  icon: ComponentType<any>;
+  icon: LucideIcon;
   action: () => void;
   shortcut?: string;
   badge?: string;
@@ -76,21 +77,41 @@ function highlightMatch(text: string, query: string) {
 
 export default function CommandPalette() {
   const router = useRouter();
-  const navigate = (href: string) => {
+  const { academicYear, branch, semester, isCommandPaletteOpen, setCommandPaletteOpen } = useAcademicStore();
+  const navigate = useCallback((href: string) => {
     startNavigationProgress();
     router.push(href);
-  };
-  const { academicYear, branch, semester, isCommandPaletteOpen, setCommandPaletteOpen } = useAcademicStore();
+  }, [router]);
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
-  const [isMac, setIsMac] = useState(false);
+  const isMac = useIsMac();
   const [isAdmin, setIsAdmin] = useState(false);
-  const [dynamicSubjects, setDynamicSubjects] = useState<Array<{ id: string; name: string }>>([]);
+  const [dynamicSubjects, setDynamicSubjects] = useState<Array<{ id: string; name: string }>>(() => {
+    const cacheKey = `${academicYear}:${branch}:${semester}`;
+    const cached = subjectCache.get(cacheKey);
+    if (cached && Date.now() - cached.fetchedAt < SUBJECT_CACHE_TTL_MS) {
+      return cached.subjects;
+    }
+    return [];
+  });
+  const subjectsCacheKey = `${academicYear}:${branch}:${semester}`;
+  const [prevSubjectsCacheKey, setPrevSubjectsCacheKey] =
+    useState(subjectsCacheKey);
+
+  if (prevSubjectsCacheKey !== subjectsCacheKey) {
+    setPrevSubjectsCacheKey(subjectsCacheKey);
+    const cached = subjectCache.get(subjectsCacheKey);
+    if (cached) {
+      setDynamicSubjects(cached.subjects);
+    } else {
+      setDynamicSubjects([]);
+    }
+  }
 
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
-  const lastInteraction = useRef<'key' | 'mouse'>('key');
+  const [lastInteraction, setLastInteraction] = useState<'key' | 'mouse'>('key');
 
   useEffect(() => {
     if (!isCommandPaletteOpen) return;
@@ -124,7 +145,6 @@ export default function CommandPalette() {
     const cacheKey = `${academicYear}:${branch}:${semester}`;
     const cached = subjectCache.get(cacheKey);
     if (cached && Date.now() - cached.fetchedAt < SUBJECT_CACHE_TTL_MS) {
-      setDynamicSubjects(cached.subjects);
       return;
     }
 
@@ -148,11 +168,6 @@ export default function CommandPalette() {
         console.error("Error fetching subjects in CommandPalette:", error);
       });
   }, [academicYear, branch, semester, isCommandPaletteOpen]);
-
-  // Detect Mac vs Windows/Linux for accurate shortcut display
-  useEffect(() => {
-    setIsMac(typeof navigator !== 'undefined' && (navigator.userAgent.includes('Mac') || navigator.platform.includes('Mac')));
-  }, []);
 
   // Global keydown listener for ⌘K / Ctrl+K and other shortcuts
   useEffect(() => {
@@ -231,16 +246,23 @@ export default function CommandPalette() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isCommandPaletteOpen, setCommandPaletteOpen, academicYear, branch, semester]);
+  }, [isCommandPaletteOpen, setCommandPaletteOpen, academicYear, branch, semester, navigate]);
+
+  const [prevPaletteOpen, setPrevPaletteOpen] = useState(isCommandPaletteOpen);
+  if (isCommandPaletteOpen && !prevPaletteOpen) {
+    setQuery('');
+    setSelectedIndex(0);
+    setLastInteraction('key');
+  }
+  if (prevPaletteOpen !== isCommandPaletteOpen) {
+    setPrevPaletteOpen(isCommandPaletteOpen);
+  }
 
   // Focus input when modal opens
   useEffect(() => {
-    if (isCommandPaletteOpen) {
-      setQuery('');
-      setSelectedIndex(0);
-      lastInteraction.current = 'key';
-      setTimeout(() => inputRef.current?.focus(), 100);
-    }
+    if (!isCommandPaletteOpen) return;
+    const timer = window.setTimeout(() => inputRef.current?.focus(), 100);
+    return () => window.clearTimeout(timer);
   }, [isCommandPaletteOpen]);
 
   // Define dynamic command items
@@ -470,7 +492,7 @@ export default function CommandPalette() {
     }));
 
     return [...baseItems, ...subjectItems];
-  }, [router, navigate, setCommandPaletteOpen, dynamicSubjects, branch, semester, academicYear, isAdmin]);
+  }, [navigate, setCommandPaletteOpen, dynamicSubjects, branch, semester, academicYear, isAdmin]);
 
   // Filter items based on query
   const filteredItems = useMemo(() => {
@@ -493,11 +515,12 @@ export default function CommandPalette() {
     }, {} as Record<string, CommandItem[]>);
   }, [filteredItems]);
 
-  // Reset selected index when query changes
-  useEffect(() => {
+  const [prevQuery, setPrevQuery] = useState(query);
+  if (prevQuery !== query) {
+    setPrevQuery(query);
     setSelectedIndex(0);
-    lastInteraction.current = 'key';
-  }, [query]);
+    setLastInteraction('key');
+  }
 
   // Handle keyboard navigation inside modal
   useEffect(() => {
@@ -510,13 +533,13 @@ export default function CommandPalette() {
       } else if (e.key === 'ArrowDown') {
         e.preventDefault();
         if (filteredItems.length === 0) return;
-        lastInteraction.current = 'key';
+        setLastInteraction('key');
         setSelectedIndex((prev) => (prev + 1) % filteredItems.length);
         inputRef.current?.focus();
       } else if (e.key === 'ArrowUp') {
         e.preventDefault();
         if (filteredItems.length === 0) return;
-        lastInteraction.current = 'key';
+        setLastInteraction('key');
         setSelectedIndex((prev) => (prev - 1 + filteredItems.length) % filteredItems.length);
         inputRef.current?.focus();
       } else if (e.key === 'Enter') {
@@ -618,7 +641,7 @@ export default function CommandPalette() {
                 <div className="flex flex-col items-center justify-center py-16 text-center">
                   <Sparkles className="w-8 h-8 text-muted/30 mb-3 animate-bounce" />
                   <p className="text-sm font-medium text-foreground mb-1">No results found</p>
-                  <p className="text-xs text-muted">Try searching for 'timer', 'DBMS', or 'planner'</p>
+                  <p className="text-xs text-muted">Try searching for &apos;timer&apos;, &apos;DBMS&apos;, or &apos;planner&apos;</p>
                 </div>
               ) : (
                 Object.entries(groupedItems).map(([category, catItems]) => (
@@ -639,10 +662,10 @@ export default function CommandPalette() {
                           data-index={globalIdx}
                           onClick={item.action}
                           onMouseMove={() => {
-                            lastInteraction.current = 'mouse';
+                            setLastInteraction('mouse');
                           }}
                           onMouseEnter={() => {
-                            if (lastInteraction.current === 'mouse') {
+                            if (lastInteraction === 'mouse') {
                               setSelectedIndex(globalIdx);
                             }
                           }}

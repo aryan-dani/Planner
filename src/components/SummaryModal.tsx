@@ -141,7 +141,7 @@ export default function SummaryModal({ resourceId, resourceTitle, onClose }: Sum
                 <div className="w-12 h-12 rounded-xl border border-destructive/20 bg-destructive/5 flex items-center justify-center mb-4">
                   <Info className="w-6 h-6 text-destructive" />
                 </div>
-                <h4 className="text-base font-semibold text-foreground">Couldn't Generate Summary</h4>
+                <h4 className="text-base font-semibold text-foreground">Couldn&apos;t Generate Summary</h4>
                 <p className="text-sm text-muted mt-2 max-w-sm">{error}</p>
                 <button
                   onClick={onClose}
@@ -163,12 +163,12 @@ export default function SummaryModal({ resourceId, resourceTitle, onClose }: Sum
                 <div className="markdown-content text-muted-foreground leading-relaxed">
                   <ReactMarkdown
                     components={{
-                      h3: ({node, ...props}) => <h3 className="text-foreground font-bold mt-6 mb-3 border-b border-border pb-1" {...props} />,
-                      strong: ({node, ...props}) => <strong className="text-foreground font-bold" {...props} />,
-                      ul: ({node, ...props}) => <ul className="list-disc pl-5 space-y-2 mb-4" {...props} />,
-                      ol: ({node, ...props}) => <ol className="list-decimal pl-5 space-y-2 mb-4" {...props} />,
-                      li: ({node, ...props}) => <li className="pl-1" {...props} />,
-                      p: ({node, ...props}) => <p className="mb-4 last:mb-0" {...props} />,
+                      h3: ({...props}) => <h3 className="text-foreground font-bold mt-6 mb-3 border-b border-border pb-1" {...props} />,
+                      strong: ({...props}) => <strong className="text-foreground font-bold" {...props} />,
+                      ul: ({...props}) => <ul className="list-disc pl-5 space-y-2 mb-4" {...props} />,
+                      ol: ({...props}) => <ol className="list-decimal pl-5 space-y-2 mb-4" {...props} />,
+                      li: ({...props}) => <li className="pl-1" {...props} />,
+                      p: ({...props}) => <p className="mb-4 last:mb-0" {...props} />,
                     }}
                   >
                     {summary || ''}

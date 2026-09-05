@@ -55,7 +55,6 @@ export default function ResourceCard({
   const opensInViewer = isPdf || isPpt || isDrivePreview || isCode;
   const isSummarizable = isPdf || isPpt || isDoc || (isDrivePreview && !isCode);
   const isSolved = item.category === "solved-question-bank";
-  const isNew = false;
   const config = CATEGORY_CONFIG[item.category] || CATEGORY_CONFIG["other"];
   const hasRelatedCode = relatedCodes.length > 0;
 
@@ -101,8 +100,8 @@ export default function ResourceCard({
       }}
       className="group bg-card hover:bg-surface/50 p-5 flex flex-col gap-3.5 text-left cursor-pointer relative overflow-hidden h-full transition-colors duration-200 w-full focus-visible:outline-offset-2 focus-visible:z-10"
       style={{
-        ["--card-accent" as any]: config.color,
-      }}
+        ["--card-accent" as string]: config.color,
+      } as React.CSSProperties}
     >
       {/* Accent top border */}
       <div

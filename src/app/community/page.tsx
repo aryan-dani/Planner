@@ -1,11 +1,12 @@
 import { adminDb, hasFirebaseCredentials } from "@/lib/firebaseAdmin";
-import CommunityClient from "./CommunityClient";
+import CommunityClient, { type CommunityDeck, type CommunityFlashcard } from "./CommunityClient";
 import { Suspense } from "react";
+import { devLog } from "@/lib/devLog";
 
 export const revalidate = 3600;
 
 export default async function CommunityPage() {
-  let decks: any[] = [];
+  let decks: CommunityDeck[] = [];
   if (hasFirebaseCredentials()) {
     try {
       const db = adminDb();
@@ -36,7 +37,7 @@ export default async function CommunityPage() {
           author_uid: d.author_uid || "",
           upvotes: Number(d.upvotes || 0),
           cardCount: cards.length,
-          flashcards: [] as unknown[],
+          flashcards: [] as CommunityFlashcard[],
           created_at: createdAtStr
         };
       });
@@ -44,7 +45,7 @@ export default async function CommunityPage() {
       console.error("Error fetching community decks from Firestore:", error);
     }
   } else {
-    console.log("ℹ️ Skipping community_decks Firestore query during build-time (missing credentials).");
+    devLog("ℹ️ Skipping community_decks Firestore query during build-time (missing credentials).");
   }
 
   return (

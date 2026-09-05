@@ -11,12 +11,10 @@ import {
   ThumbsUp,
   Layers,
   User,
-  Calendar,
   BookOpen,
   ArrowRight,
   Check,
   Trash2,
-  Flame,
   Clock,
   ExternalLink,
   MessageCircle,
@@ -60,7 +58,12 @@ const WHATSAPP_GROUPS = [
   },
 ] as const;
 
-interface CommunityDeck {
+export interface CommunityFlashcard {
+  question: string;
+  answer: string;
+}
+
+export interface CommunityDeck {
   id: string;
   title: string;
   branch: string;
@@ -69,7 +72,7 @@ interface CommunityDeck {
   author_uid?: string;
   upvotes: number;
   cardCount?: number;
-  flashcards: any[];
+  flashcards: CommunityFlashcard[];
   created_at: string;
 }
 
@@ -175,9 +178,10 @@ export default function CommunityClient({
       }
       setDecks((prev) => prev.filter((d) => d.id !== deckId));
       toast.success("Deck deleted successfully");
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      toast.error(err.message || "Failed to delete deck");
+      const message = err instanceof Error ? err.message : "Failed to delete deck";
+      toast.error(message);
     } finally {
       setIsDeleting(null);
     }
@@ -227,7 +231,7 @@ export default function CommunityClient({
       toast.success(`Saved “${newDeck.name}” to SRS (${cards.length} cards)`);
       router.push("/srs");
       setTimeout(() => setCopiedDeckId(null), 2000);
-    } catch (err) {
+    } catch {
       toast.error("Failed to save deck.");
     }
   };

@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
-import { Check, CalendarDays, User, MoreHorizontal, ArrowLeft } from 'lucide-react';
+import { Check, User, MoreHorizontal, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 
 type SubTask = { id: string; text: string; done: boolean };

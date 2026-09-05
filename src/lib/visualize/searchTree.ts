@@ -303,7 +303,7 @@ export function resolveTreeHeuristic(
   mode: TreeHeuristicMode,
   node: SearchTreeRuntimeNode,
   goalId: string,
-  graph: SearchTreeGraph,
+  _graph: SearchTreeGraph,
 ): number {
   if (node.id === goalId) return 0;
   switch (mode) {
@@ -350,7 +350,6 @@ export function layoutSearchTree(graph: SearchTreeGraph): SearchTreeLayout {
   const layoutNodes: TreeLayoutNode[] = [];
   for (let d = 0; d <= maxDepth; d++) {
     const row = byDepth[d] ?? [];
-    const rowWidth = row.length * NODE_W + (row.length - 1) * H_GAP;
     row.forEach((id, index) => {
       layoutNodes.push({
         id,
@@ -368,7 +367,6 @@ export function layoutSearchTree(graph: SearchTreeGraph): SearchTreeLayout {
     NODE_W,
   );
 
-  const posById = new Map(layoutNodes.map((n) => [n.id, n]));
   const edges: TreeLayoutEdge[] = [];
   for (const node of Object.values(graph.nodes)) {
     for (const childId of node.children) {

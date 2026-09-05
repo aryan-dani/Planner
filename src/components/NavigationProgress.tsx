@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, Suspense } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, Suspense } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 
 export const NAV_PROGRESS_EVENT = "utility:nav-start";
@@ -19,9 +19,9 @@ function NavigationProgressInner() {
   const trickleRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const finishRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const routeKey = `${pathname}?${searchParams.toString()}`;
-  const prevRouteRef = useRef(routeKey);
+  const isFirstRoute = useRef(true);
 
-  const clearTimers = () => {
+  const clearTimers = useCallback(() => {
     if (trickleRef.current) {
       clearInterval(trickleRef.current);
       trickleRef.current = null;
@@ -30,9 +30,9 @@ function NavigationProgressInner() {
       clearTimeout(finishRef.current);
       finishRef.current = null;
     }
-  };
+  }, []);
 
-  const start = () => {
+  const start = useCallback(() => {
     clearTimers();
     setActive(true);
     setWidth(12);
@@ -43,16 +43,20 @@ function NavigationProgressInner() {
         return Math.min(88, w + step);
       });
     }, 200);
-  };
+  }, [clearTimers]);
 
-  const done = () => {
+  useLayoutEffect(() => {
+    if (isFirstRoute.current) {
+      isFirstRoute.current = false;
+      return;
+    }
     clearTimers();
     setWidth(100);
     finishRef.current = setTimeout(() => {
       setActive(false);
       setWidth(0);
     }, 220);
-  };
+  }, [routeKey, clearTimers]);
 
   useEffect(() => {
     const onStart = () => start();
@@ -89,14 +93,7 @@ function NavigationProgressInner() {
       document.removeEventListener("click", onClick, true);
       clearTimers();
     };
-  }, []);
-
-  useEffect(() => {
-    if (prevRouteRef.current !== routeKey) {
-      prevRouteRef.current = routeKey;
-      done();
-    }
-  }, [routeKey]);
+  }, [start, clearTimers]);
 
   if (!active && width === 0) return null;
 

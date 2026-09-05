@@ -37,19 +37,18 @@ type HeatCell = {
 };
 
 export default function ActivityHeatmap() {
-  const [activityMap, setActivityMap] = useState<Record<string, number>>({});
+  const [activityMap, setActivityMap] = useState<Record<string, number>>(() => {
+    try {
+      const local = localStorage.getItem(STORAGE_KEY);
+      if (local) return JSON.parse(local) as Record<string, number>;
+    } catch {}
+    return {};
+  });
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<{ key: string; label: string; count: number } | null>(null);
   const scrollerRef = useRef<HTMLDivElement>(null);
 
   const fetchActivity = async () => {
-    try {
-      const local = localStorage.getItem(STORAGE_KEY);
-      if (local) {
-        setActivityMap(JSON.parse(local));
-      }
-    } catch {}
-
     const user = auth.currentUser;
     if (user) {
       try {
@@ -77,28 +76,34 @@ export default function ActivityHeatmap() {
         console.error('API fetchActivity error:', err);
       }
     }
-    setLoading(false);
   };
 
   useEffect(() => {
-    fetchActivity();
+    let cancelled = false;
+    void (async () => {
+      await Promise.resolve();
+      if (cancelled) return;
+      await fetchActivity();
+      if (!cancelled) setLoading(false);
+    })();
 
     let timeoutId: NodeJS.Timeout;
     const handleLocalLog = () => {
       clearTimeout(timeoutId);
       timeoutId = setTimeout(() => {
-        fetchActivity();
+        void fetchActivity();
       }, 300);
     };
 
     window.addEventListener('activity_logged', handleLocalLog);
     return () => {
+      cancelled = true;
       window.removeEventListener('activity_logged', handleLocalLog);
       clearTimeout(timeoutId);
     };
   }, []);
 
-  const todayKey = localDateKey();
+  const todayKey = useMemo(() => localDateKey(), []);
 
   const weeks = useMemo(() => {
     const today = startOfDay(new Date());
@@ -129,7 +134,7 @@ export default function ActivityHeatmap() {
       cols.push(week);
     }
     return cols;
-  }, [activityMap, todayKey]);
+  }, [activityMap]);
 
   const daysInRange = weeks.flat().filter((d) => d.inRange);
   const totalContributions = Object.values(activityMap).reduce((a, b) => a + b, 0);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import {
   Search,
@@ -36,14 +36,10 @@ export default function DirectoryClient({
   initialStaff,
   configured,
 }: DirectoryClientProps) {
-  const [staff, setStaff] = useState(initialStaff);
+  const staff = initialStaff;
   const [search, setSearch] = useState("");
   const [groupFilter, setGroupFilter] = useState<string>("ALL");
   const [selected, setSelected] = useState<StaffMember | null>(null);
-
-  useEffect(() => {
-    setStaff(initialStaff);
-  }, [initialStaff]);
 
   const groups = useMemo(() => {
     const present = new Set(

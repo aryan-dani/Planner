@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useSRSStore, Flashcard, Deck } from '@/store/srsStore';
 import { 
   BookOpen, 
@@ -11,21 +11,18 @@ import {
   ArrowLeft, 
   RotateCcw, 
   Sparkles, 
-  Info,
   Calendar,
   Layers,
-  ChevronRight,
   PlusCircle,
   HelpCircle,
   FolderOpen,
   Trophy,
-  Award,
   Star,
   Volume2,
   Download,
   Upload
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { auth } from '@/lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { toast } from 'sonner';
@@ -70,7 +67,7 @@ export default function SrsClient() {
   const srsFileInputRef = useRef<HTMLInputElement>(null);
 
   // Auth Status
-  const [user, setUser] = useState<{ email?: string } | null>(null);
+  const [, setUser] = useState<{ email?: string } | null>(null);
 
   const speakText = (text: string) => {
     if (typeof window !== 'undefined' && window.speechSynthesis) {
@@ -180,7 +177,7 @@ export default function SrsClient() {
   };
 
   // Grade Current Card
-  const handleGrade = (gotIt: boolean) => {
+  const handleGrade = useCallback((gotIt: boolean) => {
     if (reviewQueue.length === 0) return;
     const currentCard = reviewQueue[currentIndex];
     
@@ -214,7 +211,7 @@ export default function SrsClient() {
         setView('session-complete');
       }
     }, 150);
-  };
+  }, [reviewQueue, currentIndex, gradeCard]);
 
   const startForgottenReview = () => {
     if (forgottenCards.length === 0) return;
@@ -259,7 +256,7 @@ export default function SrsClient() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [view, currentIndex, reviewQueue, isFlipped, handleGrade]);
+  }, [view, reviewQueue.length, currentIndex, isFlipped, handleGrade]);
 
   const handleCreateDeck = (e: React.FormEvent) => {
     e.preventDefault();

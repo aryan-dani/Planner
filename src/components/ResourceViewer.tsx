@@ -31,6 +31,7 @@ import PdfPreview, { type PdfPreviewHandle } from "@/components/PdfPreview";
 import CsvPreview from "@/components/CsvPreview";
 import { folderIdForResource, folderLabelFromId, getResourceFileRole } from "@/lib/resourceGroups";
 import { getDirectDownloadUrl, matchCachedDriveFile } from "@/lib/driveFileCache";
+import { useIsClient } from "@/lib/clientHooks";
 
 const FOCUSABLE =
   'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])';
@@ -158,7 +159,7 @@ export default function ResourceViewer({
   const externalRef = useRef<HTMLAnchorElement>(null);
   const pdfRef = useRef<PdfPreviewHandle>(null);
 
-  const [mounted, setMounted] = useState(false);
+  const mounted = useIsClient();
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [codeContent, setCodeContent] = useState<string | null>(null);
@@ -169,26 +170,20 @@ export default function ResourceViewer({
     !isTextFetch && !isNotebook && !isImage && !usePdfJs && !!embedUrl;
   const activeIframeSrc = embedUrl;
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  useEffect(() => {
-    setIsLoading(true);
+  const resourcePreviewKey = `${resource.id}:${embedUrl}:${resource.file_url}`;
+  const [prevResourcePreviewKey, setPrevResourcePreviewKey] =
+    useState(resourcePreviewKey);
+  if (prevResourcePreviewKey !== resourcePreviewKey) {
+    setPrevResourcePreviewKey(resourcePreviewKey);
+    setIsLoading(!(isPdf && getDriveFileId(resource.file_url)));
     setLoadError(false);
     setCodeContent(null);
     setPdfDirectFailed(false);
     setHasCachedPdf(false);
-    if (isPdf && getDriveFileId(resource.file_url)) {
-      setIsLoading(false);
-    }
-  }, [embedUrl, resource.file_url, resource.id, isPdf]);
+  }
 
   useEffect(() => {
-    if (!isPdf || !driveId) {
-      setHasCachedPdf(false);
-      return;
-    }
+    if (!isPdf || !driveId) return;
     let cancelled = false;
     matchCachedDriveFile(driveId)
       .then((blob) => {

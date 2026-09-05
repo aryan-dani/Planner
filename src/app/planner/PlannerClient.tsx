@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
+import { useEffect, useState, useRef, useCallback, useMemo, useLayoutEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plus, X, Check, Trash2, Download, Upload, Cloud, CloudOff, LogIn, ChevronLeft, ChevronRight,
   Share2, Copy, Users, Link2, Globe, Lock, UserPlus, CheckCircle2, Circle,
-  CalendarDays, MoreHorizontal, Minus, List, Columns, Calendar, RefreshCw, Tag, Undo2
+  CalendarDays, MoreHorizontal, Minus, List, Columns, Calendar, RefreshCw, Undo2
 } from 'lucide-react';
 import Link from 'next/link';
 import { auth } from '@/lib/firebase';
@@ -14,9 +14,10 @@ import { logActivity } from '@/lib/activity';
 import { parsePrompt, mergeEntries } from '@/lib/promptParser';
 import { plannerStorageKey } from '@/lib/plannerStorage';
 import { toast } from 'sonner';
-import { Button, Modal, Badge } from '@/components/ui';
+import { Button, Modal } from '@/components/ui';
 import { authFetch } from '@/lib/authFetch';
 import { getSoonestUpcomingExam } from '@/lib/examCountdown';
+import { useIsClient } from '@/lib/clientHooks';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -47,6 +48,9 @@ type PlanMeta = {
   is_public: boolean;
   updated_at?: string;
 };
+
+type TaskCategory = NonNullable<Task['category']>;
+type TaskStatus = NonNullable<Task['status']>;
 
 type Collaborator = {
   id: string;
@@ -155,13 +159,12 @@ function TaskItem({
   onToggleSubtask: (subtaskId: string) => void;
   onAddSubtask: () => void;
   onDeleteSubtask: (subtaskId: string) => void;
-  onUpdateCategory?: (category: any) => void;
+  onUpdateCategory?: (category: TaskCategory) => void;
   onToggleRecurring?: () => void;
-  onUpdateStatus?: (status: 'todo' | 'in-progress' | 'done') => void;
+  onUpdateStatus?: (status: TaskStatus) => void;
   compact?: boolean;
 }) {
   if (compact) {
-    const catColor = CATEGORY_COLORS[task.category || 'General'];
     return (
       <div className="flex items-center gap-1 group/task">
         <button
@@ -247,7 +250,7 @@ function TaskItem({
         {/* Category Badges dropdown */}
         <select
           value={currentCategory}
-          onChange={(e) => onUpdateCategory?.(e.target.value as any)}
+          onChange={(e) => onUpdateCategory?.(e.target.value as TaskCategory)}
           className={`text-xs font-bold px-2 py-1.5 min-h-11 md:min-h-0 rounded-md border outline-none cursor-pointer ${catColor.bg} ${catColor.text} ${catColor.border}`}
         >
           <option value="General">General</option>
@@ -260,7 +263,7 @@ function TaskItem({
         {/* Status Dropdown */}
         <select
           value={task.status || (task.done ? 'done' : 'todo')}
-          onChange={(e) => onUpdateStatus?.(e.target.value as any)}
+          onChange={(e) => onUpdateStatus?.(e.target.value as TaskStatus)}
           className="ui-select ui-select-sm"
         >
           <option value="todo">To Do</option>
@@ -363,14 +366,16 @@ function PromptModal({
   const [error, setError] = useState<string | null>(null);
 
   // Reset modal state when opened
-  useEffect(() => {
-    if (isOpen) {
-      setText('');
-      setParsed([]);
-      setLoading(false);
-      setError(null);
-    }
-  }, [isOpen]);
+  const [prevPromptOpen, setPrevPromptOpen] = useState(isOpen);
+  if (isOpen && !prevPromptOpen) {
+    setText('');
+    setParsed([]);
+    setLoading(false);
+    setError(null);
+  }
+  if (prevPromptOpen !== isOpen) {
+    setPrevPromptOpen(isOpen);
+  }
 
   const handleParse = async () => {
     if (!text.trim()) return;
@@ -396,10 +401,11 @@ function PromptModal({
       if (parsedEntries.length === 0) {
         setError('No study plan entries detected. Try adding specific dates and tasks.');
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setError(err.message || 'An error occurred while parsing the study plan.');
-      toast.error(err.message || 'Failed to parse prompt with AI');
+      const message = err instanceof Error ? err.message : 'An error occurred while parsing the study plan.';
+      setError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -752,9 +758,9 @@ function DayPanel({
   onToggleSubtask: (taskId: string, subtaskId: string) => void;
   onAddSubtask: (taskId: string) => void;
   onDeleteSubtask: (taskId: string, subtaskId: string) => void;
-  onUpdateTaskCategory: (taskId: string, category: any) => void;
+  onUpdateTaskCategory: (taskId: string, category: TaskCategory) => void;
   onToggleTaskRecurring: (taskId: string) => void;
-  onUpdateTaskStatus: (taskId: string, status: 'todo' | 'in-progress' | 'done') => void;
+  onUpdateTaskStatus: (taskId: string, status: TaskStatus) => void;
 }) {
   const dateObj = new Date(date + 'T00:00:00');
   const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
@@ -864,7 +870,7 @@ export default function PlannerClient() {
     is_public: false,
   });
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
-  const [mounted, setMounted] = useState(false);
+  const mounted = useIsClient();
   const [user, setUser] = useState<{ id: string; email?: string } | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [lastSynced, setLastSynced] = useState<Date | null>(null);
@@ -881,19 +887,18 @@ export default function PlannerClient() {
   const skipLocalStampRef = useRef(false);
   const lastWrittenDataRef = useRef<string>('');
   const lastPushedSnapshotRef = useRef<string | null>(null);
-  const [upcomingExam, setUpcomingExam] = useState<ReturnType<typeof getSoonestUpcomingExam>>(null);
 
   const today = todayISO();
   const calendarDays = useMemo(() => getCalendarDays(month, year), [month, year]);
+  const upcomingExam = useMemo(() => {
+    void planData;
+    return getSoonestUpcomingExam();
+  }, [planData]);
 
-  useEffect(() => {
-    setUpcomingExam(getSoonestUpcomingExam());
-  }, [planData, month, year]);
-
-  // ── Init ──
-  useEffect(() => {
-    lastWrittenDataRef.current = '';
-    skipLocalStampRef.current = true;
+  const planPeriodKey = `${month}-${year}`;
+  const [prevPlanPeriod, setPrevPlanPeriod] = useState('');
+  if (prevPlanPeriod !== planPeriodKey) {
+    setPrevPlanPeriod(planPeriodKey);
     const key = storageKey(month, year);
     const saved = localStorage.getItem(key);
     if (saved) {
@@ -903,13 +908,19 @@ export default function PlannerClient() {
         setPlanMeta(parsed.meta || { title: 'Study Plan', month, year, is_public: false });
       } catch {
         setPlanData({});
+        setPlanMeta({ title: 'Study Plan', month, year, is_public: false });
       }
     } else {
       setPlanData({});
       setPlanMeta({ title: 'Study Plan', month, year, is_public: false });
     }
-    setMounted(true);
-  }, [month, year]);
+  }
+
+  useLayoutEffect(() => {
+    if (!prevPlanPeriod) return;
+    lastWrittenDataRef.current = '';
+    skipLocalStampRef.current = true;
+  }, [planPeriodKey, prevPlanPeriod]);
 
   // ── Auth ──
   useEffect(() => {
@@ -921,6 +932,7 @@ export default function PlannerClient() {
 
   const pullFromCloud = useCallback(async () => {
     if (!user) return;
+    await Promise.resolve();
     cloudHydratingRef.current = true;
     setSyncing(true);
     try {
@@ -998,11 +1010,17 @@ export default function PlannerClient() {
     }
   }, [user, month, year, setPlanData]);
 
-  // ── Cloud pull on login ──
+  const cloudPullKey = user && mounted ? `${user.id}:${month}:${year}` : '';
   useEffect(() => {
-    if (!user || !mounted) return;
-    pullFromCloud();
-  }, [user, mounted, month, year, pullFromCloud]);
+    if (!cloudPullKey) return;
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (!cancelled) void pullFromCloud();
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [cloudPullKey, pullFromCloud]);
 
   // ── Save to localStorage ──
   useEffect(() => {
@@ -1087,10 +1105,10 @@ export default function PlannerClient() {
   }, [planData, planMeta, user, mounted, pushToCloud]);
 
   // ── Task operations ──
-  const addTask = (date: string, text: string = '', category: string = 'General') => {
+  const addTask = (date: string, text: string = '', category: TaskCategory = 'General') => {
     setPlanData(prev => ({
       ...prev,
-      [date]: [...(prev[date] || []), { id: generateId(), text, done: false, subtasks: [], category: category as any, status: 'todo' }],
+      [date]: [...(prev[date] || []), { id: generateId(), text, done: false, subtasks: [], category, status: 'todo' }],
     }));
   };
 
@@ -1129,14 +1147,14 @@ export default function PlannerClient() {
     }));
   };
 
-  const updateTaskCategory = (date: string, taskId: string, category: 'Revision' | 'Exam Prep' | 'Assignment' | 'Project' | 'General') => {
+  const updateTaskCategory = (date: string, taskId: string, category: TaskCategory) => {
     setPlanData(prev => ({
       ...prev,
       [date]: (prev[date] || []).map(t => t.id === taskId ? { ...t, category } : t),
     }));
   };
 
-  const updateTaskStatus = (date: string, taskId: string, status: 'todo' | 'in-progress' | 'done') => {
+  const updateTaskStatus = (date: string, taskId: string, status: TaskStatus) => {
     setPlanData(prev => ({
       ...prev,
       [date]: (prev[date] || []).map(t => {
@@ -1150,13 +1168,9 @@ export default function PlannerClient() {
 
   const toggleTaskRecurring = (date: string, taskId: string) => {
     setPlanData(prev => {
-      let taskToPropagate: Task | null = null;
       const updatedDateTasks = (prev[date] || []).map(t => {
         if (t.id === taskId) {
           const nextRecurring = !t.isRecurring;
-          if (nextRecurring) {
-            taskToPropagate = { ...t, isRecurring: true };
-          }
           return { ...t, isRecurring: nextRecurring };
         }
         return t;
@@ -1164,7 +1178,8 @@ export default function PlannerClient() {
 
       const nextData = { ...prev, [date]: updatedDateTasks };
 
-      if (taskToPropagate) {
+      const sourceTask = updatedDateTasks.find((t) => t.id === taskId);
+      if (sourceTask?.isRecurring) {
         const startDate = new Date(date + 'T00:00:00');
         const activeMonth = startDate.getMonth();
         const activeYear = startDate.getFullYear();
@@ -1175,11 +1190,11 @@ export default function PlannerClient() {
         while (tempDate.getMonth() === activeMonth && tempDate.getFullYear() === activeYear) {
           const isoString = `${tempDate.getFullYear()}-${String(tempDate.getMonth() + 1).padStart(2, '0')}-${String(tempDate.getDate()).padStart(2, '0')}`;
           const existing = nextData[isoString] || [];
-          if (!existing.some(t => t.text === (taskToPropagate as any).text)) {
+          if (!existing.some((t) => t.text === sourceTask.text)) {
             nextData[isoString] = [
               ...existing,
               {
-                ...(taskToPropagate as any),
+                ...sourceTask,
                 id: generateId(),
                 isRecurring: true,
                 done: false,
@@ -1292,8 +1307,9 @@ export default function PlannerClient() {
       const resData = await res.json();
       setCollaborators(prev => [...prev, resData.collaborator]);
       toast.success(`Invited ${email} as ${role}`);
-    } catch (e: any) {
-      toast.error(e.message || 'Failed to invite');
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : 'Failed to invite';
+      toast.error(message);
       console.error(e);
     }
   };

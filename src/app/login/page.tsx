@@ -17,6 +17,13 @@ import {
   takeRememberedRedirectTo,
   linkGithubOverGoogleAccount,
 } from "@/lib/firebaseAuth";
+import { FirebaseError } from "firebase/app";
+
+function authErrorCode(err: unknown): string {
+  if (err instanceof FirebaseError) return err.code;
+  if (err instanceof Error) return err.message;
+  return String(err);
+}
 
 function getFriendlyErrorMessage(errorCode: string): string {
   switch (errorCode) {
@@ -117,8 +124,8 @@ function LoginContent() {
     try {
       await signInWithEmailAndPassword(auth, email, password);
       goAfterAuth(redirectTo);
-    } catch (err: any) {
-      setError(getFriendlyErrorMessage(err.code || err.message));
+    } catch (err: unknown) {
+      setError(getFriendlyErrorMessage(authErrorCode(err)));
       setLoading(false);
     }
   };
@@ -134,8 +141,8 @@ function LoginContent() {
         return;
       }
       goAfterAuth(redirectTo);
-    } catch (err: any) {
-      setError(getFriendlyErrorMessage(err.code || err.message));
+    } catch (err: unknown) {
+      setError(getFriendlyErrorMessage(authErrorCode(err)));
       setGoogleLoading(false);
     }
   };
@@ -151,19 +158,19 @@ function LoginContent() {
         return;
       }
       goAfterAuth(redirectTo);
-    } catch (err: any) {
+    } catch (err: unknown) {
       try {
         const linked = await linkGithubOverGoogleAccount(auth, err);
         if (linked) {
           goAfterAuth(redirectTo);
           return;
         }
-      } catch (linkErr: any) {
-        setError(getFriendlyErrorMessage(linkErr.code || linkErr.message));
+      } catch (linkErr: unknown) {
+        setError(getFriendlyErrorMessage(authErrorCode(linkErr)));
         setGithubLoading(false);
         return;
       }
-      setError(getFriendlyErrorMessage(err.code || err.message));
+      setError(getFriendlyErrorMessage(authErrorCode(err)));
       setGithubLoading(false);
     }
   };

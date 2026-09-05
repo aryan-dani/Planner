@@ -26,6 +26,7 @@ import {
   Heart,
   Building2,
   Waypoints,
+  type LucideIcon,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import dynamic from "next/dynamic";
@@ -38,6 +39,7 @@ import {
 } from "@/lib/workspace";
 import { ScopeSelector } from "@/components/academic/ScopeSelector";
 import { fetchAdminStatus } from "@/lib/adminStatus";
+import { useIsClient, useIsMac, readLocalStorageBoolean } from "@/lib/clientHooks";
 
 const NavUserMenu = dynamic(() => import("./NavUserMenu"), {
   ssr: false,
@@ -49,7 +51,7 @@ const NavUserMenu = dynamic(() => import("./NavUserMenu"), {
 export interface NavLinkItem {
   href: string;
   label: string;
-  Icon: React.ComponentType<any>;
+  Icon: LucideIcon;
   featured?: boolean;
   desc: string;
 }
@@ -108,9 +110,7 @@ function NavSection({
 }
 
 function SegmentedThemeToggle({ theme, setTheme }: { theme: string | undefined; setTheme: (theme: string) => void }) {
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => setMounted(true), []);
+  const mounted = useIsClient();
 
   if (!mounted) {
     return <div className="skeleton h-8 rounded-xl border border-border/80 w-full" aria-hidden />;
@@ -153,10 +153,11 @@ function NavigationUrlSync() {
   const setWorkspace = useAcademicStore((s) => s.setWorkspace);
   const didHydrateWorkspace = useRef(false);
 
+  const urlYear = searchParams.get("year");
+  const urlBranch = searchParams.get("branch");
+  const urlSemester = searchParams.get("semester");
+
   useEffect(() => {
-    const urlYear = searchParams.get("year");
-    const urlBranch = searchParams.get("branch");
-    const urlSemester = searchParams.get("semester");
     const hasUrl = !!(urlYear || urlBranch || urlSemester);
     const stored = !didHydrateWorkspace.current ? readStoredWorkspace() : null;
     didHydrateWorkspace.current = true;
@@ -174,12 +175,7 @@ function NavigationUrlSync() {
           },
     );
     setWorkspace(resolved.academicYear, resolved.branch, resolved.semester);
-  }, [
-    searchParams.get("year"),
-    searchParams.get("branch"),
-    searchParams.get("semester"),
-    setWorkspace,
-  ]);
+  }, [urlYear, urlBranch, urlSemester, setWorkspace]);
 
   return null;
 }
@@ -208,31 +204,26 @@ function NavigationInner() {
   } = useAcademicStore();
 
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(() =>
+    typeof window === "undefined" ? false : readLocalStorageBoolean("sidebar-collapsed"),
+  );
   const [userEmail, setUserEmail] = useState<string | undefined>();
   const [isAdmin, setIsAdmin] = useState(false);
-  const [isMac, setIsMac] = useState(false);
+  const isMac = useIsMac();
   const { theme, setTheme } = useTheme();
   const prefsAppliedRef = useRef(false);
+  const [prevPathname, setPrevPathname] = useState(pathname);
 
-  useEffect(() => {
-    const saved = localStorage.getItem("sidebar-collapsed");
-    if (saved) setCollapsed(saved === "true");
-  }, []);
+  if (prevPathname !== pathname) {
+    setPrevPathname(pathname);
+    if (mobileOpen) setMobileOpen(false);
+  }
 
   const handleCollapseToggle = () => {
     const nextState = !collapsed;
     setCollapsed(nextState);
     localStorage.setItem("sidebar-collapsed", String(nextState));
   };
-
-  useEffect(() => {
-    setIsMac(
-      typeof navigator !== "undefined" &&
-        (navigator.userAgent.includes("Mac") ||
-          navigator.platform.includes("Mac")),
-    );
-  }, []);
 
   const updateUrl = useCallback(
     (newYear: AcademicYear, newBranch: string, newSem: number) => {
@@ -287,10 +278,6 @@ function NavigationInner() {
     },
     [pathname, router, setWorkspace],
   );
-
-  useEffect(() => {
-    setMobileOpen(false);
-  }, [pathname]);
 
   useEffect(() => {
     let cancelled = false;

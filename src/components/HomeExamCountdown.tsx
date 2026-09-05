@@ -1,19 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useMemo } from "react";
 import Link from "next/link";
 import { CalendarCheck } from "lucide-react";
-import {
-  getSoonestUpcomingExam,
-  type UpcomingExam,
-} from "@/lib/examCountdown";
+import { getSoonestUpcomingExam } from "@/lib/examCountdown";
 
 export default function HomeExamCountdown() {
-  const [exam, setExam] = useState<UpcomingExam | null>(null);
-
-  useEffect(() => {
-    setExam(getSoonestUpcomingExam());
-  }, []);
+  const exam = useMemo(() => getSoonestUpcomingExam(), []);
 
   if (!exam) return null;
 

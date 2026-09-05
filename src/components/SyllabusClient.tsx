@@ -1,19 +1,17 @@
 'use client';
 
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState } from 'react';
 import { SubjectItem, ResourceItem } from '@/lib/dataFetcher';
 import { useAcademicStore } from '@/store/academicStore';
 import { cleanResourceTitle } from '@/lib/titleUtils';
 import { 
   BookMarked, 
   Layers, 
-  Search, 
   FileText, 
   ArrowRight, 
   Check, 
   ChevronDown, 
   ChevronUp, 
-  Trophy, 
   Brain, 
   HelpCircle, 
   Clock, 
@@ -44,7 +42,8 @@ import AcademicBreadcrumb from '@/components/AcademicBreadcrumb';
 import Link from 'next/link';
 import { Button, Card, Badge, Input, Select, Segmented, Modal } from '@/components/ui';
 import { useWorkspaceResources } from '@/lib/useWorkspaceResources';
-import PageSkeleton from '@/components/PageSkeleton';
+import { useIsClient } from '@/lib/clientHooks';
+import type { Task } from '@/app/planner/PlannerClient';
 
 interface ResourceItemExt extends ResourceItem {
   subject_name: string;
@@ -271,8 +270,14 @@ export default function SyllabusClient() {
     [subjectNames, branch, semester],
   );
   const [expandedSubject, setExpandedSubject] = useState<string | null>(null);
-  const [progressMap, setProgressMap] = useState<Record<string, boolean | string>>({});
-  const [mounted, setMounted] = useState(false);
+  const [progressMap, setProgressMap] = useState<Record<string, boolean | string>>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) return JSON.parse(saved) as Record<string, boolean | string>;
+    } catch {}
+    return {};
+  });
+  const mounted = useIsClient();
   const resources = catalogResources as ResourceItemExt[];
 
   // Scheduler Modal State
@@ -281,16 +286,6 @@ export default function SyllabusClient() {
   const [scheduleDate, setScheduleDate] = useState(localDateKey());
   const [scheduleCategory, setScheduleCategory] = useState('Revision');
   const [scheduleTitle, setScheduleTitle] = useState('');
-
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        setProgressMap(JSON.parse(saved));
-      }
-    } catch {}
-    setMounted(true);
-  }, []);
 
   const updateModuleStatus = (subjectId: string, moduleIdx: number, status: 'not-started' | 'in-progress' | 'mastered') => {
     const key = `${subjectId}_${moduleIdx}`;
@@ -315,16 +310,16 @@ export default function SyllabusClient() {
 
     const taskText = scheduleTitle || `Study: ${schedulingModule.subjectName} - ${schedulingModule.moduleTitle}`;
     
-    const newTask = {
+    const newTask: Task = {
       id: Math.random().toString(36).slice(2, 11),
       text: taskText,
       done: false,
       subtasks: [],
-      category: scheduleCategory
+      category: scheduleCategory as Task['category'],
     };
 
     const key = `utility_planner_v2_${year}_${month}`;
-    let planData: Record<string, any[]> = {};
+    let planData: Record<string, Task[]> = {};
     let planMeta = { title: 'Study Plan', month, year, is_public: false };
 
     try {
@@ -453,11 +448,10 @@ export default function SyllabusClient() {
     );
   }, [displaySubjects, searchQuery]);
 
-  useEffect(() => {
-    if (!expandedSubject) return;
-    const stillVisible = filtered.some((s) => s.id === expandedSubject);
-    if (!stillVisible) setExpandedSubject(null);
-  }, [filtered, expandedSubject]);
+  const activeExpandedSubject = useMemo(() => {
+    if (!expandedSubject) return null;
+    return filtered.some((s) => s.id === expandedSubject) ? expandedSubject : null;
+  }, [expandedSubject, filtered]);
 
   // Calculate Overall Progress
   const totalModules = filtered.reduce((acc, sub) => acc + sub.modules.length, 0);
@@ -571,8 +565,8 @@ export default function SyllabusClient() {
       {/* Subject Cards List */}
       <div className="flex flex-col gap-px bg-border/60 rounded-xl overflow-hidden border border-border/70 shadow-sm relative z-10">
         <AnimatePresence mode="popLayout">
-          {filtered.map((subject, i) => {
-            const isExpanded = expandedSubject === subject.id;
+          {filtered.map((subject) => {
+            const isExpanded = activeExpandedSubject === subject.id;
             const subCompleted = subject.modules.reduce((sum, _, idx) => {
               const val = progressMap[`${subject.id}_${idx}`];
               if (val === 'mastered' || val === true) return sum + 1;

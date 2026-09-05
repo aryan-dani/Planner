@@ -48,7 +48,14 @@ export async function GET(request: Request) {
     }
 
     const subjectIds = subjects.map((s) => s.id);
-    const resourcesList: any[] = [];
+    type AdminResource = {
+      id: string;
+      title: string;
+      file_url: string;
+      subject_id: string;
+      is_indexed: boolean;
+    };
+    const resourcesList: AdminResource[] = [];
     const chunkSize = 30;
 
     // 2. Fetch resources in chunks of 30 due to Firestore query limits

@@ -24,6 +24,7 @@ import {
   ClipboardList,
   Clock,
   Star,
+  type LucideIcon,
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { toast } from "sonner";
@@ -67,11 +68,12 @@ import { authFetch } from "@/lib/authFetch";
 import { useWorkspaceResources } from "@/lib/useWorkspaceResources";
 import { Button, Card, Badge } from "@/components/ui";
 import PageSkeleton from "@/components/PageSkeleton";
+import type { RAGSearchResult } from "@/lib/ragSearch";
 
 const ResourceViewer = dynamic(() => import("./ResourceViewer"), { ssr: false });
 const SummaryModal = dynamic(() => import("./SummaryModal"), { ssr: false });
 
-const RESOURCE_FILTERS: { value: ResourceFilter; label: string; Icon: any }[] =
+const RESOURCE_FILTERS: { value: ResourceFilter; label: string; Icon: LucideIcon }[] =
   [
     { value: "all", label: "All", Icon: Layers },
     { value: "notes", label: "Notes", Icon: FileText },
@@ -121,40 +123,41 @@ export default function ResourcesClient() {
     null,
   );
   const [viewerPage, setViewerPage] = useState<number | null>(null);
-  const [recentResources, setRecentResources] = useState<RecentResource[]>([]);
+  const [recentResources, setRecentResources] = useState<RecentResource[]>(() =>
+    getRecentResources(),
+  );
   const [favoriteResources, setFavoriteResources] = useState<FavoriteResource[]>(
-    [],
+    () => getFavoriteResources(),
   );
   const [summarizingResource, setSummarizingResource] =
     useState<ResourceItem | null>(null);
-  const [contentResults, setContentResults] = useState<any[]>([]);
+  const [contentResults, setContentResults] = useState<RAGSearchResult[]>([]);
   const [isSearchingContent, setIsSearchingContent] = useState(false);
-  const didOpenInitialView = useRef(false);
-  const didHydrateFromUrl = useRef(false);
-  const skipFolderUrlHydrate = useRef(true);
-  const lastUserSubjectRef = useRef<string | null>(null);
+  const [didOpenInitialView, setDidOpenInitialView] = useState(false);
+  const [didHydrateFromUrl, setDidHydrateFromUrl] = useState(false);
+  const [skipFolderUrlHydrate, setSkipFolderUrlHydrate] = useState(true);
+  const [lastUserSubject, setLastUserSubject] = useState<string | null>(null);
   const [isSubjectPending, setIsSubjectPending] = useState(false);
-  const [isScopeLoading, setIsScopeLoading] = useState(false);
   const scopeKey = `${academicYear}:${branch}:${semester}`;
-  const prevScopeRef = useRef(scopeKey);
+  const [prevScope, setPrevScope] = useState(scopeKey);
+  const [scopeLoading, setScopeLoading] = useState(false);
   const subjectPendingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchRequestId = useRef(0);
 
-  useEffect(() => {
-    if (prevScopeRef.current === scopeKey) return;
-    prevScopeRef.current = scopeKey;
-    didHydrateFromUrl.current = false;
-    lastUserSubjectRef.current = null;
-    didOpenInitialView.current = false;
+  if (prevScope !== scopeKey) {
+    setPrevScope(scopeKey);
+    setDidHydrateFromUrl(false);
+    setLastUserSubject(null);
+    setDidOpenInitialView(false);
+    setScopeLoading(true);
     setSelectedFilter("all");
     setActiveFolderId(null);
     setViewerResource(null);
-    setIsScopeLoading(true);
-  }, [scopeKey]);
-
-  useEffect(() => {
-    if (!catalogLoading) setIsScopeLoading(false);
-  }, [catalogLoading, resources]);
+  }
+  const isScopeLoading = scopeLoading && catalogLoading;
+  if (scopeLoading && !catalogLoading) {
+    setScopeLoading(false);
+  }
 
   useEffect(() => {
     return () => {
@@ -215,6 +218,7 @@ export default function ResourcesClient() {
     },
     [
       searchParams,
+      academicYear,
       branch,
       semester,
       selectedSubject,
@@ -263,7 +267,7 @@ export default function ResourcesClient() {
       const fromUser = opts?.fromUser ?? true;
 
       if (fromUser) {
-        lastUserSubjectRef.current = subjectName;
+        setLastUserSubject(subjectName);
         setIsSubjectPending(true);
         if (subjectPendingTimer.current) clearTimeout(subjectPendingTimer.current);
         subjectPendingTimer.current = setTimeout(() => setIsSubjectPending(false), 180);
@@ -275,96 +279,78 @@ export default function ResourcesClient() {
       setViewerResource(null);
       syncUrl({ subject: subjectName, filter, view: null, folder: null });
     },
-    [syncUrl],
+    [syncUrl, setSelectedSubject, setSelectedFilter, setActiveFolderId, setViewerResource, setLastUserSubject],
   );
 
-  useEffect(() => {
+  const urlSlug = searchParams.get("subject");
+  const urlFilterParam = searchParams.get("filter");
+  const urlFolderParam = searchParams.get("folder");
+  const subjectSyncKey = `${scopeKey}|${filteredSubjectNames.join("\0")}|${searchParams.toString()}|${initialSubject}|${initialFilter}|${initialFolder}`;
+  const [prevSubjectSyncKey, setPrevSubjectSyncKey] = useState(subjectSyncKey);
+
+  if (prevSubjectSyncKey !== subjectSyncKey) {
+    setPrevSubjectSyncKey(subjectSyncKey);
+
     if (filteredSubjectNames.length === 0) {
       setSelectedSubject(null);
-      return;
-    }
+    } else {
+      const fromLiveUrl = resolveSubjectName(urlSlug, filteredSubjectNames);
+      const userPick = lastUserSubject;
 
-    const urlSlug = searchParams.get("subject");
-    const fromLiveUrl = resolveSubjectName(urlSlug, filteredSubjectNames);
-    const userPick = lastUserSubjectRef.current;
-
-    if (userPick) {
-      if (filteredSubjectNames.includes(userPick)) {
-        if (selectedSubject !== userPick) setSelectedSubject(userPick);
-        if (fromLiveUrl === userPick || subjectToSlug(userPick) === urlSlug) {
-          lastUserSubjectRef.current = null;
+      if (userPick) {
+        if (filteredSubjectNames.includes(userPick)) {
+          setSelectedSubject(userPick);
+          if (fromLiveUrl === userPick || subjectToSlug(userPick) === urlSlug) {
+            setLastUserSubject(null);
+          }
+        } else {
+          setLastUserSubject(null);
         }
-        return;
-      }
-      lastUserSubjectRef.current = null;
-    }
-
-    if (!didHydrateFromUrl.current) {
-      didHydrateFromUrl.current = true;
-      const fromInitial = resolveSubjectName(initialSubject, filteredSubjectNames);
-      const target = fromLiveUrl || fromInitial || filteredSubjectNames[0];
-      if (selectedSubject !== target) setSelectedSubject(target);
-      const urlFilter = parseResourceFilter(searchParams.get("filter") || initialFilter);
-      setSelectedFilter(urlFilter);
-      const urlFolder = parseResourceFolder(
-        searchParams.get("folder") || initialFolder,
-      );
-      if (urlFolder) setActiveFolderId(urlFolder);
-      return;
-    }
-
-    if (fromLiveUrl) {
-      if (selectedSubject !== fromLiveUrl) {
+      } else if (!didHydrateFromUrl) {
+        setDidHydrateFromUrl(true);
+        const fromInitial = resolveSubjectName(initialSubject, filteredSubjectNames);
+        const target = fromLiveUrl || fromInitial || filteredSubjectNames[0];
+        setSelectedSubject(target);
+        setSelectedFilter(parseResourceFilter(urlFilterParam || initialFilter));
+        const urlFolder = parseResourceFolder(
+          searchParams.get("folder") || initialFolder,
+        );
+        if (urlFolder) setActiveFolderId(urlFolder);
+      } else if (fromLiveUrl) {
         setSelectedSubject(fromLiveUrl);
-        const urlFilter = parseResourceFilter(searchParams.get("filter"));
-        setSelectedFilter(urlFilter);
+        setSelectedFilter(parseResourceFilter(urlFilterParam));
+      } else if (!selectedSubject || !filteredSubjectNames.includes(selectedSubject)) {
+        setSelectedSubject(filteredSubjectNames[0]);
+        setSelectedFilter("all");
+        setActiveFolderId(null);
       }
-      return;
     }
+  }
 
-    if (selectedSubject && filteredSubjectNames.includes(selectedSubject)) {
-      return;
-    }
-
-    setSelectedSubject(filteredSubjectNames[0]);
-    setSelectedFilter("all");
-    setActiveFolderId(null);
-  }, [
-    filteredSubjectNames,
-    selectedSubject,
-    initialSubject,
-    initialFilter,
-    initialFolder,
-    searchParams,
-  ]);
-
-  // Mirror ?folder= only when that query value changes (back/forward, shared link).
-  // Do not re-apply a stale param just because local activeFolderId changed — that
-  // re-opens a unit the user just collapsed.
-  const urlFolderParam = searchParams.get("folder");
-  useEffect(() => {
-    if (skipFolderUrlHydrate.current) {
-      skipFolderUrlHydrate.current = false;
-      return;
-    }
+  const [prevUrlFolderParam, setPrevUrlFolderParam] = useState(urlFolderParam);
+  if (!skipFolderUrlHydrate && prevUrlFolderParam !== urlFolderParam) {
+    setPrevUrlFolderParam(urlFolderParam);
     const urlFolder = parseResourceFolder(urlFolderParam);
     if (!urlFolder) {
-      setActiveFolderId((prev) => (prev === null ? prev : null));
-      return;
-    }
-    if (selectedSubject) {
+      setActiveFolderId(null);
+    } else if (selectedSubject) {
       const scope = folderScopeSubject(urlFolder);
       const subjectScope = subjectFolderScope(selectedSubject);
       if (scope && scope !== subjectScope) {
         setActiveFolderId(null);
-        return;
+      } else {
+        setActiveFolderId(urlFolder);
       }
+    } else {
+      setActiveFolderId(urlFolder);
     }
-    setActiveFolderId((prev) => (prev === urlFolder ? prev : urlFolder));
-  }, [urlFolderParam, selectedSubject]);
+  }
+  if (skipFolderUrlHydrate) {
+    setSkipFolderUrlHydrate(false);
+  }
 
-  useEffect(() => {
-    if (!selectedSubject || selectedFilter === "all") return;
+  const effectiveSelectedFilter = useMemo(() => {
+    if (!selectedSubject || selectedFilter === "all") return selectedFilter;
     const items = subjectsMap[selectedSubject] ?? [];
     const hasItems =
       selectedFilter === "question-bank"
@@ -379,16 +365,26 @@ export default function ResourcesClient() {
                 isAssignmentCategory(r.category) || isDatasetResource(r),
             )
           : items.some((r) => r.category === selectedFilter);
-    if (!hasItems) setSelectedFilter("all");
+    return hasItems ? selectedFilter : "all";
   }, [selectedSubject, selectedFilter, subjectsMap]);
 
-  useEffect(() => {
-    if (didOpenInitialView.current) return;
-    const viewId = initialView || searchParams.get("view");
-    if (!viewId) return;
+  const [prevEffectiveFilter, setPrevEffectiveFilter] =
+    useState(effectiveSelectedFilter);
+  if (prevEffectiveFilter !== effectiveSelectedFilter) {
+    setPrevEffectiveFilter(effectiveSelectedFilter);
+    if (selectedFilter !== effectiveSelectedFilter) {
+      setSelectedFilter(effectiveSelectedFilter);
+    }
+  }
+
+  const viewId = initialView || searchParams.get("view");
+  const initialViewKey = `${viewId ?? ""}|${resources.length}|${scopeKey}`;
+  const [prevInitialViewKey, setPrevInitialViewKey] = useState(initialViewKey);
+  if (!didOpenInitialView && viewId && prevInitialViewKey !== initialViewKey) {
+    setPrevInitialViewKey(initialViewKey);
     const match = resources.find((r) => r.id === viewId);
     if (match) {
-      didOpenInitialView.current = true;
+      setDidOpenInitialView(true);
       setViewerResource(match);
       const pageRaw = searchParams.get("page");
       const pageNum = pageRaw ? Number(pageRaw) : NaN;
@@ -397,24 +393,13 @@ export default function ResourcesClient() {
         pushRecentResource(match, { academicYear, branch, semester }),
       );
       if (match.subject_name) {
-        lastUserSubjectRef.current = match.subject_name;
+        setLastUserSubject(match.subject_name);
         setSelectedSubject(match.subject_name);
       }
       const folder = folderIdForResource(match);
       if (folder) setActiveFolderId(folder);
-      if (isAssignmentCategory(match.category) || isDatasetResource(match)) {
-        // Keep All or Codes/Writeups — prefer codes filter only if URL says so
-        if (!searchParams.get("filter")) {
-          // leave as-is / all so Assignments explorer shows
-        }
-      }
     }
-  }, [initialView, searchParams, resources, academicYear, branch, semester]);
-
-  useEffect(() => {
-    setRecentResources(getRecentResources());
-    setFavoriteResources(getFavoriteResources());
-  }, []);
+  }
 
   const favoriteIds = useMemo(
     () => new Set(favoriteResources.map((f) => f.id)),
@@ -435,12 +420,12 @@ export default function ResourcesClient() {
           : "Removed from favorites",
       );
     },
-    [academicYear, branch, semester],
+    [academicYear, branch, semester, setFavoriteResources],
   );
 
   useEffect(() => {
     if (!selectedSubject) return;
-    if (lastUserSubjectRef.current && lastUserSubjectRef.current !== selectedSubject) {
+    if (lastUserSubject && lastUserSubject !== selectedSubject) {
       return;
     }
     syncUrl({
@@ -449,8 +434,7 @@ export default function ResourcesClient() {
       view: viewerResource?.id ?? null,
       folder: activeFolderId,
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedSubject, selectedFilter, viewerResource?.id, activeFolderId]);
+  }, [selectedSubject, selectedFilter, viewerResource?.id, activeFolderId, syncUrl, lastUserSubject]);
 
   const openResource = useCallback(
     (item: ResourceItem, page?: number | null) => {
@@ -464,7 +448,15 @@ export default function ResourcesClient() {
         pushRecentResource(item, { academicYear, branch, semester }),
       );
     },
-    [academicYear, branch, semester],
+    [
+      academicYear,
+      branch,
+      semester,
+      setActiveFolderId,
+      setViewerResource,
+      setViewerPage,
+      setRecentResources,
+    ],
   );
 
   const shareResource = useCallback(
@@ -494,11 +486,11 @@ export default function ResourcesClient() {
   const closeViewer = useCallback(() => {
     setViewerResource(null);
     setViewerPage(null);
-  }, []);
+  }, [setViewerResource, setViewerPage]);
 
   const handleFolderChange = useCallback((folderId: string | null) => {
     setActiveFolderId(folderId);
-  }, []);
+  }, [setActiveFolderId]);
 
   const handleVaultSearch = useCallback(
     (value: string) => {
@@ -512,12 +504,12 @@ export default function ResourcesClient() {
     [setSearchQuery, setAiSearchQuery],
   );
 
+  const aiSearchActive = aiSearchQuery.trim().length >= 3;
+  const visibleContentResults = aiSearchActive ? contentResults : [];
+  const visibleSearchingContent = aiSearchActive && isSearchingContent;
+
   useEffect(() => {
-    if (!aiSearchQuery.trim() || aiSearchQuery.length < 3) {
-      setContentResults([]);
-      setIsSearchingContent(false);
-      return;
-    }
+    if (!aiSearchActive) return;
 
     const abortController = new AbortController();
     const requestId = ++searchRequestId.current;
@@ -566,7 +558,7 @@ export default function ResourcesClient() {
       clearTimeout(timer);
       abortController.abort();
     };
-  }, [aiSearchQuery, academicYear, branch, semester]);
+  }, [aiSearchActive, aiSearchQuery, academicYear, branch, semester]);
 
   const searchedResources = useMemo(() => {
     const all = selectedSubject ? (subjectsMap[selectedSubject] ?? []) : [];
@@ -943,7 +935,7 @@ export default function ResourcesClient() {
                             onClick={() => {
                               if (live) openResource(live);
                               else if (r.subject_name) {
-                                lastUserSubjectRef.current = r.subject_name;
+                                setLastUserSubject(r.subject_name);
                                 setSelectedSubject(r.subject_name);
                               }
                             }}
@@ -983,7 +975,7 @@ export default function ResourcesClient() {
                             onClick={() => {
                               if (live) openResource(live);
                               else if (r.subject_name) {
-                                lastUserSubjectRef.current = r.subject_name;
+                                setLastUserSubject(r.subject_name);
                                 setSelectedSubject(r.subject_name);
                               }
                             }}
@@ -1117,11 +1109,11 @@ export default function ResourcesClient() {
                   </Card>
                 ) : (
                   <div className="space-y-8">
-                    {(contentResults.length > 0 || isSearchingContent) && (
+                    {(visibleContentResults.length > 0 || visibleSearchingContent) && (
                       <div className="space-y-4 bg-surface/40 border border-border rounded-xl p-5 shadow-sm overflow-hidden">
                         <div className="flex items-center gap-2.5 border-b border-border pb-3">
                           <div className="w-7 h-7 rounded-lg bg-surface border border-border flex items-center justify-center text-foreground">
-                            {isSearchingContent ? (
+                            {visibleSearchingContent ? (
                               <Loader2 className="w-3.5 h-3.5 animate-spin" />
                             ) : (
                               <Brain className="w-3.5 h-3.5" />
@@ -1133,15 +1125,15 @@ export default function ResourcesClient() {
                             </h3>
                             <p className="text-[10px] font-medium text-muted">
                               AI Semantic Search
-                              {contentResults.length > 0
-                                ? ` · ${contentResults.length} snippets`
+                              {visibleContentResults.length > 0
+                                ? ` · ${visibleContentResults.length} snippets`
                                 : ""}
-                              {isSearchingContent ? " · searching…" : ""}
+                              {visibleSearchingContent ? " · searching…" : ""}
                             </p>
                           </div>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          {contentResults.map((result, idx) => (
+                          {visibleContentResults.map((result, idx) => (
                             <Card
                               key={`${result.resource_id}-${idx}`}
                               hover

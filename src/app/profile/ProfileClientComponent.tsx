@@ -1,9 +1,11 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { auth, db } from "@/lib/firebase";
-import { updateProfile } from "firebase/auth";
+import { updateProfile, type User as FirebaseUser, type UserInfo } from "firebase/auth";
+import { FirebaseError } from "firebase/app";
 import {
   startProviderLink,
   confirmMergeWithGithub,
@@ -18,6 +20,7 @@ import { BRANCH_OPTIONS_LONG, isAcademicYear } from "@/lib/academic/scope";
 import { toast } from "sonner";
 import Link from "next/link";
 import { useTheme } from "next-themes";
+import { useIsClient } from "@/lib/clientHooks";
 import {
   ArrowLeft,
   Loader2,
@@ -88,9 +91,7 @@ const AVATAR_PRESETS: AvatarPreset[] = [
 
 function ProfileThemeToggle() {
   const { theme, setTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => setMounted(true), []);
+  const mounted = useIsClient();
 
   if (!mounted) {
     return <div className="skeleton h-10 rounded-xl border border-border/80 w-full" aria-hidden />;
@@ -138,7 +139,7 @@ export default function ProfileClientComponent() {
   const [linking, setLinking] = useState(false);
   const [mergeStep, setMergeStep] = useState<"github" | "google" | null>(null);
   const [redirectBusy, setRedirectBusy] = useState(true);
-  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
 
   // Form states
   const [displayName, setDisplayName] = useState("");
@@ -281,8 +282,14 @@ export default function ProfileClientComponent() {
       setLastSavedAt(new Date().toISOString());
 
       toast.success("Profile and preferences updated successfully!");
-    } catch (err: any) {
-      toast.error(`Failed to update profile: ${err.message || String(err)}`);
+    } catch (err: unknown) {
+      const message =
+        err instanceof FirebaseError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : String(err);
+      toast.error(`Failed to update profile: ${message}`);
     } finally {
       setSaving(false);
     }
@@ -304,7 +311,7 @@ export default function ProfileClientComponent() {
     }
   };
 
-  const applyLinkedUser = (user: any) => {
+  const applyLinkedUser = (user: FirebaseUser) => {
     setCurrentUser(user);
     setDisplayName(user.displayName || "");
     setPhotoURL(user.photoURL || "");
@@ -325,11 +332,13 @@ export default function ProfileClientComponent() {
         setMergeStep("google");
         toast.message("Confirm Google to finish merging into one profile.");
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const code = err instanceof FirebaseError ? err.code : undefined;
+      const message = err instanceof Error ? err.message : "Could not link GitHub.";
       toast.error(
-        err.code === "auth/popup-closed-by-user"
+        code === "auth/popup-closed-by-user"
           ? "Linking was cancelled. Please try again."
-          : err.message || "Could not link GitHub."
+          : message
       );
     } finally {
       mergingRef.current = false;
@@ -354,11 +363,13 @@ export default function ProfileClientComponent() {
         setMergeStep("github");
         toast.message("Confirm GitHub to finish merging into one profile.");
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const code = err instanceof FirebaseError ? err.code : undefined;
+      const message = err instanceof Error ? err.message : "Could not link Google.";
       toast.error(
-        err.code === "auth/popup-closed-by-user"
+        code === "auth/popup-closed-by-user"
           ? "Linking was cancelled. Please try again."
-          : err.message || "Could not link Google."
+          : message
       );
     } finally {
       mergingRef.current = false;
@@ -380,8 +391,9 @@ export default function ProfileClientComponent() {
         setMergeStep(null);
         toast.success("Google and GitHub are now one account.");
       }
-    } catch (err: any) {
-      toast.error(err.message || "Could not finish merging GitHub.");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Could not finish merging GitHub.";
+      toast.error(message);
     } finally {
       mergingRef.current = false;
       if (!auth.currentUser) {
@@ -402,8 +414,9 @@ export default function ProfileClientComponent() {
         setMergeStep(null);
         toast.success("Google and GitHub are now one account.");
       }
-    } catch (err: any) {
-      toast.error(err.message || "Could not finish merging Google.");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Could not finish merging Google.";
+      toast.error(message);
     } finally {
       mergingRef.current = false;
       if (!auth.currentUser) {
@@ -426,12 +439,16 @@ export default function ProfileClientComponent() {
     );
   }
 
+  if (!currentUser) {
+    return null;
+  }
+
   // Determine provider type
   const isGoogle = currentUser?.providerData?.some(
-    (p: any) => p.providerId === "google.com"
+    (p: UserInfo) => p.providerId === "google.com"
   );
   const isGithub = currentUser?.providerData?.some(
-    (p: any) => p.providerId === "github.com"
+    (p: UserInfo) => p.providerId === "github.com"
   );
   const providerLabel = isGoogle
     ? "Google Account"
@@ -517,11 +534,14 @@ export default function ProfileClientComponent() {
 
               <div className="w-28 h-28 rounded-2xl bg-foreground text-background flex items-center justify-center text-4xl font-black shadow-md border border-border/70 overflow-hidden mb-4 shrink-0 ring-4 ring-background">
                 {photoURL ? (
-                  <img
+                  <Image
                     src={photoURL}
                     alt="Avatar"
+                    width={112}
+                    height={112}
                     className="w-full h-full object-cover"
                     referrerPolicy="no-referrer"
+                    unoptimized
                   />
                 ) : (
                   displayName?.[0] ?? currentUser.email?.[0] ?? "?"

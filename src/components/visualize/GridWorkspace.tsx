@@ -140,12 +140,13 @@ export function GridWorkspace({
     return onAuthStateChanged(auth, (user) => setSignedIn(!!user));
   }, []);
 
-  useEffect(() => {
-    if (!initialGridData) return;
+  const [prevInitialGrid, setPrevInitialGrid] = useState(initialGridData);
+  if (initialGridData && prevInitialGrid !== initialGridData) {
+    setPrevInitialGrid(initialGridData);
     setStartPos(initialGridData.startPos);
     setGoalPos(initialGridData.goalPos);
     setWalls(initialGridData.walls);
-  }, [initialGridData]);
+  }
 
   const editableGridState = useMemo<GridState>(() => {
     const grid = createInitialGrid(rows, cols, startPos, goalPos, walls);

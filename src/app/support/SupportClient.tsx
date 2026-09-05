@@ -13,7 +13,7 @@ const UPI_NAME = process.env.NEXT_PUBLIC_UPI_NAME || "Aryan Dani";
 const PRESETS = [20, 50, 100, 250] as const;
 
 export default function SupportClient() {
-  const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
+  const [, setCurrentUser] = useState<FirebaseUser | null>(null);
   const [amount, setAmount] = useState(50);
   const [customAmount, setCustomAmount] = useState("");
   const [isCopied, setIsCopied] = useState(false);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Search, ChevronLeft, FlaskConical } from "lucide-react";
 import type { LabFacility } from "@/lib/ishani";
@@ -14,13 +14,9 @@ export default function LabsClient({
   initialLabs,
   configured,
 }: LabsClientProps) {
-  const [labs, setLabs] = useState(initialLabs);
+  const labs = initialLabs;
   const [search, setSearch] = useState("");
   const [floorFilter, setFloorFilter] = useState<string>("ALL");
-
-  useEffect(() => {
-    setLabs(initialLabs);
-  }, [initialLabs]);
 
   const floors = useMemo(() => {
     const set = new Set<string>();

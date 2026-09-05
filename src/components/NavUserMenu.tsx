@@ -8,7 +8,6 @@ import { auth, db } from "@/lib/firebase";
 import { signOut, onIdTokenChanged } from "firebase/auth";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import type { AcademicYear, Branch, Semester } from "@/store/academicStore";
-import { DEFAULT_ACADEMIC_YEAR } from "@/lib/workspace";
 import { isAcademicYear } from "@/lib/academic/scope";
 
 type NavUser = {

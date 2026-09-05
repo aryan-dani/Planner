@@ -86,20 +86,22 @@ async function loadWorkspace(
 export function useWorkspaceResources(): WorkspaceResourcesState {
   const { academicYear, branch, semester } = useAcademicStore();
   const key = cacheKey(academicYear, branch, semester);
-  const cached = cache.get(key);
 
   const [resources, setResources] = useState<ResourceItem[]>(
-    cached?.resources ?? [],
+    () => cache.get(key)?.resources ?? [],
   );
-  const [subjects, setSubjects] = useState<string[]>(cached?.subjects ?? []);
+  const [subjects, setSubjects] = useState<string[]>(
+    () => cache.get(key)?.subjects ?? [],
+  );
   const [syllabusUrl, setSyllabusUrl] = useState<string | null>(
-    cached?.syllabusUrl ?? null,
+    () => cache.get(key)?.syllabusUrl ?? null,
   );
-  const [loading, setLoading] = useState(!cached);
+  const [loading, setLoading] = useState(() => !cache.has(key));
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
+  const [prevKey, setPrevKey] = useState(key);
+  if (prevKey !== key) {
+    setPrevKey(key);
     const hit = cache.get(key);
     if (hit) {
       setResources(hit.resources);
@@ -107,11 +109,19 @@ export function useWorkspaceResources(): WorkspaceResourcesState {
       setSyllabusUrl(hit.syllabusUrl);
       setLoading(false);
       setError(null);
-      return;
+    } else {
+      setResources([]);
+      setSubjects([]);
+      setSyllabusUrl(null);
+      setLoading(true);
+      setError(null);
     }
+  }
 
-    setLoading(true);
-    setError(null);
+  useEffect(() => {
+    if (cache.has(key)) return;
+
+    let cancelled = false;
     loadWorkspace(academicYear, branch, semester)
       .then((entry) => {
         if (cancelled) return;

@@ -93,6 +93,12 @@ export default function ResourceFileRow({
     !!onSummarize;
   const role = getResourceFileRole(item);
   const driveId = getDriveFileId(item.file_url);
+  const driveItemKey = `${driveId}:${item.id}`;
+  const [prevDriveItem, setPrevDriveItem] = useState(driveItemKey);
+  if (prevDriveItem !== driveItemKey) {
+    setPrevDriveItem(driveItemKey);
+    setOffline(false);
+  }
 
   const FileIcon =
     role === "dataset" || isCsv
@@ -126,10 +132,7 @@ export default function ResourceFileRow({
   }, [scrollTarget]);
 
   useEffect(() => {
-    if (!driveId || typeof caches === "undefined") {
-      setOffline(false);
-      return;
-    }
+    if (!driveId || typeof caches === "undefined") return;
     let cancelled = false;
     const url = getDirectDownloadUrl(driveId);
     caches

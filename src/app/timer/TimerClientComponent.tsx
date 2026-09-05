@@ -4,8 +4,6 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  Play, 
-  Pause, 
   RotateCcw, 
   Coffee, 
   Brain, 
@@ -20,7 +18,7 @@ import {
   Music,
   CloudRain
 } from 'lucide-react';
-import { FadeIn, ScaleButton } from '@/components/Animations';
+import { FadeIn } from '@/components/Animations';
 import { logActivity, localDateKey } from '@/lib/activity';
 import { incrementTaskFocus } from '@/lib/plannerStorage';
 
@@ -60,10 +58,25 @@ export default function TimerClient() {
   const [mode, setMode] = useState<TimerMode>('work');
   const [timeLeft, setTimeLeft] = useState(25 * 60);
   const [isActive, setIsActive] = useState(false);
-  const [sessions, setSessions] = useState(0);
+  const [sessions, setSessions] = useState(() => {
+    try {
+      const sessionsSaved = localStorage.getItem('utility_focus_sessions');
+      if (sessionsSaved) {
+        const n = parseInt(sessionsSaved, 10);
+        if (Number.isFinite(n) && n >= 0) return n;
+      }
+    } catch {}
+    return 0;
+  });
   const [muted, setMuted] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [focusLogs, setFocusLogs] = useState<FocusLog[]>([]);
+  const [focusLogs, setFocusLogs] = useState<FocusLog[]>(() => {
+    try {
+      const logsSaved = localStorage.getItem('utility_focus_logs');
+      if (logsSaved) return JSON.parse(logsSaved) as FocusLog[];
+    } catch {}
+    return [];
+  });
   
   // Settings
   const [workTime, setWorkTime] = useState<number | string>(25);
@@ -96,7 +109,6 @@ export default function TimerClient() {
         soundAudioRef.current.pause();
         soundAudioRef.current = null;
       }
-      setSoundPlaying(false);
       return;
     }
 
@@ -114,7 +126,7 @@ export default function TimerClient() {
         .then(() => setSoundPlaying(true))
         .catch(err => console.error("Soundscape play failed", err));
     }
-  }, [soundscape, soundUrls]);
+  }, [soundscape, soundUrls, isActive, soundPlaying, soundVolume]);
 
   useEffect(() => {
     if (soundAudioRef.current) {
@@ -130,23 +142,26 @@ export default function TimerClient() {
     }
   }, [isActive, soundscape, soundPlaying]);
 
-  // Handle initial query parameters (mode and start)
-  useEffect(() => {
-    const modeParam = searchParams.get('mode') as TimerMode | null;
-    const startParam = searchParams.get('start') === 'true';
-
-    if (modeParam && ['work', 'break', 'longBreak'].includes(modeParam)) {
-      setMode(modeParam);
-      setIsActive(startParam);
-      
-      const duration = modeParam === 'work' 
-        ? sanitizeDuration(workTime) 
-        : modeParam === 'break' 
-          ? sanitizeDuration(breakTime) 
+  const modeParam = searchParams.get('mode') as TimerMode | null;
+  const startParam = searchParams.get('start') === 'true';
+  const timerParamKey = `${modeParam ?? ''}:${startParam}`;
+  const [prevTimerParamKey, setPrevTimerParamKey] = useState(timerParamKey);
+  if (
+    prevTimerParamKey !== timerParamKey &&
+    modeParam &&
+    ['work', 'break', 'longBreak'].includes(modeParam)
+  ) {
+    setPrevTimerParamKey(timerParamKey);
+    setMode(modeParam);
+    setIsActive(startParam);
+    const duration =
+      modeParam === 'work'
+        ? sanitizeDuration(workTime)
+        : modeParam === 'break'
+          ? sanitizeDuration(breakTime)
           : sanitizeDuration(longBreakTime);
-      setTimeLeft(duration * 60);
-    }
-  }, [searchParams]);
+    setTimeLeft(duration * 60);
+  }
 
   // Handle Focus Mode activity & fullscreen changes
   useEffect(() => {
@@ -255,20 +270,7 @@ export default function TimerClient() {
     return 'stroke-muted';
   }, [mode]);
 
-  // Load focus history + session count
-  useEffect(() => {
-    const logsSaved = localStorage.getItem('utility_focus_logs');
-    if (logsSaved) {
-      try {
-        setFocusLogs(JSON.parse(logsSaved));
-      } catch {}
-    }
-    const sessionsSaved = localStorage.getItem('utility_focus_sessions');
-    if (sessionsSaved) {
-      const n = parseInt(sessionsSaved, 10);
-      if (Number.isFinite(n) && n >= 0) setSessions(n);
-    }
-  }, []);
+  // Load focus history + session count — initialized via lazy useState above
 
   useEffect(() => {
     try {
@@ -324,37 +326,7 @@ export default function TimerClient() {
     }
   }, [taskId, day]);
 
-  // Deadline-based tick so background tabs stay accurate
-  useEffect(() => {
-    if (isActive) {
-      if (deadlineRef.current == null) {
-        deadlineRef.current = Date.now() + timeLeft * 1000;
-      }
-      timerRef.current = setInterval(() => {
-        const end = deadlineRef.current;
-        if (end == null) return;
-        const remaining = Math.max(0, Math.ceil((end - Date.now()) / 1000));
-        setTimeLeft(remaining);
-      }, 250);
-    } else if (deadlineRef.current != null) {
-      const remaining = Math.max(
-        0,
-        Math.ceil((deadlineRef.current - Date.now()) / 1000),
-      );
-      setTimeLeft(remaining);
-      deadlineRef.current = null;
-    }
-
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
-    // timeLeft intentionally omitted — captured when starting/resuming
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isActive]);
-
-  useEffect(() => {
-    if (timeLeft !== 0 || !isActive) return;
-
+  const handleTimerComplete = useCallback(() => {
     deadlineRef.current = null;
     setIsActive(false);
     playSound();
@@ -363,7 +335,7 @@ export default function TimerClient() {
       setSessions(newSessions);
 
       const durationMins = sanitizeDuration(workTime);
-      logFocusSession(durationMins);
+      void logFocusSession(durationMins);
 
       if (newSessions % 4 === 0) switchMode('longBreak');
       else switchMode('break');
@@ -377,10 +349,31 @@ export default function TimerClient() {
         icon: "/utility-logo.webp"
       });
     } else if ("Notification" in window && Notification.permission === "default") {
-      // Request only after the first completed session (not on mount).
       void Notification.requestPermission();
     }
-  }, [timeLeft, isActive, mode, sessions, playSound, switchMode, logFocusSession, workTime]);
+  }, [mode, sessions, playSound, switchMode, logFocusSession, workTime]);
+
+  useEffect(() => {
+    if (isActive) {
+      if (deadlineRef.current == null) {
+        deadlineRef.current = Date.now() + timeLeft * 1000;
+      }
+      timerRef.current = setInterval(() => {
+        const end = deadlineRef.current;
+        if (end == null) return;
+        const remaining = Math.max(0, Math.ceil((end - Date.now()) / 1000));
+        setTimeLeft(remaining);
+        if (remaining === 0) {
+          if (timerRef.current) clearInterval(timerRef.current);
+          handleTimerComplete();
+        }
+      }, 250);
+    }
+
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, [isActive, handleTimerComplete, timeLeft]);
 
   useEffect(() => {
     if (isActive) {
@@ -394,7 +387,17 @@ export default function TimerClient() {
     };
   }, [timeLeft, isActive, mode]);
 
-  const toggleTimer = () => setIsActive(!isActive);
+  const toggleTimer = () => {
+    if (isActive && deadlineRef.current != null) {
+      const remaining = Math.max(
+        0,
+        Math.ceil((deadlineRef.current - Date.now()) / 1000),
+      );
+      setTimeLeft(remaining);
+      deadlineRef.current = null;
+    }
+    setIsActive(!isActive);
+  };
   const resetTimer = () => {
     setIsActive(false);
     deadlineRef.current = null;
@@ -613,7 +616,7 @@ export default function TimerClient() {
               <p className="text-2xl font-black text-foreground mt-1">{sessions}</p>
             </div>
             <div className="bg-surface/50 border border-border rounded-xl p-3 text-center">
-              <span className="text-xs font-bold text-muted uppercase tracking-widest">Today's Focus</span>
+              <span className="text-xs font-bold text-muted uppercase tracking-widest">Today&apos;s Focus</span>
               <p className="text-2xl font-black text-foreground mt-1">
                 {focusLogs.find(l => l.date === localDateKey())?.minutes || 0}m
               </p>

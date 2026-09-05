@@ -16,11 +16,11 @@ import {
   AlertTriangle,
   CheckCircle2,
 } from 'lucide-react';
-import { FadeIn, ScaleButton, StaggerContainer, StaggerItem } from '@/components/Animations';
+import { FadeIn, ScaleButton } from '@/components/Animations';
 import Link from 'next/link';
 import { useAcademicStore } from '@/store/academicStore';
 import { getAidsGpaData } from '@/lib/syllabusData';
-import { Button, Input, Segmented, Select } from '@/components/ui';
+import { Segmented, Select } from '@/components/ui';
 
 interface Subject {
   id: string;
@@ -158,27 +158,94 @@ function getThreshold(gp: number) {
   return 0;
 }
 
+const DEFAULT_SEMESTERS_DATA: Record<number, { sgpa: number; credits: number; active: boolean; completed: boolean }> = {
+  1: { sgpa: 0, credits: 20, active: false, completed: false },
+  2: { sgpa: 0, credits: 20, active: false, completed: false },
+  3: { sgpa: 0, credits: 20, active: false, completed: false },
+  4: { sgpa: 0, credits: 21, active: false, completed: false },
+  5: { sgpa: 0, credits: 20, active: false, completed: false },
+  6: { sgpa: 0, credits: 20, active: false, completed: false },
+  7: { sgpa: 0, credits: 20, active: false, completed: false },
+  8: { sgpa: 0, credits: 20, active: false, completed: false },
+};
+
+function loadGpaStrategyStorage() {
+  let courseKeyOverride: string | null = null;
+  let marks: Record<string, number> = {};
+  try {
+    const saved = localStorage.getItem('gpa_strategy_v1');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (parsed.courseKeyOverride) courseKeyOverride = parsed.courseKeyOverride;
+      else if (parsed.branch && COURSE_DATA[parsed.branch] && parsed.branch !== 'AIDS') {
+        courseKeyOverride = parsed.branch;
+      }
+      if (parsed.marks) {
+        const clamped: Record<string, number> = {};
+        for (const [id, v] of Object.entries(parsed.marks as Record<string, number>)) {
+          clamped[id] = Math.min(100, Math.max(0, Number(v) || 0));
+        }
+        marks = clamped;
+      }
+    }
+  } catch (e) {
+    console.error('Failed to load GPA data', e);
+  }
+  return { courseKeyOverride, marks };
+}
+
+function loadGpaRoadmapStorage() {
+  let semestersData = { ...DEFAULT_SEMESTERS_DATA };
+  let targetCGPA = 8.5;
+  let targetSemester = 8;
+  try {
+    const savedRoadmap = localStorage.getItem('gpa_roadmap_v1');
+    if (savedRoadmap) {
+      const parsed = JSON.parse(savedRoadmap);
+      if (parsed.semestersData) {
+        const merged: Record<number, { sgpa: number; credits: number; active: boolean; completed: boolean }> = {};
+        for (let i = 1; i <= 8; i++) {
+          const defaultSem = { sgpa: 0, credits: 20, active: false, completed: false };
+          const savedSem = parsed.semestersData[i] || {};
+          merged[i] = {
+            ...defaultSem,
+            ...savedSem,
+            completed: savedSem.completed !== undefined ? savedSem.completed : (savedSem.sgpa > 0)
+          };
+        }
+        semestersData = merged;
+      }
+      if (parsed.targetCGPA) targetCGPA = parsed.targetCGPA;
+      if (parsed.targetSemester) targetSemester = parsed.targetSemester;
+    }
+  } catch (e) {
+    console.error('Failed to load GPA roadmap data', e);
+  }
+  return { semestersData, targetCGPA, targetSemester };
+}
+
 export default function GPAClient() {
   const { branch: workspaceBranch, semester: workspaceSemester } = useAcademicStore();
-  const [courseKeyOverride, setCourseKeyOverride] = useState<string | null>(null);
-  const [marks, setMarks] = useState<Record<string, number>>({});
+  const [courseKeyOverride, setCourseKeyOverride] = useState<string | null>(
+    () => loadGpaStrategyStorage().courseKeyOverride,
+  );
+  const [marks, setMarks] = useState<Record<string, number>>(
+    () => loadGpaStrategyStorage().marks,
+  );
   const [simSelections, setSimSelections] = useState<Record<string, number>>({});
   const [isCalculated, setIsCalculated] = useState(false);
   const [activeTab, setActiveTab] = useState<'semester' | 'roadmap'>('semester');
   const [showCoursePicker, setShowCoursePicker] = useState(false);
 
-  const [semestersData, setSemestersData] = useState<Record<number, { sgpa: number; credits: number; active: boolean; completed: boolean }>>({
-    1: { sgpa: 0, credits: 20, active: false, completed: false },
-    2: { sgpa: 0, credits: 20, active: false, completed: false },
-    3: { sgpa: 0, credits: 20, active: false, completed: false },
-    4: { sgpa: 0, credits: 21, active: false, completed: false },
-    5: { sgpa: 0, credits: 20, active: false, completed: false },
-    6: { sgpa: 0, credits: 20, active: false, completed: false },
-    7: { sgpa: 0, credits: 20, active: false, completed: false },
-    8: { sgpa: 0, credits: 20, active: false, completed: false },
-  });
-  const [targetCGPA, setTargetCGPA] = useState<number>(8.5);
-  const [targetSemester, setTargetSemester] = useState<number>(8);
+  const [semestersData, setSemestersData] = useState<
+    Record<number, { sgpa: number; credits: number; active: boolean; completed: boolean }>
+  >(() => loadGpaRoadmapStorage().semestersData);
+  const [targetCGPA, setTargetCGPA] = useState<number>(
+    () => loadGpaRoadmapStorage().targetCGPA,
+  );
+  const [targetSemester, setTargetSemester] = useState<number>(
+    () => loadGpaRoadmapStorage().targetSemester,
+  );
 
   const targetSemesterOptions = useMemo(
     () =>
@@ -188,66 +255,20 @@ export default function GPAClient() {
       })),
     [],
   );
-  const [hydrated, setHydrated] = useState(false);
+  const hydrated = true;
 
   const currentBranch = useMemo(
     () => resolveWorkspaceCourse(workspaceBranch, workspaceSemester, courseKeyOverride),
     [workspaceBranch, workspaceSemester, courseKeyOverride],
   );
   const calcSemester = currentBranch.semester;
-
-  useEffect(() => {
+  const workspaceKey = `${workspaceBranch}:${workspaceSemester}:${courseKeyOverride ?? ''}`;
+  const [prevWorkspaceKey, setPrevWorkspaceKey] = useState(workspaceKey);
+  if (prevWorkspaceKey !== workspaceKey) {
+    setPrevWorkspaceKey(workspaceKey);
     setIsCalculated(false);
     setSimSelections({});
-  }, [workspaceBranch, workspaceSemester, courseKeyOverride]);
-
-  // Load from LocalStorage
-  useEffect(() => {
-    const saved = localStorage.getItem('gpa_strategy_v1');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (parsed.courseKeyOverride) setCourseKeyOverride(parsed.courseKeyOverride);
-        else if (parsed.branch && COURSE_DATA[parsed.branch] && parsed.branch !== 'AIDS') {
-          setCourseKeyOverride(parsed.branch);
-        }
-        if (parsed.marks) {
-          const clamped: Record<string, number> = {};
-          for (const [id, v] of Object.entries(parsed.marks as Record<string, number>)) {
-            clamped[id] = Math.min(100, Math.max(0, Number(v) || 0));
-          }
-          setMarks(clamped);
-        }
-      } catch (e) {
-        console.error('Failed to load GPA data', e);
-      }
-    }
-
-    const savedRoadmap = localStorage.getItem('gpa_roadmap_v1');
-    if (savedRoadmap) {
-      try {
-        const parsed = JSON.parse(savedRoadmap);
-        if (parsed.semestersData) {
-          const merged: Record<number, any> = {};
-          for (let i = 1; i <= 8; i++) {
-            const defaultSem = { sgpa: 0, credits: 20, active: false, completed: false };
-            const savedSem = parsed.semestersData[i] || {};
-            merged[i] = {
-              ...defaultSem,
-              ...savedSem,
-              completed: savedSem.completed !== undefined ? savedSem.completed : (savedSem.sgpa > 0)
-            };
-          }
-          setSemestersData(merged);
-        }
-        if (parsed.targetCGPA) setTargetCGPA(parsed.targetCGPA);
-        if (parsed.targetSemester) setTargetSemester(parsed.targetSemester);
-      } catch (e) {
-        console.error('Failed to load GPA roadmap data', e);
-      }
-    }
-    setHydrated(true);
-  }, []);
+  }
 
   // Save to LocalStorage — only after hydration so defaults cannot wipe saved data
   useEffect(() => {
@@ -328,31 +349,31 @@ export default function GPAClient() {
       : 0;
   }, [currentBranch, marks, simSelections]);
 
-  // Sync simulatedGPA into the active calculator semester
-  useEffect(() => {
-    if (isCalculated && currentBranch) {
-      setSemestersData(prev => {
-        const currentSem = prev[calcSemester];
-        if (
-          currentSem.sgpa !== simulatedGPA || 
-          currentSem.credits !== currentBranch.totalCredits || 
-          !currentSem.active || 
-          !currentSem.completed
-        ) {
-          return {
-            ...prev,
-            [calcSemester]: {
-              sgpa: simulatedGPA,
-              credits: currentBranch.totalCredits,
-              active: true,
-              completed: true
-            }
-          };
-        }
+  const simSyncKey = `${isCalculated}|${calcSemester}|${simulatedGPA}|${currentBranch.totalCredits}`;
+  const [prevSimSyncKey, setPrevSimSyncKey] = useState(simSyncKey);
+  if (isCalculated && currentBranch && prevSimSyncKey !== simSyncKey) {
+    setPrevSimSyncKey(simSyncKey);
+    setSemestersData((prev) => {
+      const currentSem = prev[calcSemester];
+      if (
+        currentSem.sgpa === simulatedGPA &&
+        currentSem.credits === currentBranch.totalCredits &&
+        currentSem.active &&
+        currentSem.completed
+      ) {
         return prev;
-      });
-    }
-  }, [simulatedGPA, isCalculated, currentBranch, calcSemester]);
+      }
+      return {
+        ...prev,
+        [calcSemester]: {
+          sgpa: simulatedGPA,
+          credits: currentBranch.totalCredits,
+          active: true,
+          completed: true,
+        },
+      };
+    });
+  }
 
   // Calculations for Cumulative CGPA
   const { currentCGPA, totalCompletedCredits, activeCompletedSemestersCount } = useMemo(() => {
@@ -360,7 +381,7 @@ export default function GPAClient() {
     let totalCredits = 0;
     let completedCount = 0;
 
-    Object.entries(semestersData).forEach(([semNumStr, data]) => {
+    Object.entries(semestersData).forEach(([, data]) => {
       if (data.active && data.completed) {
         totalPoints += data.sgpa * data.credits;
         totalCredits += data.credits;

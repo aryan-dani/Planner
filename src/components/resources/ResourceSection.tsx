@@ -110,8 +110,9 @@ export default function ResourceSection({
     el?.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }, [flattenAllSingles, activeFolderId, singletonCardItems.length]);
 
-  useEffect(() => {
-    if (!useFolders || !folders || !activeFolderId) return;
+  const [prevActiveFolder, setPrevActiveFolder] = useState(activeFolderId);
+  if (useFolders && folders && activeFolderId && prevActiveFolder !== activeFolderId) {
+    setPrevActiveFolder(activeFolderId);
     setExpandedIds((prev) => {
       const next = new Set(prev);
       let changed = false;
@@ -129,7 +130,7 @@ export default function ResourceSection({
       ensure(folders);
       return changed ? next : prev;
     });
-  }, [activeFolderId, folders, useFolders]);
+  }
 
   const toggleFolder = useCallback(
     (folderId: string) => {

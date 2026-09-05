@@ -8,16 +8,15 @@ function StatsCounter({ value }: { value: number }) {
   const ref = useRef<HTMLSpanElement>(null);
   const isInView = useInView(ref, { once: true, margin: "-50px" });
 
+  const end = value;
+  const skipAnimation = !Number.isFinite(end) || end <= 0;
+  const displayCount =
+    !isInView ? 0 : skipAnimation ? Math.max(0, end || 0) : count;
+
   useEffect(() => {
-    if (!isInView) return;
+    if (!isInView || skipAnimation) return;
 
     let start = 0;
-    const end = value;
-    if (!Number.isFinite(end) || end <= 0) {
-      setCount(Math.max(0, end || 0));
-      return;
-    }
-
     const totalDuration = 1000;
     const increment = Math.max(1, Math.ceil(end / (totalDuration / 30)));
 
@@ -32,9 +31,9 @@ function StatsCounter({ value }: { value: number }) {
     }, 30);
 
     return () => clearInterval(timer);
-  }, [value, isInView]);
+  }, [value, isInView, skipAnimation, end]);
 
-  return <span ref={ref}>{count}</span>;
+  return <span ref={ref}>{displayCount}</span>;
 }
 
 export type HomeStatsProps = {

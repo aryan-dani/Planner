@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Search, ChevronLeft, MapPin } from "lucide-react";
 import type { FacultySeat } from "@/lib/ishani";
@@ -14,13 +14,9 @@ export default function SeatingClient({
   initialSeating,
   configured,
 }: SeatingClientProps) {
-  const [seating, setSeating] = useState(initialSeating);
+  const seating = initialSeating;
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<string>("ALL");
-
-  useEffect(() => {
-    setSeating(initialSeating);
-  }, [initialSeating]);
 
   const types = useMemo(() => {
     const set = new Set<string>();

@@ -1,3 +1,4 @@
+import { FirebaseError } from "firebase/app";
 import {
   GithubAuthProvider,
   GoogleAuthProvider,
@@ -14,7 +15,17 @@ import {
   type AuthCredential,
   type OAuthCredential,
   type User,
+  type UserCredential,
 } from "firebase/auth";
+
+function firebaseErrorCode(err: unknown): string | undefined {
+  if (err instanceof FirebaseError) return err.code;
+  if (err && typeof err === "object" && "code" in err) {
+    const code = (err as { code?: unknown }).code;
+    if (typeof code === "string") return code;
+  }
+  return undefined;
+}
 
 export function githubAuthProvider() {
   const provider = new GithubAuthProvider();
@@ -110,7 +121,7 @@ function githubFromStored(s: StoredMerge): AuthCredential | null {
 }
 
 function stashGoogleFromError(err: unknown): boolean {
-  const cred = GoogleAuthProvider.credentialFromError(err as any);
+  const cred = err instanceof FirebaseError ? GoogleAuthProvider.credentialFromError(err) : null;
   const parts = oauthParts(cred);
   if (!parts.idToken && !parts.accessToken) return false;
   const prev = loadMerge() || { googleIdToken: null, googleAccessToken: null, githubAccessToken: null };
@@ -119,7 +130,7 @@ function stashGoogleFromError(err: unknown): boolean {
 }
 
 function stashGithubFromError(err: unknown): boolean {
-  const cred = GithubAuthProvider.credentialFromError(err as any);
+  const cred = err instanceof FirebaseError ? GithubAuthProvider.credentialFromError(err) : null;
   const token = oauthParts(cred).accessToken;
   if (!token) return false;
   const prev = loadMerge() || { googleIdToken: null, googleAccessToken: null, githubAccessToken: null };
@@ -127,8 +138,8 @@ function stashGithubFromError(err: unknown): boolean {
   return true;
 }
 
-function stashGithubFromResult(result: { user?: User } & object) {
-  const cred = GithubAuthProvider.credentialFromResult(result as any);
+function stashGithubFromResult(result: UserCredential) {
+  const cred = GithubAuthProvider.credentialFromResult(result);
   const token = oauthParts(cred).accessToken;
   if (!token) return false;
   const prev = loadMerge() || { googleIdToken: null, googleAccessToken: null, githubAccessToken: null };
@@ -160,8 +171,8 @@ export async function signInWithPopupOrRedirect(auth: Auth, kind: "google" | "gi
   const provider = kind === "github" ? githubAuthProvider() : googleAuthProvider();
   try {
     return await signInWithPopup(auth, provider);
-  } catch (err: any) {
-    if (!isPopupBlocked(err?.code)) throw err;
+  } catch (err: unknown) {
+    if (!isPopupBlocked(firebaseErrorCode(err))) throw err;
     setIntent(kind === "github" ? "signin-github" : "signin-google");
     await signInWithRedirect(auth, provider);
     return null;
@@ -173,7 +184,7 @@ export async function linkGithubOverGoogleAccount(auth: Auth, err: unknown) {
   const code = (err as { code?: string })?.code;
   if (code !== "auth/account-exists-with-different-credential") return false;
   stashGithubFromError(err);
-  const pending = GithubAuthProvider.credentialFromError(err as any);
+  const pending = err instanceof FirebaseError ? GithubAuthProvider.credentialFromError(err) : null;
   try {
     const google = await signInWithPopup(auth, googleAuthProvider());
     if (pending) {
@@ -181,8 +192,8 @@ export async function linkGithubOverGoogleAccount(auth: Auth, err: unknown) {
     }
     clearMerge();
     return true;
-  } catch (e: any) {
-    if (!isPopupBlocked(e?.code)) throw e;
+  } catch (e: unknown) {
+    if (!isPopupBlocked(firebaseErrorCode(e))) throw e;
     setIntent("signin-google");
     await signInWithRedirect(auth, googleAuthProvider());
     return true;
@@ -198,13 +209,14 @@ export async function startProviderLink(auth: Auth, kind: "google" | "github"): 
   try {
     const result = await linkWithPopup(user, provider);
     return { status: "linked", user: result.user };
-  } catch (err: any) {
-    if (isPopupBlocked(err?.code)) {
+  } catch (err: unknown) {
+    const code = firebaseErrorCode(err);
+    if (isPopupBlocked(code)) {
       setIntent(intent);
       await linkWithRedirect(user, provider);
       return { status: "redirecting" };
     }
-    if (err?.code === "auth/credential-already-in-use") {
+    if (code === "auth/credential-already-in-use") {
       if (kind === "google" && stashGoogleFromError(err)) {
         return { status: "needs-github-confirm" };
       }
@@ -224,8 +236,8 @@ export async function confirmMergeWithGithub(auth: Auth): Promise<LinkMergeResul
     stashGithubFromResult(reauth);
     const merged = await completeMerge(auth);
     return { status: "linked", user: merged };
-  } catch (err: any) {
-    if (!isPopupBlocked(err?.code)) throw err;
+  } catch (err: unknown) {
+    if (!isPopupBlocked(firebaseErrorCode(err))) throw err;
     setIntent("reauth-github");
     await reauthenticateWithRedirect(user, githubAuthProvider());
     return { status: "redirecting" };
@@ -242,8 +254,8 @@ export async function confirmMergeWithGoogle(auth: Auth): Promise<LinkMergeResul
     saveMerge({ ...prev, googleIdToken: parts.idToken, googleAccessToken: parts.accessToken });
     const merged = await completeMerge(auth);
     return { status: "linked", user: merged };
-  } catch (err: any) {
-    if (!isPopupBlocked(err?.code)) throw err;
+  } catch (err: unknown) {
+    if (!isPopupBlocked(firebaseErrorCode(err))) throw err;
     setIntent("reauth-google");
     await reauthenticateWithRedirect(user, googleAuthProvider());
     return { status: "redirecting" };
@@ -294,8 +306,8 @@ async function consumeRedirectResultImpl(auth: Auth): Promise<LinkMergeResult> {
           const linked = await linkWithCredential(auth.currentUser, githubCred);
           clearMerge();
           return { status: "linked", user: linked.user };
-        } catch (linkErr: any) {
-          if (linkErr?.code === "auth/credential-already-in-use") {
+        } catch (linkErr: unknown) {
+          if (firebaseErrorCode(linkErr) === "auth/credential-already-in-use") {
             const parts = oauthParts(GoogleAuthProvider.credentialFromResult(result));
             saveMerge({
               googleIdToken: parts.idToken,
@@ -315,9 +327,10 @@ async function consumeRedirectResultImpl(auth: Auth): Promise<LinkMergeResult> {
     if (step === "github") return { status: "needs-github-confirm" };
     if (step === "google") return { status: "needs-google-confirm" };
     return { status: "none" };
-  } catch (err: any) {
+  } catch (err: unknown) {
     const intent = takeIntent() || peekIntent;
-    if (err?.code === "auth/credential-already-in-use") {
+    const code = firebaseErrorCode(err);
+    if (code === "auth/credential-already-in-use") {
       if (intent === "link-github" || intent === "signin-github") {
         stashGithubFromError(err);
         return { status: "needs-google-confirm" };
@@ -325,7 +338,7 @@ async function consumeRedirectResultImpl(auth: Auth): Promise<LinkMergeResult> {
       stashGoogleFromError(err);
       return { status: "needs-github-confirm" };
     }
-    return { status: "error", code: err?.code || null };
+    return { status: "error", code: code || null };
   }
 }
 

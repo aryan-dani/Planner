@@ -5,6 +5,7 @@ import {
   useCallback,
   useEffect,
   useImperativeHandle,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -199,10 +200,65 @@ const PdfPreview = forwardRef<PdfPreviewHandle, PdfPreviewProps>(
     const [visible, setVisible] = useState<Set<number>>(new Set([1, 2, 3]));
     const [findOpen, setFindOpen] = useState(false);
     const [findQuery, setFindQuery] = useState("");
-    const [hits, setHits] = useState<FindHit[]>([]);
     const [hitIndex, setHitIndex] = useState(0);
     const [jumpValue, setJumpValue] = useState("1");
-    const pageTextRef = useRef<string[]>([]);
+    const [pageTexts, setPageTexts] = useState<string[]>([]);
+
+    const [prevDriveId, setPrevDriveId] = useState(driveId);
+    if (prevDriveId !== driveId) {
+      setPrevDriveId(driveId);
+      setLoading(true);
+      setFailed(false);
+      setDownloadProgress(null);
+      setTextReady(false);
+      setPdf(null);
+      setPdfjs(null);
+      setPageCount(0);
+      setPage(1);
+      setJumpValue("1");
+      setVisible(new Set([1, 2, 3]));
+      setHitIndex(0);
+      setPageTexts([]);
+    }
+
+    useLayoutEffect(() => {
+      if (docRef.current) {
+        void docRef.current.destroy().catch(() => {});
+        docRef.current = null;
+      }
+    }, [driveId]);
+
+    const hits = useMemo(() => {
+      if (!textReady) return [] as FindHit[];
+      const q = findQuery.trim().toLowerCase();
+      if (!q) return [] as FindHit[];
+      const found: FindHit[] = [];
+      pageTexts.forEach((text, pageNum) => {
+        if (!text) return;
+        const lower = text.toLowerCase();
+        let from = 0;
+        let occurrence = 0;
+        while (found.length < 200) {
+          const at = lower.indexOf(q, from);
+          if (at < 0) break;
+          found.push({
+            page: pageNum,
+            snippet: text.slice(Math.max(0, at - 24), at + q.length + 24),
+            occurrence,
+          });
+          occurrence += 1;
+          from = at + q.length;
+        }
+      });
+      return found;
+    }, [findQuery, textReady, pageTexts]);
+
+    const findKey = `${findQuery}:${textReady}`;
+    const [prevFindKey, setPrevFindKey] = useState(findKey);
+    if (prevFindKey !== findKey) {
+      setPrevFindKey(findKey);
+      setHitIndex(0);
+    }
 
     const activeHit = hits[hitIndex] ?? null;
 
@@ -214,18 +270,6 @@ const PdfPreview = forwardRef<PdfPreviewHandle, PdfPreviewProps>(
     useEffect(() => {
       const gen = ++genRef.current;
       let cancelled = false;
-      setLoading(true);
-      setFailed(false);
-      setDownloadProgress(null);
-      setTextReady(false);
-      setPdf(null);
-      setHits([]);
-      pageTextRef.current = [];
-
-      if (docRef.current) {
-        void docRef.current.destroy().catch(() => {});
-        docRef.current = null;
-      }
 
       (async () => {
         try {
@@ -263,7 +307,7 @@ const PdfPreview = forwardRef<PdfPreviewHandle, PdfPreviewProps>(
               .join(" ");
           }
           if (cancelled || gen !== genRef.current) return;
-          pageTextRef.current = texts;
+          setPageTexts(texts);
           setTextReady(true);
           onReadyRef.current?.();
         } catch (err) {
@@ -291,7 +335,7 @@ const PdfPreview = forwardRef<PdfPreviewHandle, PdfPreviewProps>(
       setHeights((prev) =>
         prev[pageNum] === height ? prev : { ...prev, [pageNum]: height },
       );
-    }, []);
+    }, [setHeights]);
 
     const estimatedHeight = useMemo(() => {
       const vals = Object.values(heights);
@@ -304,7 +348,13 @@ const PdfPreview = forwardRef<PdfPreviewHandle, PdfPreviewProps>(
       el?.scrollIntoView({ behavior: "smooth", block: "start" });
       setPage(n);
       setJumpValue(String(n));
-    }, []);
+    }, [setPage, setJumpValue]);
+
+    useEffect(() => {
+      if (!hits[0]) return;
+      const el = scrollRef.current?.querySelector(`[data-pdf-page="${hits[0].page}"]`);
+      el?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, [hits]);
 
     useImperativeHandle(
       ref,
@@ -370,41 +420,6 @@ const PdfPreview = forwardRef<PdfPreviewHandle, PdfPreviewProps>(
       }, 400);
       return () => window.clearTimeout(timer);
     }, [resourceId, page]);
-
-    useEffect(() => {
-      if (!textReady) {
-        setHits([]);
-        setHitIndex(0);
-        return;
-      }
-      const q = findQuery.trim().toLowerCase();
-      if (!q) {
-        setHits([]);
-        setHitIndex(0);
-        return;
-      }
-      const found: FindHit[] = [];
-      pageTextRef.current.forEach((text, pageNum) => {
-        if (!text) return;
-        const lower = text.toLowerCase();
-        let from = 0;
-        let occurrence = 0;
-        while (found.length < 200) {
-          const at = lower.indexOf(q, from);
-          if (at < 0) break;
-          found.push({
-            page: pageNum,
-            snippet: text.slice(Math.max(0, at - 24), at + q.length + 24),
-            occurrence,
-          });
-          occurrence += 1;
-          from = at + q.length;
-        }
-      });
-      setHits(found);
-      setHitIndex(0);
-      if (found[0]) scrollToPage(found[0].page);
-    }, [findQuery, scrollToPage, textReady]);
 
     const goHit = (dir: number) => {
       if (hits.length === 0) return;

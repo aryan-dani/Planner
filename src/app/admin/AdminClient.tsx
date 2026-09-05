@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useState, useEffect, useCallback } from "react";
 import { auth } from "@/lib/firebase";
 import { onAuthStateChanged, signOut } from "firebase/auth";
@@ -48,10 +49,22 @@ function getErrorMessage(error: unknown): string {
   return "An unknown error occurred.";
 }
 
+type AdminUser = {
+  id: string;
+  uid: string;
+  email: string;
+  displayName: string;
+  provider: string;
+  branch: string;
+  semester: number | null;
+  lastActive: string;
+  photoURL?: string;
+};
+
 export default function AdminClient() {
   const router = useRouter();
   const [tab, setTab] = useState<"drive" | "manage" | "users">("drive");
-  const [usersList, setUsersList] = useState<any[]>([]);
+  const [usersList, setUsersList] = useState<AdminUser[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [branch, setBranch] = useState<Branch>("AIDS");
@@ -71,6 +84,7 @@ export default function AdminClient() {
   const [syncingDrive, setSyncingDrive] = useState(false);
 
   const fetchUsers = useCallback(async () => {
+    await Promise.resolve();
     setLoadingUsers(true);
     try {
       const res = await authFetch("/api/admin/users");
@@ -84,11 +98,12 @@ export default function AdminClient() {
     }
   }, []);
 
-  useEffect(() => {
-    if (tab === "users") {
-      fetchUsers();
+  const handleTabChange = (next: "drive" | "manage" | "users") => {
+    setTab(next);
+    if (next === "users") {
+      void fetchUsers();
     }
-  }, [tab, fetchUsers]);
+  };
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -153,6 +168,7 @@ export default function AdminClient() {
 
   const fetchAdminData = useCallback(async () => {
     if (!isAdmin) return;
+    await Promise.resolve();
     setLoadingResources(true);
     try {
       const res = await authFetch(
@@ -171,9 +187,12 @@ export default function AdminClient() {
     }
   }, [branch, semester, isAdmin]);
 
-  useEffect(() => {
-    fetchAdminData();
-  }, [fetchAdminData]);
+  const adminDataKey = `${branch}:${semester}:${isAdmin}`;
+  const [prevAdminDataKey, setPrevAdminDataKey] = useState(adminDataKey);
+  if (isAdmin && prevAdminDataKey !== adminDataKey) {
+    setPrevAdminDataKey(adminDataKey);
+    void fetchAdminData();
+  }
 
   const handleDelete = async (id: string) => {
     if (
@@ -288,7 +307,7 @@ export default function AdminClient() {
 
           <nav className="flex flex-col gap-px bg-border/60 rounded-xl overflow-hidden border border-border/70 shadow-sm shrink-0">
             <button
-              onClick={() => setTab("drive")}
+              onClick={() => handleTabChange("drive")}
               className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors bg-card ${
                 tab === "drive"
                   ? "bg-surface text-foreground font-semibold"
@@ -300,7 +319,7 @@ export default function AdminClient() {
             </button>
 
             <button
-              onClick={() => setTab("manage")}
+              onClick={() => handleTabChange("manage")}
               className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors bg-card ${
                 tab === "manage"
                   ? "bg-surface text-foreground font-semibold"
@@ -312,7 +331,7 @@ export default function AdminClient() {
             </button>
 
             <button
-              onClick={() => setTab("users")}
+              onClick={() => handleTabChange("users")}
               className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors bg-card ${
                 tab === "users"
                   ? "bg-surface text-foreground font-semibold"
@@ -367,21 +386,21 @@ export default function AdminClient() {
 
           <div className="ml-auto flex items-center gap-px bg-border/60 rounded-xl overflow-hidden border border-border/70 shadow-sm shrink-0">
             <button
-              onClick={() => setTab("drive")}
+              onClick={() => handleTabChange("drive")}
               className={`p-2 bg-card ${tab === "drive" ? "bg-surface text-foreground" : "text-muted hover:bg-surface/50"} `}
               title="Drive Manager"
             >
               <CloudFog className="w-4.5 h-4.5" />
             </button>
             <button
-              onClick={() => setTab("manage")}
+              onClick={() => handleTabChange("manage")}
               className={`p-2 bg-card ${tab === "manage" ? "bg-surface text-foreground" : "text-muted hover:bg-surface/50"} `}
               title="File Manager"
             >
               <HardDrive className="w-4.5 h-4.5" />
             </button>
             <button
-              onClick={() => setTab("users")}
+              onClick={() => handleTabChange("users")}
               className={`p-2 bg-card ${tab === "users" ? "bg-surface text-foreground" : "text-muted hover:bg-surface/50"} `}
               title="User Manager"
             >
@@ -410,7 +429,7 @@ export default function AdminClient() {
               <p className="text-sm text-muted mb-8 max-w-2xl leading-relaxed">
                 Utility uses Google Drive as the single source of truth. Do not
                 upload files here. Instead, upload your PDFs, DOCs, and PPTs
-                into the Google Drive folder. Once uploaded, click "Sync Now" to
+                into the Google Drive folder. Once uploaded, click &quot;Sync Now&quot; to
                 ingest them into Firebase and start AI indexing.
               </p>
 
@@ -655,11 +674,14 @@ export default function AdminClient() {
                           <td className="p-4 flex items-center gap-3">
                             <div className="w-8 h-8 rounded-lg bg-foreground text-background flex items-center justify-center text-xs font-black overflow-hidden border border-border/60 shrink-0">
                               {usr.photoURL ? (
-                                <img
+                                <Image
                                   src={usr.photoURL}
                                   alt="Avatar"
+                                  width={32}
+                                  height={32}
                                   className="w-full h-full object-cover"
                                   referrerPolicy="no-referrer"
+                                  unoptimized
                                 />
                               ) : (
                                 usr.displayName?.[0] ?? usr.email?.[0] ?? "?"
