@@ -26,7 +26,8 @@
     "rename-drive-files:apply": "node runtime/tools/rename-drive-files.mjs --apply",
     "audit-drive-site": "node runtime/tools/audit-drive-site.mjs",
     "restructure-drive-years": "node runtime/tools/restructure-drive-years.mjs",
-    "restructure-drive-years:apply": "node runtime/tools/restructure-drive-years.mjs --apply"
+    "restructure-drive-years:apply": "node runtime/tools/restructure-drive-years.mjs --apply",
+    "icons:regenerate": "node scripts/regenerate-icons.cjs"
   },
   "dependencies": {
     "@ai-sdk/groq": "^3.0.39",
@@ -80,12 +81,12 @@
     "qs": "^6.16.0"
   },
   "allowScripts": {
-    "@firebase/util@1.15.1": true,
-    "esbuild@0.28.2": true,
-    "protobufjs@7.6.2": true,
-    "re2@1.24.1": true,
-    "sharp@0.34.5": true,
-    "tesseract.js@7.0.0": true,
-    "unrs-resolver@1.11.1": true
+    "@firebase/util": true,
+    "esbuild": true,
+    "protobufjs": true,
+    "re2": true,
+    "sharp": true,
+    "tesseract.js": true,
+    "unrs-resolver": true
   }
 }

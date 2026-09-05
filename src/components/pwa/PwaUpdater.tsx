@@ -66,7 +66,7 @@ export default function PwaUpdater() {
 
       toast.info('A new version of Utility is available.', {
         id: TOAST_ID,
-        description: 'Click update to load the latest improvements.',
+        description: 'Update now for the latest app shell, icons, and fixes.',
         action: {
           label: 'Update Now',
           onClick: () => {
@@ -85,7 +85,7 @@ export default function PwaUpdater() {
             }, CONTROLLER_FALLBACK_MS);
           },
         },
-        duration: 15000,
+        duration: Infinity,
       });
     };
 
@@ -130,6 +130,16 @@ export default function PwaUpdater() {
 
     const intervalId = setInterval(checkForUpdates, 3600000);
 
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') {
+        void checkForUpdates();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', onVisible);
+    // Catch the deploy soon after open (icon/SW revision change).
+    void checkForUpdates();
+
     const handleControllerChange = async () => {
       if (refreshing) return;
       refreshing = true;
@@ -149,6 +159,8 @@ export default function PwaUpdater() {
     return () => {
       clearInterval(intervalId);
       if (fallbackTimer) clearTimeout(fallbackTimer);
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', onVisible);
       navigator.serviceWorker.removeEventListener('controllerchange', handleControllerChange);
     };
   }, []);
