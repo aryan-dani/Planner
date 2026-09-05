@@ -75,7 +75,9 @@
   "overrides": {
     "uuid": "^11.0.3",
     "node-domexception": "file:./scripts/domexception-shim",
-    "pdfjs-dist": "5.4.296"
+    "pdfjs-dist": "5.4.296",
+    "serialize-javascript": "^7.0.5",
+    "qs": "^6.16.0"
   },
   "allowScripts": {
     "@firebase/util@1.15.1": true,

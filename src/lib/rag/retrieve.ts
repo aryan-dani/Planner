@@ -2,7 +2,7 @@ import { matchesAcademicYear } from "@/lib/academic/scope";
 import type { AcademicYear } from "@/lib/academic/scope";
 import { LEGACY_ACADEMIC_YEAR } from "@/lib/academic/scope";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { FieldValue } from "firebase-admin/firestore";
+import { FieldValue, type Query } from "firebase-admin/firestore";
 import {
   BM25_CANDIDATE_LIMIT,
   CONTEXT_BUDGET_CHARS,
@@ -70,8 +70,8 @@ async function lexicalCandidates(
   const terms = queryTerms.slice(0, MAX_QUERY_TERMS);
   if (terms.length === 0 && !resourceId) return [];
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let ref: any = db.collection("resource_chunks");
+  // CollectionReference is a Query; keep a Query so chained .where() stays typed.
+  let ref: Query = db.collection("resource_chunks");
 
   if (resourceId) {
     ref = ref.where("resource_id", "==", resourceId);
@@ -106,7 +106,7 @@ async function lexicalCandidates(
     .limit(BM25_CANDIDATE_LIMIT)
     .get();
   return (
-    snap.docs.map((doc: FirebaseFirestore.QueryDocumentSnapshot) => ({
+    snap.docs.map((doc) => ({
       id: doc.id,
       ...doc.data(),
     })) as ChunkRecord[]
@@ -128,8 +128,7 @@ async function vectorCandidates(
   resourceId?: string,
 ): Promise<Array<ChunkRecord & { _distance?: number }>> {
   const db = adminDb();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let ref: any = db.collection("resource_chunks");
+  let ref: Query = db.collection("resource_chunks");
 
   if (resourceId) {
     ref = ref.where("resource_id", "==", resourceId);

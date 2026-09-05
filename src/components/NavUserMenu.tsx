@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { ChevronDown, LogOut, User } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
@@ -195,12 +196,14 @@ export default function NavUserMenu({
         <div className="flex items-center gap-2 min-w-0">
           <div className="w-7 h-7 rounded-lg bg-foreground text-background flex items-center justify-center text-xs font-extrabold uppercase shadow-xs shrink-0 overflow-hidden">
             {user.photoURL ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
+              <Image
                 src={user.photoURL}
                 alt=""
+                width={28}
+                height={28}
                 className="w-full h-full object-cover"
                 referrerPolicy="no-referrer"
+                unoptimized
               />
             ) : (
               user.displayName?.[0] ?? user.email?.[0] ?? "?"

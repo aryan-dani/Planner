@@ -1,6 +1,6 @@
 import { createHash } from "crypto";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { FieldValue } from "firebase-admin/firestore";
+import { FieldValue, type Query } from "firebase-admin/firestore";
 import {
   RETRIEVAL_CACHE_TTL_MS,
   SEMANTIC_CACHE_DISTANCE,
@@ -100,8 +100,7 @@ export async function lookupSemanticCache(params: {
       }
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let ref: any = db
+    let ref: Query = db
       .collection("semantic_cache")
       .where("academic_year", "==", params.academicYear || "2026-2027")
       .where("branch", "==", params.branch)

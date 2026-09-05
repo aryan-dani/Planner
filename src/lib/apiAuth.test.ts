@@ -1,6 +1,20 @@
-import { describe, expect, it, afterEach } from "vitest";
+import { describe, expect, it, afterEach, vi, beforeEach } from "vitest";
 import { NextResponse } from "next/server";
-import { getAdminEmails, isAuthFailure } from "@/lib/apiAuth";
+
+const { verifyIdToken } = vi.hoisted(() => ({
+  verifyIdToken: vi.fn(),
+}));
+
+vi.mock("@/lib/firebaseAdmin", () => ({
+  adminAuth: () => ({ verifyIdToken }),
+}));
+
+import {
+  getAdminEmails,
+  isAuthFailure,
+  requireUser,
+  requireAdmin,
+} from "@/lib/apiAuth";
 
 describe("getAdminEmails", () => {
   const original = process.env.ADMIN_EMAILS;
@@ -28,5 +42,83 @@ describe("isAuthFailure", () => {
 
   it("returns false for AuthedUser", () => {
     expect(isAuthFailure({ uid: "u1", email: "a@b.com" })).toBe(false);
+  });
+});
+
+describe("requireUser", () => {
+  beforeEach(() => {
+    verifyIdToken.mockReset();
+  });
+
+  it("returns 401 without bearer token", async () => {
+    const res = await requireUser(new Request("http://localhost/api"));
+    expect(isAuthFailure(res)).toBe(true);
+    if (isAuthFailure(res)) expect(res.status).toBe(401);
+  });
+
+  it("returns 401 for invalid token", async () => {
+    verifyIdToken.mockRejectedValueOnce(new Error("bad token"));
+    const res = await requireUser(
+      new Request("http://localhost/api", {
+        headers: { Authorization: "Bearer bad" },
+      }),
+    );
+    expect(isAuthFailure(res)).toBe(true);
+    if (isAuthFailure(res)) expect(res.status).toBe(401);
+  });
+
+  it("returns user on success", async () => {
+    verifyIdToken.mockResolvedValueOnce({
+      uid: "u1",
+      email: "user@example.com",
+    });
+    const result = await requireUser(
+      new Request("http://localhost/api", {
+        headers: { Authorization: "Bearer good" },
+      }),
+    );
+    expect(isAuthFailure(result)).toBe(false);
+    expect(result).toEqual({ uid: "u1", email: "user@example.com" });
+  });
+});
+
+describe("requireAdmin", () => {
+  const original = process.env.ADMIN_EMAILS;
+
+  beforeEach(() => {
+    verifyIdToken.mockReset();
+    process.env.ADMIN_EMAILS = "admin@example.com";
+  });
+
+  afterEach(() => {
+    process.env.ADMIN_EMAILS = original;
+  });
+
+  it("returns 403 when email is not in ADMIN_EMAILS", async () => {
+    verifyIdToken.mockResolvedValueOnce({
+      uid: "u1",
+      email: "user@example.com",
+    });
+    const res = await requireAdmin(
+      new Request("http://localhost/api", {
+        headers: { Authorization: "Bearer good" },
+      }),
+    );
+    expect(isAuthFailure(res)).toBe(true);
+    if (isAuthFailure(res)) expect(res.status).toBe(403);
+  });
+
+  it("returns user when admin", async () => {
+    verifyIdToken.mockResolvedValueOnce({
+      uid: "a1",
+      email: "Admin@Example.com",
+    });
+    const result = await requireAdmin(
+      new Request("http://localhost/api", {
+        headers: { Authorization: "Bearer good" },
+      }),
+    );
+    expect(isAuthFailure(result)).toBe(false);
+    expect(result).toEqual({ uid: "a1", email: "Admin@Example.com" });
   });
 });

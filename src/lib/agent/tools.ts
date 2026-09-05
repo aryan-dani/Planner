@@ -8,6 +8,7 @@ import type { RetrievalResult } from "@/lib/rag/types";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { matchesAcademicYear } from "@/lib/academic/scope";
 import type { AcademicYear } from "@/lib/academic/scope";
+import type { Query } from "firebase-admin/firestore";
 
 export interface ToolContext {
   academicYear?: string;
@@ -98,14 +99,12 @@ export async function listResources(
   category?: string,
 ): Promise<Array<{ id: string; title: string; category: string; subject_name: string }>> {
   const db = adminDb();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let ref: any = db.collection("resources");
+  let ref: Query = db.collection("resources");
   if (ctx.branch) ref = ref.where("branch", "==", ctx.branch);
   if (ctx.semester != null) ref = ref.where("semester", "==", ctx.semester);
   const snap = await ref.limit(100).get();
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let subjectRef: any = db.collection("subjects");
+  let subjectRef: Query = db.collection("subjects");
   if (ctx.branch) subjectRef = subjectRef.where("branch", "==", ctx.branch);
   if (ctx.semester != null) subjectRef = subjectRef.where("semester", "==", ctx.semester);
   let subjectSnap;
@@ -115,7 +114,7 @@ export async function listResources(
     subjectSnap = await db.collection("subjects").get();
   }
   const subjectMap = new Map<string, string>(
-    subjectSnap.docs.map((s: { id: string; data: () => Record<string, unknown> }) => [
+    subjectSnap.docs.map((s) => [
       s.id,
       String(s.data().name || ""),
     ]),

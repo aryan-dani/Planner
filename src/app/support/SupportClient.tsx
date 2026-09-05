@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import { Check, Copy } from "lucide-react";
 import { auth } from "@/lib/firebase";
 import { onAuthStateChanged, type User as FirebaseUser } from "firebase/auth";
@@ -178,12 +179,12 @@ export default function SupportClient() {
                   <div className="w-6 h-6 rounded-full border-2 border-border border-t-foreground animate-spin" />
                 </div>
               )}
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
+              <Image
                 src={qrCodeUrl}
                 alt="UPI payment QR code"
                 width={220}
                 height={220}
+                unoptimized
                 onLoad={() => setQrLoading(false)}
                 className="w-full h-full object-contain"
               />
