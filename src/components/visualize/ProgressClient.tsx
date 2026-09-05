@@ -18,6 +18,7 @@ import { motion } from "framer-motion";
 
 export function ProgressClient() {
   const [signedIn, setSignedIn] = useState<boolean | null>(null);
+  const [loading, setLoading] = useState(true);
   const [grids, setGrids] = useState<SavedGrid[]>([]);
   const [progress, setProgress] = useState<AlgorithmProgress[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -28,8 +29,12 @@ export function ProgressClient() {
       if (!user) {
         setGrids([]);
         setProgress([]);
+        setError(null);
+        setLoading(false);
         return;
       }
+      setLoading(true);
+      setError(null);
       try {
         const [saved, done] = await Promise.all([
           fetchSavedGrids(),
@@ -39,6 +44,8 @@ export function ProgressClient() {
         setProgress(done);
       } catch {
         setError("Could not load progress.");
+      } finally {
+        setLoading(false);
       }
     });
   }, []);
@@ -53,6 +60,7 @@ export function ProgressClient() {
   };
 
   const doneCount = completedIds.size;
+  const showLoading = signedIn === null || loading;
 
   return (
     <div className="flex-1 w-full max-w-7xl mx-auto page-gutter py-8 sm:py-12 min-h-[80vh]">
@@ -85,13 +93,13 @@ export function ProgressClient() {
         </motion.p>
       </motion.header>
 
-      {signedIn === null && (
+      {showLoading && (
         <div className="rounded-xl border border-border bg-card p-5 max-w-xl">
           <p className="text-sm text-muted">Loading your progress…</p>
         </div>
       )}
 
-      {signedIn === false && (
+      {!showLoading && signedIn === false && (
         <div className="rounded-xl border border-border bg-card p-5 max-w-xl">
           <p className="text-sm font-semibold text-foreground">
             Sign in to keep your runs
@@ -108,9 +116,9 @@ export function ProgressClient() {
         </div>
       )}
 
-      {error && <p className="text-sm text-muted mb-4">{error}</p>}
+      {error && !showLoading && <p className="text-sm text-muted mb-4">{error}</p>}
 
-      {signedIn && (
+      {!showLoading && signedIn && (
         <div className="space-y-12">
           <section>
             <div className="flex items-end justify-between gap-3 mb-3">

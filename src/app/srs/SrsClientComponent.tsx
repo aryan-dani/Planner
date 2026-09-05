@@ -36,7 +36,8 @@ export default function SrsClient() {
   const { 
     decks, 
     cards, 
-    initialized, 
+    initialized,
+    syncing,
     initStore, 
     createDeck, 
     deleteDeck, 
@@ -284,6 +285,12 @@ export default function SrsClient() {
 
   return (
     <div className="flex-1 w-full max-w-7xl mx-auto page-gutter py-8 min-h-[80vh]">
+      {syncing && (
+        <div className="mb-4 flex items-center gap-1.5 text-xs text-muted" aria-live="polite">
+          <div className="w-3 h-3 border border-muted border-t-foreground rounded-full animate-spin" />
+          <span>Syncing…</span>
+        </div>
+      )}
       
       {/* ── 1. DASHBOARD VIEW ─────────────────────────────────────────────── */}
       {view === 'dashboard' && (

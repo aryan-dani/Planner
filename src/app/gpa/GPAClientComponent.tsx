@@ -172,7 +172,8 @@ const DEFAULT_SEMESTERS_DATA: Record<number, { sgpa: number; credits: number; ac
 function loadGpaStrategyStorage() {
   let courseKeyOverride: string | null = null;
   let marks: Record<string, number> = {};
-  if (typeof window === 'undefined') return { courseKeyOverride, marks };
+  let corrupt = false;
+  if (typeof window === 'undefined') return { courseKeyOverride, marks, corrupt };
   try {
     const saved = localStorage.getItem('gpa_strategy_v1');
     if (saved) {
@@ -191,16 +192,18 @@ function loadGpaStrategyStorage() {
     }
   } catch (e) {
     console.error('Failed to load GPA data', e);
+    corrupt = true;
   }
-  return { courseKeyOverride, marks };
+  return { courseKeyOverride, marks, corrupt };
 }
 
 function loadGpaRoadmapStorage() {
   let semestersData = { ...DEFAULT_SEMESTERS_DATA };
   let targetCGPA = 8.5;
   let targetSemester = 8;
+  let corrupt = false;
   if (typeof window === 'undefined') {
-    return { semestersData, targetCGPA, targetSemester };
+    return { semestersData, targetCGPA, targetSemester, corrupt };
   }
   try {
     const savedRoadmap = localStorage.getItem('gpa_roadmap_v1');
@@ -224,31 +227,47 @@ function loadGpaRoadmapStorage() {
     }
   } catch (e) {
     console.error('Failed to load GPA roadmap data', e);
+    corrupt = true;
   }
-  return { semestersData, targetCGPA, targetSemester };
+  return { semestersData, targetCGPA, targetSemester, corrupt };
+}
+
+function readInitialGpaClientState() {
+  const strategy = loadGpaStrategyStorage();
+  const roadmap = loadGpaRoadmapStorage();
+  return {
+    courseKeyOverride: strategy.courseKeyOverride,
+    marks: strategy.marks,
+    semestersData: roadmap.semestersData,
+    targetCGPA: roadmap.targetCGPA,
+    targetSemester: roadmap.targetSemester,
+    corrupt: strategy.corrupt || roadmap.corrupt,
+  };
 }
 
 export default function GPAClient() {
   const { branch: workspaceBranch, semester: workspaceSemester } = useAcademicStore();
+  const [boot] = useState(() => readInitialGpaClientState());
   const [courseKeyOverride, setCourseKeyOverride] = useState<string | null>(
-    () => loadGpaStrategyStorage().courseKeyOverride,
+    () => boot.courseKeyOverride,
   );
   const [marks, setMarks] = useState<Record<string, number>>(
-    () => loadGpaStrategyStorage().marks,
+    () => boot.marks,
   );
   const [simSelections, setSimSelections] = useState<Record<string, number>>({});
   const [isCalculated, setIsCalculated] = useState(false);
   const [activeTab, setActiveTab] = useState<'semester' | 'roadmap'>('semester');
   const [showCoursePicker, setShowCoursePicker] = useState(false);
+  const [storageCorrupt, setStorageCorrupt] = useState(() => boot.corrupt);
 
   const [semestersData, setSemestersData] = useState<
     Record<number, { sgpa: number; credits: number; active: boolean; completed: boolean }>
-  >(() => loadGpaRoadmapStorage().semestersData);
+  >(() => boot.semestersData);
   const [targetCGPA, setTargetCGPA] = useState<number>(
-    () => loadGpaRoadmapStorage().targetCGPA,
+    () => boot.targetCGPA,
   );
   const [targetSemester, setTargetSemester] = useState<number>(
-    () => loadGpaRoadmapStorage().targetSemester,
+    () => boot.targetSemester,
   );
 
   const targetSemesterOptions = useMemo(
@@ -276,21 +295,34 @@ export default function GPAClient() {
 
   // Save to LocalStorage — only after hydration so defaults cannot wipe saved data
   useEffect(() => {
-    if (!hydrated) return;
+    if (!hydrated || storageCorrupt) return;
     localStorage.setItem('gpa_strategy_v1', JSON.stringify({
       courseKeyOverride,
       marks,
     }));
-  }, [hydrated, courseKeyOverride, marks]);
+  }, [hydrated, storageCorrupt, courseKeyOverride, marks]);
 
   useEffect(() => {
-    if (!hydrated) return;
+    if (!hydrated || storageCorrupt) return;
     localStorage.setItem('gpa_roadmap_v1', JSON.stringify({
       semestersData,
       targetCGPA,
       targetSemester
     }));
-  }, [hydrated, semestersData, targetCGPA, targetSemester]);
+  }, [hydrated, storageCorrupt, semestersData, targetCGPA, targetSemester]);
+
+  const resetCorruptStorage = () => {
+    localStorage.removeItem('gpa_strategy_v1');
+    localStorage.removeItem('gpa_roadmap_v1');
+    setCourseKeyOverride(null);
+    setMarks({});
+    setSemestersData({ ...DEFAULT_SEMESTERS_DATA });
+    setTargetCGPA(8.5);
+    setTargetSemester(8);
+    setIsCalculated(false);
+    setSimSelections({});
+    setStorageCorrupt(false);
+  };
 
   const handleMarkChange = (id: string, value: string) => {
     const num = Math.min(100, Math.max(0, parseFloat(value) || 0));
@@ -549,6 +581,31 @@ export default function GPAClient() {
 
       {/* Main Interactive UI */}
       <div className="print:hidden">
+        {storageCorrupt && (
+          <div
+            role="alert"
+            className="mb-6 rounded-xl border border-border bg-surface p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+          >
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="w-4 h-4 text-muted shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-medium text-foreground">
+                  Saved GPA data could not be read
+                </p>
+                <p className="text-xs text-muted mt-0.5">
+                  Local storage may be corrupt. Reset to start fresh — unsaved values on this page will be cleared.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={resetCorruptStorage}
+              className="shrink-0 min-h-11 px-4 rounded-xl bg-foreground text-background text-xs font-bold uppercase tracking-widest hover:opacity-90 transition-opacity"
+            >
+              Reset saved data
+            </button>
+          </div>
+        )}
         <FadeIn>
           <div className="flex flex-col md:flex-row justify-between items-start gap-6 mb-8">
             <div>

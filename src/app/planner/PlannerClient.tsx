@@ -614,7 +614,11 @@ function ShareModal({
               <p className="text-[11px] text-muted">Collaborate or share a read-only link</p>
             </div>
           </div>
-          <button onClick={onClose} className="tap-target rounded-lg bg-surface border border-border text-muted hover:text-foreground transition-colors">
+          <button
+            onClick={onClose}
+            className="tap-target rounded-lg bg-surface border border-border text-muted hover:text-foreground transition-colors"
+            aria-label="Close share dialog"
+          >
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -806,7 +810,11 @@ function DayPanel({
               </p>
             </div>
           </div>
-          <button onClick={onClose} className="tap-target rounded-lg bg-surface border border-border text-muted hover:text-foreground transition-colors">
+          <button
+            onClick={onClose}
+            className="tap-target rounded-lg bg-surface border border-border text-muted hover:text-foreground transition-colors"
+            aria-label="Close day details"
+          >
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -1531,10 +1539,21 @@ export default function PlannerClient() {
                 <Upload className="w-3.5 h-3.5" />
                 Import
               </button>
-              <button onClick={undoLastChange} className="inline-flex items-center gap-1.5 text-xs font-medium text-muted hover:text-foreground border border-border rounded-lg px-2.5 py-2 min-h-11 hover:bg-surface transition-colors" title="Undo">
+              <button
+                onClick={undoLastChange}
+                className="inline-flex items-center gap-1.5 text-xs font-medium text-muted hover:text-foreground border border-border rounded-lg px-2.5 py-2 min-h-11 hover:bg-surface transition-colors"
+                title="Undo"
+                aria-label="Undo"
+              >
                 <Undo2 className="w-3.5 h-3.5" />
               </button>
-              <Button variant="ghost" size="sm" onClick={clearAll} className="min-h-11 hover:text-destructive hover:border-destructive/30">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={clearAll}
+                className="min-h-11 hover:text-destructive hover:border-destructive/30"
+                aria-label="Clear month"
+              >
                 <Trash2 className="w-3.5 h-3.5" />
               </Button>
             </div>
@@ -1581,6 +1600,7 @@ export default function PlannerClient() {
             <button
               onClick={goPrevMonth}
               className="tap-target shrink-0 rounded-lg bg-surface border border-border text-muted hover:text-foreground hover:bg-surface-hover transition-colors"
+              aria-label="Previous month"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
@@ -1591,6 +1611,7 @@ export default function PlannerClient() {
             <button
               onClick={goNextMonth}
               className="tap-target shrink-0 rounded-lg bg-surface border border-border text-muted hover:text-foreground hover:bg-surface-hover transition-colors"
+              aria-label="Next month"
             >
               <ChevronRight className="w-4 h-4" />
             </button>
