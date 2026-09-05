@@ -294,7 +294,7 @@ export default function CommunityClient({
   }, [decks, selectedBranch, searchQuery, sortBy]);
 
   return (
-    <div className="flex-1 w-full max-w-7xl mx-auto px-6 py-8 min-h-[80vh]">
+    <div className="flex-1 w-full max-w-7xl mx-auto page-gutter py-8 min-h-[80vh]">
       {/* WhatsApp community */}
       <section className="mb-12 space-y-5">
         <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-5 border-b border-border pb-6">
@@ -441,7 +441,7 @@ export default function CommunityClient({
                           size="sm"
                           onClick={() => handleDeleteDeck(deck.id)}
                           disabled={isDeleting === deck.id}
-                          className="p-1.5 min-h-0 hover:text-destructive hover:bg-destructive/10"
+                          className="tap-target hover:text-destructive hover:bg-destructive/10"
                           title="Delete Deck"
                         >
                           <Trash2
@@ -452,7 +452,7 @@ export default function CommunityClient({
                     <button
                       onClick={() => handleUpvote(deck.id, deck.upvotes)}
                       disabled={isUpvoted}
-                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                      className={`inline-flex items-center gap-1.5 px-3 min-h-11 rounded-xl text-xs font-bold transition-all ${
                         isUpvoted
                           ? "bg-primary/10 border border-primary/30 text-primary"
                           : "bg-surface border border-border text-muted hover:text-foreground hover:bg-surface-hover group-hover:border-border-strong"

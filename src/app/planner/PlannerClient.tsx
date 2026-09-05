@@ -212,7 +212,7 @@ function TaskItem({
       <div className="flex items-start gap-2.5">
         <button
           onClick={onToggle}
-          className={`flex-shrink-0 w-6 h-6 mt-0.5 rounded-md border-[1.5px] flex items-center justify-center transition-all ${
+          className={`flex-shrink-0 tap-target mt-0.5 rounded-md border-[1.5px] transition-all ${
             task.done
               ? 'bg-foreground border-foreground text-background'
               : 'bg-card border-border-strong hover:border-foreground active:bg-surface'
@@ -601,10 +601,10 @@ function ShareModal({
         initial={{ opacity: 0, scale: 0.95, y: 10 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 10 }}
-        className="bg-card border border-border w-full max-w-lg shadow-popover rounded-2xl overflow-hidden"
+        className="bg-card border border-border w-full max-w-lg shadow-popover rounded-2xl overflow-hidden max-h-[85vh] flex flex-col"
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-surface border border-border flex items-center justify-center">
               <Share2 className="w-4 h-4 text-foreground" />
@@ -614,12 +614,12 @@ function ShareModal({
               <p className="text-[11px] text-muted">Collaborate or share a read-only link</p>
             </div>
           </div>
-          <button onClick={onClose} className="w-8 h-8 rounded-lg bg-surface border border-border flex items-center justify-center text-muted hover:text-foreground transition-colors">
+          <button onClick={onClose} className="tap-target rounded-lg bg-surface border border-border text-muted hover:text-foreground transition-colors">
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        <div className="px-6 py-5 space-y-5">
+        <div className="px-6 py-5 space-y-5 overflow-y-auto">
           {!planId ? (
             <div className="text-center py-8">
               <CloudOff className="w-8 h-8 text-muted mx-auto mb-3" />
@@ -806,7 +806,7 @@ function DayPanel({
               </p>
             </div>
           </div>
-          <button onClick={onClose} className="w-8 h-8 rounded-lg bg-surface border border-border flex items-center justify-center text-muted hover:text-foreground transition-colors">
+          <button onClick={onClose} className="tap-target rounded-lg bg-surface border border-border text-muted hover:text-foreground transition-colors">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -909,21 +909,23 @@ export default function PlannerClient() {
   const [prevPlanPeriod, setPrevPlanPeriod] = useState('');
   if (prevPlanPeriod !== planPeriodKey) {
     setPrevPlanPeriod(planPeriodKey);
-    const key = storageKey(month, year);
-    const saved = localStorage.getItem(key);
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        setPlanData(parsed.data || {});
-        setPlanMeta(parsed.meta || { title: 'Study Plan', month, year, is_public: false });
-      } catch {
-        setPlanData({});
-        setPlanMeta({ title: 'Study Plan', month, year, is_public: false });
+    // Reset during render; hydrate from localStorage only in the browser (SSR-safe).
+    let nextData: PlanData = {};
+    let nextMeta: PlanMeta = { title: 'Study Plan', month, year, is_public: false };
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem(storageKey(month, year));
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          nextData = parsed.data || {};
+          nextMeta = parsed.meta || nextMeta;
+        } catch {
+          /* keep empty defaults */
+        }
       }
-    } else {
-      setPlanData({});
-      setPlanMeta({ title: 'Study Plan', month, year, is_public: false });
     }
+    setPlanData(nextData);
+    setPlanMeta(nextMeta);
   }
 
   useLayoutEffect(() => {

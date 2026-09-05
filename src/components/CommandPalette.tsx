@@ -625,7 +625,8 @@ export default function CommandPalette() {
               {query && (
                 <button
                   onClick={() => setQuery('')}
-                  className="p-1.5 text-muted hover:text-foreground rounded-md transition-colors mr-2 bg-surface/40 hover:bg-surface"
+                  className="tap-target text-muted hover:text-foreground rounded-md transition-colors mr-2 bg-surface/40 hover:bg-surface"
+                  aria-label="Clear search"
                 >
                   <X className="w-4 h-4" />
                 </button>

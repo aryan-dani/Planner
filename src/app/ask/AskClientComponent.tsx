@@ -1040,13 +1040,13 @@ export default function AskClient() {
               },
             ]}
           />
-          <div className="flex items-center gap-1.5 p-1 bg-surface border border-border rounded-xl shadow-xs w-fit" role="tablist" aria-label="Ask modes">
+          <div className="flex items-center gap-1.5 p-1 bg-surface border border-border rounded-xl shadow-xs w-fit max-w-full overflow-x-auto" role="tablist" aria-label="Ask modes">
           <button
             type="button"
             role="tab"
             aria-selected={activeTab === 'chat'}
             onClick={() => setActiveTab('chat')}
-            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-colors focus-visible:outline-offset-1 ${
+            className={`flex items-center gap-2 px-3.5 min-h-11 rounded-lg text-xs font-semibold transition-colors focus-visible:outline-offset-1 shrink-0 ${
               activeTab === 'chat'
                 ? 'bg-primary text-primary-foreground shadow-xs'
                 : 'text-muted hover:text-foreground'
@@ -1060,7 +1060,7 @@ export default function AskClient() {
             role="tab"
             aria-selected={activeTab === 'flashcards'}
             onClick={() => setActiveTab('flashcards')}
-            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-colors focus-visible:outline-offset-1 ${
+            className={`flex items-center gap-2 px-3.5 min-h-11 rounded-lg text-xs font-semibold transition-colors focus-visible:outline-offset-1 shrink-0 ${
               activeTab === 'flashcards'
                 ? 'bg-primary text-primary-foreground shadow-xs'
                 : 'text-muted hover:text-foreground'
@@ -1074,7 +1074,7 @@ export default function AskClient() {
             role="tab"
             aria-selected={activeTab === 'quiz'}
             onClick={() => setActiveTab('quiz')}
-            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-colors focus-visible:outline-offset-1 ${
+            className={`flex items-center gap-2 px-3.5 min-h-11 rounded-lg text-xs font-semibold transition-colors focus-visible:outline-offset-1 shrink-0 ${
               activeTab === 'quiz'
                 ? 'bg-primary text-primary-foreground shadow-xs'
                 : 'text-muted hover:text-foreground'

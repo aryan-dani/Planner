@@ -122,7 +122,7 @@ export function Modal({
                     size="sm"
                     onClick={onClose}
                     aria-label="Close"
-                    className="shrink-0 -mr-1"
+                    className="tap-target shrink-0 -mr-1"
                   >
                     <X className="w-4 h-4" />
                   </Button>

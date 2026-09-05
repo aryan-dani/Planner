@@ -172,6 +172,7 @@ const DEFAULT_SEMESTERS_DATA: Record<number, { sgpa: number; credits: number; ac
 function loadGpaStrategyStorage() {
   let courseKeyOverride: string | null = null;
   let marks: Record<string, number> = {};
+  if (typeof window === 'undefined') return { courseKeyOverride, marks };
   try {
     const saved = localStorage.getItem('gpa_strategy_v1');
     if (saved) {
@@ -198,6 +199,9 @@ function loadGpaRoadmapStorage() {
   let semestersData = { ...DEFAULT_SEMESTERS_DATA };
   let targetCGPA = 8.5;
   let targetSemester = 8;
+  if (typeof window === 'undefined') {
+    return { semestersData, targetCGPA, targetSemester };
+  }
   try {
     const savedRoadmap = localStorage.getItem('gpa_roadmap_v1');
     if (savedRoadmap) {
@@ -734,9 +738,9 @@ export default function GPAClient() {
                         
                         return (
                           <div key={sub.id} className="space-y-4">
-                            <div className="flex items-center gap-3">
-                              <span className="text-sm font-black uppercase text-foreground min-w-[120px]">{sub.name}</span>
-                              <div className="h-px flex-1 bg-border/50" />
+                            <div className="flex items-center gap-3 min-w-0">
+                              <span className="text-sm font-black uppercase text-foreground min-w-0 truncate sm:min-w-[120px] sm:overflow-visible sm:whitespace-normal">{sub.name}</span>
+                              <div className="h-px flex-1 bg-border/50 hidden sm:block" />
                             </div>
                             <div className="grid grid-cols-2 sm:grid-cols-7 gap-px bg-border/60 rounded-xl overflow-hidden border border-border/70 max-w-xl">
                               {[10, 9, 8, 7, 6, 5, 0].map(gp => {

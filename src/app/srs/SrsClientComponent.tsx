@@ -561,7 +561,7 @@ export default function SrsClient() {
                   <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
                     <button
                       onClick={() => speakText(reviewQueue[currentIndex].question)}
-                      className="p-1.5 text-muted hover:text-foreground rounded-lg bg-surface/50 border border-border hover:bg-surface transition-all"
+                      className="tap-target text-muted hover:text-foreground rounded-lg bg-surface/50 border border-border hover:bg-surface transition-all"
                       title="Speak Question"
                     >
                       <Volume2 className="w-3.5 h-3.5" />
@@ -574,7 +574,7 @@ export default function SrsClient() {
                         updated[currentIndex].starred = !updated[currentIndex].starred;
                         setReviewQueue(updated);
                       }}
-                      className="p-1.5 text-muted hover:text-foreground rounded-lg bg-surface/50 border border-border hover:bg-surface transition-all"
+                      className="tap-target text-muted hover:text-foreground rounded-lg bg-surface/50 border border-border hover:bg-surface transition-all"
                       title="Star Card"
                     >
                       <Star className={`w-3.5 h-3.5 ${reviewQueue[currentIndex].starred ? 'fill-foreground text-foreground' : ''}`} />
@@ -602,7 +602,7 @@ export default function SrsClient() {
                   <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
                     <button
                       onClick={() => speakText(reviewQueue[currentIndex].answer)}
-                      className="p-1.5 text-muted hover:text-foreground rounded-lg bg-surface/50 border border-border hover:bg-surface transition-all"
+                      className="tap-target text-muted hover:text-foreground rounded-lg bg-surface/50 border border-border hover:bg-surface transition-all"
                       title="Speak Answer"
                     >
                       <Volume2 className="w-3.5 h-3.5" />
@@ -614,7 +614,7 @@ export default function SrsClient() {
                         updated[currentIndex].starred = !updated[currentIndex].starred;
                         setReviewQueue(updated);
                       }}
-                      className="p-1.5 text-muted hover:text-foreground rounded-lg bg-surface/50 border border-border hover:bg-surface transition-all"
+                      className="tap-target text-muted hover:text-foreground rounded-lg bg-surface/50 border border-border hover:bg-surface transition-all"
                       title="Star Card"
                     >
                       <Star className={`w-3.5 h-3.5 ${reviewQueue[currentIndex].starred ? 'fill-foreground text-foreground' : ''}`} />
@@ -670,7 +670,7 @@ export default function SrsClient() {
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setView('dashboard')}
-                className="w-8 h-8 rounded-xl border border-border flex items-center justify-center hover:bg-surface text-muted hover:text-foreground transition-all"
+                className="tap-target rounded-xl border border-border hover:bg-surface text-muted hover:text-foreground transition-all"
               >
                 <ArrowLeft className="w-4 h-4" />
               </button>
@@ -799,7 +799,8 @@ export default function SrsClient() {
               <h2 className="font-bold text-foreground text-sm">Create New Deck</h2>
               <button 
                 onClick={() => setShowCreateDeckModal(false)} 
-                className="text-muted hover:text-foreground"
+                className="tap-target text-muted hover:text-foreground rounded-lg"
+                aria-label="Close create deck modal"
               >
                 <X className="w-5 h-5" />
               </button>

@@ -63,7 +63,7 @@ export function PlaybackToolbar<TState>({
   const speedSliderValue = speedMsToSliderValue(speedMs);
 
   const btnBase =
-    "inline-flex items-center justify-center gap-1.5 min-h-9 px-3 rounded-md text-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed";
+    "inline-flex items-center justify-center gap-1.5 min-h-11 px-3 rounded-md text-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed";
   const btnPrimary = `${btnBase} bg-foreground text-background font-medium`;
   const btnGhost = `${btnBase} text-muted hover:text-foreground hover:bg-surface/80`;
 

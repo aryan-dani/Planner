@@ -457,7 +457,7 @@ export default function ResourceViewer({
           href={isDrive ? driveViewUrl : resource.file_url}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex h-8 w-8 items-center justify-center rounded-lg text-muted transition-colors hover:bg-surface hover:text-foreground"
+          className="tap-target rounded-lg text-muted transition-colors hover:bg-surface hover:text-foreground"
           title="Open in new tab (O)"
           aria-label="Open in new tab"
         >
@@ -471,7 +471,7 @@ export default function ResourceViewer({
               document.exitFullscreen().catch(() => {});
             }
           }}
-          className="hidden sm:flex h-8 w-8 items-center justify-center rounded-lg text-muted transition-colors hover:bg-surface hover:text-foreground"
+          className="hidden sm:inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg text-muted transition-colors hover:bg-surface hover:text-foreground"
           title="Fullscreen (F)"
           aria-label="Fullscreen"
         >
@@ -481,7 +481,7 @@ export default function ResourceViewer({
           ref={downloadRef}
           href={downloadUrl}
           download
-          className="flex h-8 w-8 items-center justify-center rounded-lg text-muted transition-colors hover:bg-surface hover:text-foreground"
+          className="tap-target rounded-lg text-muted transition-colors hover:bg-surface hover:text-foreground"
           title="Download (D)"
           aria-label="Download"
         >
@@ -490,7 +490,7 @@ export default function ResourceViewer({
         <button
           type="button"
           onClick={onClose}
-          className="flex h-8 w-8 items-center justify-center rounded-lg bg-surface/50 text-foreground transition-colors hover:bg-destructive/10 hover:text-destructive border border-transparent hover:border-destructive/20"
+          className="tap-target rounded-lg bg-surface/50 text-foreground transition-colors hover:bg-destructive/10 hover:text-destructive border border-transparent hover:border-destructive/20"
           title="Close viewer (Esc)"
           aria-label="Close viewer"
         >

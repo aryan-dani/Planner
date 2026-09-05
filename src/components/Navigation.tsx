@@ -603,13 +603,25 @@ function NavigationInner() {
           <span className="font-extrabold truncate">Utility OS</span>
         </Link>
 
-        <button
-          className="tap-target shrink-0 rounded-lg text-muted hover:text-foreground hover:bg-surface/50 active:bg-surface border border-transparent transition-colors"
-          onClick={() => setMobileOpen(true)}
-          aria-label="Open navigation menu"
-        >
-          <Menu className="w-5 h-5" />
-        </button>
+        <div className="flex items-center gap-1 shrink-0">
+          <button
+            type="button"
+            className="tap-target shrink-0 rounded-lg text-muted hover:text-foreground hover:bg-surface/50 active:bg-surface border border-transparent transition-colors"
+            onClick={() => setCommandPaletteOpen(true)}
+            aria-label="Search resources"
+            title="Search (Ctrl+K)"
+          >
+            <Search className="w-5 h-5" />
+          </button>
+          <button
+            type="button"
+            className="tap-target shrink-0 rounded-lg text-muted hover:text-foreground hover:bg-surface/50 active:bg-surface border border-transparent transition-colors"
+            onClick={() => setMobileOpen(true)}
+            aria-label="Open navigation menu"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+        </div>
       </header>
 
       {/* 3. Mobile Navigation Drawer Overlay */}

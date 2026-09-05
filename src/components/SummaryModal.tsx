@@ -115,7 +115,7 @@ export default function SummaryModal({ resourceId, resourceTitle, onClose }: Sum
             </div>
             <button
               onClick={onClose}
-              className="p-2 hover:bg-surface hover:text-foreground rounded-xl transition-colors text-muted"
+              className="tap-target hover:bg-surface hover:text-foreground rounded-xl transition-colors text-muted"
               aria-label="Close summary modal"
             >
               <X className="w-5 h-5" />
@@ -191,14 +191,14 @@ export default function SummaryModal({ resourceId, resourceTitle, onClose }: Sum
                     onClose();
                     router.push(`/ask?tab=flashcards&topic=${encodeURIComponent(resourceTitle)}`);
                   }}
-                  className="flex items-center gap-2 px-3 py-1.5 bg-surface border border-border text-foreground hover:bg-surface-hover rounded-xl text-xs font-bold transition-all active:scale-95"
+                  className="flex items-center gap-2 px-3 min-h-11 bg-surface border border-border text-foreground hover:bg-surface-hover rounded-xl text-xs font-bold transition-all active:scale-95"
                 >
                   <Layers className="w-3.5 h-3.5 text-primary" />
                   Generate Cards
                 </button>
                 <button
                   onClick={handleCopy}
-                  className="flex items-center gap-2 px-3 py-1.5 bg-foreground text-background rounded-xl text-xs font-bold hover:opacity-90 transition-all active:scale-95"
+                  className="flex items-center gap-2 px-3 min-h-11 bg-foreground text-background rounded-xl text-xs font-bold hover:opacity-90 transition-all active:scale-95"
                 >
                   {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
                   {copied ? 'Copied!' : 'Copy Summary'}

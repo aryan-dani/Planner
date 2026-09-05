@@ -445,12 +445,12 @@ const PdfPreview = forwardRef<PdfPreviewHandle, PdfPreviewProps>(
 
     return (
       <div className="relative h-full w-full flex flex-col bg-background">
-        <div className="flex items-center gap-2 border-b border-border bg-card/95 px-3 py-2 text-xs shrink-0">
+        <div className="flex flex-wrap items-center gap-2 overflow-x-auto border-b border-border bg-card/95 px-3 py-2 text-xs shrink-0">
           <div className="flex items-center gap-1 rounded-lg border border-border bg-background px-1.5 py-1">
             <button
               type="button"
               onClick={() => scrollToPage(Math.max(1, page - 1))}
-              className="flex h-7 w-7 items-center justify-center rounded-md text-muted hover:text-foreground hover:bg-surface"
+              className="tap-target rounded-md text-muted hover:text-foreground hover:bg-surface"
               aria-label="Previous page"
             >
               <ChevronLeft className="h-3.5 w-3.5" />
@@ -474,7 +474,7 @@ const PdfPreview = forwardRef<PdfPreviewHandle, PdfPreviewProps>(
             <button
               type="button"
               onClick={() => scrollToPage(Math.min(pageCount, page + 1))}
-              className="flex h-7 w-7 items-center justify-center rounded-md text-muted hover:text-foreground hover:bg-surface"
+              className="tap-target rounded-md text-muted hover:text-foreground hover:bg-surface"
               aria-label="Next page"
             >
               <ChevronRight className="h-3.5 w-3.5" />
@@ -485,7 +485,7 @@ const PdfPreview = forwardRef<PdfPreviewHandle, PdfPreviewProps>(
             <button
               type="button"
               onClick={() => setScale((s) => Math.max(0.7, +(s - 0.15).toFixed(2)))}
-              className="flex h-7 w-7 items-center justify-center rounded-md text-muted hover:text-foreground hover:bg-surface"
+              className="tap-target rounded-md text-muted hover:text-foreground hover:bg-surface"
               aria-label="Zoom out"
             >
               <ZoomOut className="h-3.5 w-3.5" />
@@ -496,7 +496,7 @@ const PdfPreview = forwardRef<PdfPreviewHandle, PdfPreviewProps>(
             <button
               type="button"
               onClick={() => setScale((s) => Math.min(2.4, +(s + 0.15).toFixed(2)))}
-              className="flex h-7 w-7 items-center justify-center rounded-md text-muted hover:text-foreground hover:bg-surface"
+              className="tap-target rounded-md text-muted hover:text-foreground hover:bg-surface"
               aria-label="Zoom in"
             >
               <ZoomIn className="h-3.5 w-3.5" />
@@ -504,7 +504,7 @@ const PdfPreview = forwardRef<PdfPreviewHandle, PdfPreviewProps>(
             <button
               type="button"
               onClick={() => setScale(1)}
-              className="px-1.5 h-7 rounded-md text-[10px] font-bold uppercase tracking-wide text-muted hover:text-foreground"
+              className="px-1.5 min-h-11 rounded-md text-[10px] font-bold uppercase tracking-wide text-muted hover:text-foreground"
             >
               Fit
             </button>
@@ -519,7 +519,7 @@ const PdfPreview = forwardRef<PdfPreviewHandle, PdfPreviewProps>(
               requestAnimationFrame(() => findInputRef.current?.focus());
             }}
             className={cn(
-              "flex h-8 items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 font-semibold",
+              "flex min-h-11 items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 font-semibold",
               textReady
                 ? "text-muted hover:text-foreground"
                 : "text-muted/50 cursor-not-allowed",
@@ -570,26 +570,26 @@ const PdfPreview = forwardRef<PdfPreviewHandle, PdfPreviewProps>(
             <button
               type="button"
               onClick={() => goHit(-1)}
-              className="h-7 w-7 rounded-md border border-border text-muted hover:text-foreground"
+              className="tap-target rounded-md border border-border text-muted hover:text-foreground"
               aria-label="Previous match"
             >
-              <ChevronLeft className="h-3.5 w-3.5 mx-auto" />
+              <ChevronLeft className="h-3.5 w-3.5" />
             </button>
             <button
               type="button"
               onClick={() => goHit(1)}
-              className="h-7 w-7 rounded-md border border-border text-muted hover:text-foreground"
+              className="tap-target rounded-md border border-border text-muted hover:text-foreground"
               aria-label="Next match"
             >
-              <ChevronRight className="h-3.5 w-3.5 mx-auto" />
+              <ChevronRight className="h-3.5 w-3.5" />
             </button>
             <button
               type="button"
               onClick={() => setFindOpen(false)}
-              className="h-7 w-7 rounded-md text-muted hover:text-foreground"
+              className="tap-target rounded-md text-muted hover:text-foreground"
               aria-label="Close find"
             >
-              <X className="h-3.5 w-3.5 mx-auto" />
+              <X className="h-3.5 w-3.5" />
             </button>
           </div>
         )}

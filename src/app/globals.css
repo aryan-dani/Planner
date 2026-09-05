@@ -279,6 +279,13 @@ h1, h2, h3, h4, h5, h6 {
   padding-bottom: env(safe-area-inset-bottom);
 }
 
+/* iOS Safari zooms focused inputs under 16px — keep text-sm on sm+ via utilities */
+@media (max-width: 639px) {
+  input, textarea, select {
+    font-size: 16px;
+  }
+}
+
 /* Shimmer loading skeleton — visible sweep so loaders never look frozen */
 @keyframes shimmer {
   0% {
