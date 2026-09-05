@@ -25,7 +25,8 @@ const cache = new Map<string, CacheEntry>();
 const inflight = new Map<string, Promise<CacheEntry>>();
 
 function cacheKey(year: string, branch: string, semester: number): string {
-  return `${year}:${branch}:${semester}`;
+  // v2: list API returns dedicated syllabusUrl (Syllabus subject is excluded from vault files)
+  return `v2:${year}:${branch}:${semester}`;
 }
 
 function deriveSubjects(resources: ResourceItem[]): string[] {
@@ -38,10 +39,16 @@ function deriveSubjects(resources: ResourceItem[]): string[] {
   ).sort((a, b) => a.localeCompare(b));
 }
 
-function deriveSyllabusUrl(resources: ResourceItem[]): string | null {
+function deriveSyllabusUrlFromResources(
+  resources: ResourceItem[],
+): string | null {
   const hit = resources.find((r) => {
     const t = r.title.toLowerCase();
-    return t.includes("syllabus") && !t.includes("notes");
+    const subject = (r.subject_name || "").toLowerCase();
+    return (
+      (subject === "syllabus" || t.includes("syllabus")) &&
+      !t.includes("notes")
+    );
   });
   return hit?.file_url ?? null;
 }
@@ -67,10 +74,14 @@ async function loadWorkspace(
     const resources: ResourceItem[] = Array.isArray(data.resources)
       ? data.resources
       : [];
+    // Prefer dedicated Firestore Syllabus subject URL (excluded from the vault list).
+    const syllabusUrl =
+      (typeof data.syllabusUrl === "string" && data.syllabusUrl) ||
+      deriveSyllabusUrlFromResources(resources);
     const entry: CacheEntry = {
       resources,
       subjects: deriveSubjects(resources),
-      syllabusUrl: deriveSyllabusUrl(resources),
+      syllabusUrl,
     };
     cache.set(key, entry);
     return entry;
@@ -119,6 +130,7 @@ export function useWorkspaceResources(): WorkspaceResourcesState {
   }
 
   useEffect(() => {
+    // Cache hits are applied during render via the prevKey pattern above.
     if (cache.has(key)) return;
 
     let cancelled = false;
@@ -129,6 +141,7 @@ export function useWorkspaceResources(): WorkspaceResourcesState {
         setSubjects(entry.subjects);
         setSyllabusUrl(entry.syllabusUrl);
         setLoading(false);
+        setError(null);
       })
       .catch((err) => {
         if (cancelled) return;

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getResourcesFromDB } from '@/lib/dataFetcher';
+import { getResourcesFromDB, getSyllabusFile } from '@/lib/dataFetcher';
 import { resolveWorkspace } from '@/lib/workspace';
 
 
@@ -12,10 +12,13 @@ export async function GET(request: Request) {
       semester: searchParams.get('semester'),
     });
 
-    const resources = await getResourcesFromDB(academicYear, branch, semester);
+    const [resources, syllabusUrl] = await Promise.all([
+      getResourcesFromDB(academicYear, branch, semester),
+      getSyllabusFile(academicYear, branch, semester),
+    ]);
 
     return NextResponse.json(
-      { resources },
+      { resources, syllabusUrl },
       {
         headers: {
           'Cache-Control': 'public, s-maxage=600, stale-while-revalidate=3600',

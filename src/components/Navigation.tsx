@@ -158,14 +158,19 @@ function NavigationUrlSync() {
   const urlSemester = searchParams.get("semester");
 
   useEffect(() => {
-    const hasUrl = !!(urlYear || urlBranch || urlSemester);
+    // Static pages often leave useSearchParams empty; always prefer the live URL.
+    const live = new URLSearchParams(window.location.search);
+    const year = live.get("year") ?? urlYear;
+    const branch = live.get("branch") ?? urlBranch;
+    const semester = live.get("semester") ?? urlSemester;
+    const hasUrl = !!(year || branch || semester);
     const stored = !didHydrateWorkspace.current ? readStoredWorkspace() : null;
     didHydrateWorkspace.current = true;
 
     if (!hasUrl && !stored) return;
 
     const resolved = resolveWorkspace(
-      { year: urlYear, branch: urlBranch, semester: urlSemester },
+      { year, branch, semester },
       hasUrl
         ? null
         : {
@@ -236,6 +241,9 @@ function NavigationInner() {
       params.delete("filter");
       params.delete("view");
       params.delete("folder");
+      // Update the store immediately so Syllabus/Resources react without waiting
+      // for useSearchParams soft-navigation (which can lag on static pages).
+      setWorkspace(newYear, newBranch as Branch, newSem as Semester);
       writeStoredWorkspace(
         newYear,
         newBranch as Branch,
@@ -246,7 +254,7 @@ function NavigationInner() {
         router.push(`${pathname}?${params.toString()}`);
       });
     },
-    [pathname, router],
+    [pathname, router, setWorkspace],
   );
 
   /** Apply Firestore/local prefs into store + URL when URL lacks workspace params. */

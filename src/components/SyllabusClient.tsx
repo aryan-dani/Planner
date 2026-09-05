@@ -520,7 +520,7 @@ export default function SyllabusClient() {
               onClick={() => window.open(syllabusUrl, "_blank", "noopener,noreferrer")}
             >
               <FileText className="w-4 h-4" />
-              Download PDF
+              Open PDF
             </Button>
           )}
         </div>
