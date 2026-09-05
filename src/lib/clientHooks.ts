@@ -31,6 +31,51 @@ export function readLocalStorageBoolean(
   }
 }
 
+const localStorageListeners = new Map<string, Set<() => void>>();
+
+function subscribeLocalStorageKey(key: string, onStoreChange: () => void) {
+  let set = localStorageListeners.get(key);
+  if (!set) {
+    set = new Set();
+    localStorageListeners.set(key, set);
+  }
+  set.add(onStoreChange);
+  const onStorage = (e: StorageEvent) => {
+    if (e.key === key || e.key === null) onStoreChange();
+  };
+  window.addEventListener("storage", onStorage);
+  return () => {
+    set!.delete(onStoreChange);
+    window.removeEventListener("storage", onStorage);
+  };
+}
+
+function notifyLocalStorageKey(key: string) {
+  localStorageListeners.get(key)?.forEach((cb) => cb());
+}
+
+/** Persist a boolean and notify same-tab `useLocalStorageBoolean` subscribers. */
+export function writeLocalStorageBoolean(key: string, value: boolean): void {
+  try {
+    localStorage.setItem(key, String(value));
+  } catch {
+    /* ignore quota / private mode */
+  }
+  notifyLocalStorageKey(key);
+}
+
+/** SSR-safe localStorage boolean (server snapshot = defaultValue). */
+export function useLocalStorageBoolean(
+  key: string,
+  defaultValue = false,
+): boolean {
+  return useSyncExternalStore(
+    (onStoreChange) => subscribeLocalStorageKey(key, onStoreChange),
+    () => readLocalStorageBoolean(key, defaultValue),
+    () => defaultValue,
+  );
+}
+
 function subscribeMatchMedia(query: string, callback: () => void): () => void {
   const mq = window.matchMedia(query);
   const handler = () => callback();

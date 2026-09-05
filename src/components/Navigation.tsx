@@ -39,7 +39,7 @@ import {
 } from "@/lib/workspace";
 import { ScopeSelector } from "@/components/academic/ScopeSelector";
 import { fetchAdminStatus } from "@/lib/adminStatus";
-import { useIsClient, useIsMac, readLocalStorageBoolean } from "@/lib/clientHooks";
+import { useIsClient, useIsMac, useLocalStorageBoolean, writeLocalStorageBoolean } from "@/lib/clientHooks";
 
 const NavUserMenu = dynamic(() => import("./NavUserMenu"), {
   ssr: false,
@@ -209,9 +209,7 @@ function NavigationInner() {
   } = useAcademicStore();
 
   const [mobileOpen, setMobileOpen] = useState(false);
-  // Always start expanded to match SSR; sync from localStorage after mount
-  // (reading window in useState caused React hydration mismatches).
-  const [collapsed, setCollapsed] = useState(false);
+  const collapsed = useLocalStorageBoolean("sidebar-collapsed", false);
   const [userEmail, setUserEmail] = useState<string | undefined>();
   const [isAdmin, setIsAdmin] = useState(false);
   const isMac = useIsMac();
@@ -224,14 +222,8 @@ function NavigationInner() {
     if (mobileOpen) setMobileOpen(false);
   }
 
-  useEffect(() => {
-    setCollapsed(readLocalStorageBoolean("sidebar-collapsed"));
-  }, []);
-
   const handleCollapseToggle = () => {
-    const nextState = !collapsed;
-    setCollapsed(nextState);
-    localStorage.setItem("sidebar-collapsed", String(nextState));
+    writeLocalStorageBoolean("sidebar-collapsed", !collapsed);
   };
 
   const updateUrl = useCallback(
