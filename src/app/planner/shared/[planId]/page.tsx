@@ -71,11 +71,12 @@ export default async function SharedPlanPage({
 }) {
   const { planId } = await params;
 
+  let plan: Awaited<ReturnType<typeof getPublicPlan>> = null;
   try {
-    const plan = await getPublicPlan(planId);
-    if (!plan) notFound();
-    return <SharedPlanView plan={plan} />;
+    plan = await getPublicPlan(planId);
   } catch {
     notFound();
   }
+  if (!plan) notFound();
+  return <SharedPlanView plan={plan} />;
 }

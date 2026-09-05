@@ -180,8 +180,10 @@ const PdfPreview = forwardRef<PdfPreviewHandle, PdfPreviewProps>(
     const docRef = useRef<PdfDocument | null>(null);
     const onReadyRef = useRef(onReady);
     const onFailRef = useRef(onFail);
-    onReadyRef.current = onReady;
-    onFailRef.current = onFail;
+    useEffect(() => {
+      onReadyRef.current = onReady;
+      onFailRef.current = onFail;
+    }, [onReady, onFail]);
 
     const [pdfjs, setPdfjs] = useState<PdfModule | null>(null);
     const [pdf, setPdf] = useState<PdfDocument | null>(null);

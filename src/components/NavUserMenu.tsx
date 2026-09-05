@@ -46,7 +46,10 @@ export default function NavUserMenu({
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const workspaceRef = useRef({ academicYear, branch, semester });
-  workspaceRef.current = { academicYear, branch, semester };
+
+  useEffect(() => {
+    workspaceRef.current = { academicYear, branch, semester };
+  }, [academicYear, branch, semester]);
 
   useEffect(() => {
     const unsubscribe = onIdTokenChanged(auth, async (firebaseUser) => {

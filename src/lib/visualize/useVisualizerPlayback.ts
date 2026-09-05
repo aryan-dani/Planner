@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useLayoutEffect } from "react";
 import { AlgorithmStep } from "@/lib/visualize/types";
 import {
   logTelemetryEvent,
@@ -42,9 +42,21 @@ export function useVisualizerPlayback<TState>(
 
   const activeTimeMsRef = useRef(0);
   const isCompletedRef = useRef(false);
-
   const stepsRef = useRef(steps);
-  stepsRef.current = steps;
+
+  // Reset playback when the steps array identity changes (React "adjust state while rendering").
+  const [trackedSteps, setTrackedSteps] = useState(steps);
+  if (steps !== trackedSteps) {
+    setTrackedSteps(steps);
+    setCurrentStepIndex(0);
+    setIsPlaying(false);
+  }
+
+  useLayoutEffect(() => {
+    stepsRef.current = steps;
+    isCompletedRef.current = false;
+    activeTimeMsRef.current = 0;
+  }, [steps]);
 
   const logAction = useCallback(
     (action: string) => {
@@ -58,13 +70,6 @@ export function useVisualizerPlayback<TState>(
     },
     [algorithmId, sessionId],
   );
-
-  useEffect(() => {
-    setCurrentStepIndex(0);
-    setIsPlaying(false);
-    isCompletedRef.current = false;
-    activeTimeMsRef.current = 0;
-  }, [steps]);
 
   const maybeComplete = useCallback(() => {
     if (isCompletedRef.current || algorithmId === "unknown") return;

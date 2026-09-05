@@ -42,6 +42,15 @@ function sanitizeDuration(value: number | string) {
   return Math.min(MAX_DURATION_MINUTES, Math.max(MIN_DURATION_MINUTES, parsed));
 }
 
+function formatTime(seconds: number) {
+  const safeSeconds = Number.isFinite(seconds)
+    ? Math.min(MAX_DURATION_MINUTES * 60, Math.max(0, Math.floor(seconds)))
+    : 0;
+  const mins = Math.floor(safeSeconds / 60);
+  const secs = safeSeconds % 60;
+  return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+}
+
 export default function TimerClient() {
   const searchParams = useSearchParams();
   const taskId = searchParams.get('taskId');
@@ -384,15 +393,6 @@ export default function TimerClient() {
       document.title = 'Utility';
     };
   }, [timeLeft, isActive, mode]);
-
-  const formatTime = (seconds: number) => {
-    const safeSeconds = Number.isFinite(seconds)
-      ? Math.min(MAX_DURATION_MINUTES * 60, Math.max(0, Math.floor(seconds)))
-      : 0;
-    const mins = Math.floor(safeSeconds / 60);
-    const secs = safeSeconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
 
   const toggleTimer = () => setIsActive(!isActive);
   const resetTimer = () => {

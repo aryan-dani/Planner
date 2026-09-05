@@ -919,82 +919,6 @@ export default function PlannerClient() {
     return () => unsubscribe();
   }, []);
 
-  // ── Cloud pull on login ──
-  useEffect(() => {
-    if (!user || !mounted) return;
-    pullFromCloud();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, mounted, month, year]);
-
-  // ── Save to localStorage ──
-  useEffect(() => {
-    if (!mounted) return;
-    const key = storageKey(month, year);
-    const dataSnap = JSON.stringify({
-      data: planData,
-      title: planMeta.title,
-      is_public: planMeta.is_public,
-      id: planMeta.id,
-    });
-
-    if (skipLocalStampRef.current) {
-      localStorage.setItem(key, JSON.stringify({ data: planData, meta: planMeta }));
-      lastWrittenDataRef.current = dataSnap;
-      skipLocalStampRef.current = false;
-      return;
-    }
-
-    let updated_at = planMeta.updated_at;
-    if (lastWrittenDataRef.current && dataSnap !== lastWrittenDataRef.current) {
-      updated_at = new Date().toISOString();
-    }
-    lastWrittenDataRef.current = dataSnap;
-    localStorage.setItem(key, JSON.stringify({
-      data: planData,
-      meta: { ...planMeta, updated_at },
-    }));
-  }, [planData, planMeta, mounted, month, year]);
-
-  // ── Cloud push (debounced) ──
-  const pushToCloud = useCallback(async () => {
-    if (!user) return;
-    setSyncing(true);
-    try {
-      if (!auth.currentUser) return;
-
-      const res = await authFetch('/api/planner', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          month,
-          year,
-          data: planData,
-          title: planMeta.title,
-          is_public: planMeta.is_public,
-          ...(planMeta.id ? { planId: planMeta.id } : {}),
-        })
-      });
-
-      if (!res.ok) throw new Error(await res.text());
-      const resData = await res.json();
-      skipLocalStampRef.current = true;
-      setPlanMeta(prev => ({ ...prev, id: resData.id, updated_at: new Date().toISOString() }));
-      lastPushedSnapshotRef.current = JSON.stringify({
-        data: planData,
-        title: planMeta.title,
-        is_public: planMeta.is_public,
-      });
-      setLastSynced(new Date());
-    } catch (e) {
-      console.error('Sync error:', e);
-      toast.error('Cloud sync failed. Changes are still saved locally.');
-    } finally {
-      setSyncing(false);
-    }
-  }, [user, planData, planMeta.title, planMeta.is_public, planMeta.id, month, year]);
-
   const pullFromCloud = useCallback(async () => {
     if (!user) return;
     cloudHydratingRef.current = true;
@@ -1072,7 +996,82 @@ export default function PlannerClient() {
       cloudHydratingRef.current = false;
       setSyncing(false);
     }
-  }, [user, month, year]);
+  }, [user, month, year, setPlanData]);
+
+  // ── Cloud pull on login ──
+  useEffect(() => {
+    if (!user || !mounted) return;
+    pullFromCloud();
+  }, [user, mounted, month, year, pullFromCloud]);
+
+  // ── Save to localStorage ──
+  useEffect(() => {
+    if (!mounted) return;
+    const key = storageKey(month, year);
+    const dataSnap = JSON.stringify({
+      data: planData,
+      title: planMeta.title,
+      is_public: planMeta.is_public,
+      id: planMeta.id,
+    });
+
+    if (skipLocalStampRef.current) {
+      localStorage.setItem(key, JSON.stringify({ data: planData, meta: planMeta }));
+      lastWrittenDataRef.current = dataSnap;
+      skipLocalStampRef.current = false;
+      return;
+    }
+
+    let updated_at = planMeta.updated_at;
+    if (lastWrittenDataRef.current && dataSnap !== lastWrittenDataRef.current) {
+      updated_at = new Date().toISOString();
+    }
+    lastWrittenDataRef.current = dataSnap;
+    localStorage.setItem(key, JSON.stringify({
+      data: planData,
+      meta: { ...planMeta, updated_at },
+    }));
+  }, [planData, planMeta, mounted, month, year]);
+
+  // ── Cloud push (debounced) ──
+  const pushToCloud = useCallback(async () => {
+    if (!user) return;
+    setSyncing(true);
+    try {
+      if (!auth.currentUser) return;
+
+      const res = await authFetch('/api/planner', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          month,
+          year,
+          data: planData,
+          title: planMeta.title,
+          is_public: planMeta.is_public,
+          ...(planMeta.id ? { planId: planMeta.id } : {}),
+        })
+      });
+
+      if (!res.ok) throw new Error(await res.text());
+      const resData = await res.json();
+      skipLocalStampRef.current = true;
+      setPlanMeta(prev => ({ ...prev, id: resData.id, updated_at: new Date().toISOString() }));
+      lastPushedSnapshotRef.current = JSON.stringify({
+        data: planData,
+        title: planMeta.title,
+        is_public: planMeta.is_public,
+      });
+      setLastSynced(new Date());
+    } catch (e) {
+      console.error('Sync error:', e);
+      toast.error('Cloud sync failed. Changes are still saved locally.');
+    } finally {
+      setSyncing(false);
+    }
+  }, [user, planData, planMeta.title, planMeta.is_public, planMeta.id, month, year]);
 
   useEffect(() => {
     if (!user || !mounted) return;
@@ -1335,7 +1334,7 @@ export default function PlannerClient() {
     }
     setPlanData(prev);
     toast.success('Restored');
-  }, []);
+  }, [setPlanData]);
 
   const exportData = () => {
     const blob = new Blob([JSON.stringify({ meta: planMeta, data: planData }, null, 2)], { type: 'application/json' });

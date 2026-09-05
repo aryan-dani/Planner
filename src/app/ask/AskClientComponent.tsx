@@ -380,6 +380,10 @@ export default function AskClient() {
   const [isGeneratingQuiz, setIsGeneratingQuiz] = useState(false);
   const [quizSubmitted, setQuizSubmitted] = useState(false);
 
+  const [input, setInput] = useState('');
+  const [assistantSources, setAssistantSources] = useState<RetrievalSource[]>([]);
+  const [scopeWidened, setScopeWidened] = useState(false);
+
   // Workspace catalog is loaded via useWorkspaceResources (shared module cache)
 
   // Initialize Speech Recognition
@@ -488,10 +492,6 @@ export default function AskClient() {
     stop,
   } = chatHelpers;
 
-
-  const [input, setInput] = useState('');
-  const [assistantSources, setAssistantSources] = useState<RetrievalSource[]>([]);
-  const [scopeWidened, setScopeWidened] = useState(false);
   const isLoading = status === 'submitted' || status === 'streaming';
   const lastScrubbedMsgRef = useRef<string | null>(null);
 

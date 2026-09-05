@@ -151,7 +151,10 @@ export default function ProfileClientComponent() {
 
   const mergingRef = useRef(false);
   const workspaceRef = useRef({ academicYear, branch, semester });
-  workspaceRef.current = { academicYear, branch, semester };
+
+  useEffect(() => {
+    workspaceRef.current = { academicYear, branch, semester };
+  }, [academicYear, branch, semester]);
 
   // Authentication & Initial data loading
   useEffect(() => {
