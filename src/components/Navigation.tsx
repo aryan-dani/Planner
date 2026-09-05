@@ -147,54 +147,12 @@ function SegmentedThemeToggle({ theme, setTheme }: { theme: string | undefined; 
   );
 }
 
-function NavigationInner() {
-  const pathname = usePathname();
-  const router = useRouter();
+/** Syncs URL workspace params into the store. Isolated so Navigation chrome never suspends. */
+function NavigationUrlSync() {
   const searchParams = useSearchParams();
-  // Display store values only — never searchParams during render. Static SSR has no
-  // query string, so reading URL here caused React #418 (Current/2026–2027 vs Archive/2025–2026).
-  const academicYear = useAcademicStore((s) => s.academicYear);
-  const branch = useAcademicStore((s) => s.branch);
-  const semester = useAcademicStore((s) => s.semester);
-
-  const {
-    setAcademicYear,
-    setBranch,
-    setSemester,
-    setWorkspace,
-    setSearchQuery,
-    setCommandPaletteOpen,
-  } = useAcademicStore();
-
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const [collapsed, setCollapsed] = useState(false);
-  const [userEmail, setUserEmail] = useState<string | undefined>();
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [isMac, setIsMac] = useState(false);
-  const { theme, setTheme } = useTheme();
-  const prefsAppliedRef = useRef(false);
+  const setWorkspace = useAcademicStore((s) => s.setWorkspace);
   const didHydrateWorkspace = useRef(false);
 
-  useEffect(() => {
-    const saved = localStorage.getItem("sidebar-collapsed");
-    if (saved) setCollapsed(saved === "true");
-  }, []);
-
-  const handleCollapseToggle = () => {
-    const nextState = !collapsed;
-    setCollapsed(nextState);
-    localStorage.setItem("sidebar-collapsed", String(nextState));
-  };
-
-  useEffect(() => {
-    setIsMac(
-      typeof navigator !== "undefined" &&
-        (navigator.userAgent.includes("Mac") ||
-          navigator.platform.includes("Mac")),
-    );
-  }, []);
-
-  // URL wins, then localStorage, then store defaults — only after mount so SSR HTML matches.
   useEffect(() => {
     const urlYear = searchParams.get("year");
     const urlBranch = searchParams.get("branch");
@@ -223,14 +181,62 @@ function NavigationInner() {
     setWorkspace,
   ]);
 
-  const searchParamsRef = useRef(searchParams);
+  return null;
+}
+
+function currentSearchParams(): URLSearchParams {
+  if (typeof window === "undefined") return new URLSearchParams();
+  return new URLSearchParams(window.location.search);
+}
+
+function NavigationInner() {
+  const pathname = usePathname();
+  const router = useRouter();
+  // Display store values only — never searchParams during render. Static SSR has no
+  // query string, so reading URL here caused React #418 (Current/2026–2027 vs Archive/2025–2026).
+  const academicYear = useAcademicStore((s) => s.academicYear);
+  const branch = useAcademicStore((s) => s.branch);
+  const semester = useAcademicStore((s) => s.semester);
+
+  const {
+    setAcademicYear,
+    setBranch,
+    setSemester,
+    setWorkspace,
+    setSearchQuery,
+    setCommandPaletteOpen,
+  } = useAcademicStore();
+
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
+  const [userEmail, setUserEmail] = useState<string | undefined>();
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [isMac, setIsMac] = useState(false);
+  const { theme, setTheme } = useTheme();
+  const prefsAppliedRef = useRef(false);
+
   useEffect(() => {
-    searchParamsRef.current = searchParams;
-  }, [searchParams]);
+    const saved = localStorage.getItem("sidebar-collapsed");
+    if (saved) setCollapsed(saved === "true");
+  }, []);
+
+  const handleCollapseToggle = () => {
+    const nextState = !collapsed;
+    setCollapsed(nextState);
+    localStorage.setItem("sidebar-collapsed", String(nextState));
+  };
+
+  useEffect(() => {
+    setIsMac(
+      typeof navigator !== "undefined" &&
+        (navigator.userAgent.includes("Mac") ||
+          navigator.platform.includes("Mac")),
+    );
+  }, []);
 
   const updateUrl = useCallback(
     (newYear: AcademicYear, newBranch: string, newSem: number) => {
-      const params = new URLSearchParams(searchParamsRef.current.toString());
+      const params = currentSearchParams();
       params.set("year", newYear);
       params.set("branch", newBranch);
       params.set("semester", newSem.toString());
@@ -256,9 +262,10 @@ function NavigationInner() {
   const applyPrefsToUrl = useCallback(
     (prefYear: AcademicYear, prefBranch: Branch, prefSemester: Semester) => {
       if (prefsAppliedRef.current) return;
-      const hasYear = !!searchParamsRef.current.get("year");
-      const hasBranch = !!searchParamsRef.current.get("branch");
-      const hasSemester = !!searchParamsRef.current.get("semester");
+      const current = currentSearchParams();
+      const hasYear = !!current.get("year");
+      const hasBranch = !!current.get("branch");
+      const hasSemester = !!current.get("semester");
       if (hasYear && hasBranch && hasSemester) {
         prefsAppliedRef.current = true;
         return;
@@ -266,12 +273,12 @@ function NavigationInner() {
       setWorkspace(prefYear, prefBranch, prefSemester);
       writeStoredWorkspace(prefYear, prefBranch, prefSemester);
       prefsAppliedRef.current = true;
-      const params = new URLSearchParams(searchParamsRef.current.toString());
+      const params = currentSearchParams();
       if (!hasYear) params.set("year", prefYear);
       if (!hasBranch) params.set("branch", prefBranch);
       if (!hasSemester) params.set("semester", String(prefSemester));
       const nextQs = params.toString();
-      const currentQs = searchParamsRef.current.toString();
+      const currentQs = current.toString();
       if (nextQs !== currentQs) {
         startTransition(() => {
           router.replace(`${pathname}?${nextQs}`);
@@ -581,6 +588,10 @@ function NavigationInner() {
 
   return (
     <>
+      <Suspense fallback={null}>
+        <NavigationUrlSync />
+      </Suspense>
+
       {/* 1. Desktop Sticky Sidebar with collapse transition */}
       <aside
         aria-label="Primary"
@@ -591,7 +602,7 @@ function NavigationInner() {
       >
         {renderSidebarContent(false)}
       </aside>
- 
+
       {/* 2. Mobile Top Header */}
       <header className="fixed top-0 inset-x-0 w-full max-w-[100vw] h-[calc(3.5rem+env(safe-area-inset-top))] pt-[env(safe-area-inset-top)] border-b border-border bg-background z-50 flex items-center justify-between gap-3 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] md:hidden transition-colors">
         <Link
@@ -604,7 +615,7 @@ function NavigationInner() {
           </div>
           <span className="font-extrabold truncate">Utility OS</span>
         </Link>
- 
+
         <button
           className="tap-target shrink-0 rounded-lg text-muted hover:text-foreground hover:bg-surface/50 active:bg-surface border border-transparent transition-colors"
           onClick={() => setMobileOpen(true)}
@@ -613,7 +624,7 @@ function NavigationInner() {
           <Menu className="w-5 h-5" />
         </button>
       </header>
- 
+
       {/* 3. Mobile Navigation Drawer Overlay */}
       <AnimatePresence>
         {mobileOpen && (
@@ -626,7 +637,7 @@ function NavigationInner() {
               onClick={() => setMobileOpen(false)}
               className="fixed inset-0 bg-black/60 z-[100] md:hidden"
             />
- 
+
             {/* Sidebar drawer content */}
             <motion.aside
               initial={{ x: "-100%" }}
@@ -643,15 +654,7 @@ function NavigationInner() {
     </>
   );
 }
- 
+
 export default function Navigation() {
-  return (
-    <Suspense
-      fallback={
-        <div className="w-72 h-screen sticky top-0 left-0 border-r border-border/80 bg-background-subtle z-40 hidden md:block" />
-      }
-    >
-      <NavigationInner />
-    </Suspense>
-  );
+  return <NavigationInner />;
 }

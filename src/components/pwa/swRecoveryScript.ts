@@ -8,7 +8,7 @@
  *    auto-translate and extensions that rewrite text before React hydrates.
  */
 export const SW_RECOVERY_SCRIPT = `(function(){
-  var VER="2026-09-05-sw-drive-cors";
+  var VER="2026-09-05-sw-update-toast";
   var KEY="utility-sw-bust";
   var DIAG_KEY="utility-hydration-diag";
   var SKIP=/^(SCRIPT|STYLE|NOSCRIPT|TEMPLATE)$/;

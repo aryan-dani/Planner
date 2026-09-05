@@ -74,8 +74,8 @@ const config = isDev
       dest: 'public',
       disable: false,
       register: true,
-      // Activate updated SW immediately so clients are not stuck on a broken waiting worker.
-      skipWaiting: true,
+      // false so Workbox emits the SKIP_WAITING message listener (PwaUpdater posts it).
+      skipWaiting: false,
       cacheOnFrontEndNav: false,
       aggressiveFrontEndNavCaching: false,
       // Keep heavy assets out of the install-time precache (fetch on demand).
@@ -95,7 +95,7 @@ const config = isDev
       // still intercepts fetch() and strips/breaks CORS for drive.usercontent.google.com.
       extendDefaultRuntimeCaching: true,
       workboxOptions: {
-        skipWaiting: true,
+        skipWaiting: false,
         clientsClaim: true,
         exclude: [/\.map$/, /^manifest.*\.js$/],
         runtimeCaching: [

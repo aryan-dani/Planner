@@ -3,6 +3,9 @@
 import { useEffect } from 'react';
 import { toast } from 'sonner';
 
+const TOAST_ID = 'utility-sw-update';
+const CONTROLLER_FALLBACK_MS = 1500;
+
 /** Clear SW/runtime caches on update; never touch utility-pdf-v2 (Drive PDF Cache API). */
 async function clearWorkboxCaches() {
   if (!('caches' in window)) return;
@@ -24,6 +27,17 @@ function activateWorker(worker: ServiceWorker) {
   worker.postMessage({ type: 'SKIP_WAITING' });
 }
 
+async function hardRecoverAndReload() {
+  try {
+    await clearWorkboxCaches();
+    const regs = await navigator.serviceWorker.getRegistrations();
+    await Promise.all(regs.map((r) => r.unregister()));
+  } catch (e) {
+    console.error('Failed to recover service worker:', e);
+  }
+  window.location.reload();
+}
+
 export default function PwaUpdater() {
   useEffect(() => {
     if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return;
@@ -37,25 +51,38 @@ export default function PwaUpdater() {
       return;
     }
 
+    let toastShown = false;
+    let updateInFlight = false;
+    let fallbackTimer: ReturnType<typeof setTimeout> | null = null;
+    let refreshing = false;
+
     const applyWaiting = (worker: ServiceWorker, { force }: { force: boolean }) => {
       if (force || isOfflineShellWhileOnline()) {
         activateWorker(worker);
         return;
       }
+      if (toastShown || updateInFlight) return;
+      toastShown = true;
+
       toast.info('A new version of Utility is available.', {
+        id: TOAST_ID,
         description: 'Click update to load the latest improvements.',
         action: {
           label: 'Update Now',
           onClick: () => {
+            if (updateInFlight) return;
+            updateInFlight = true;
+            toast.dismiss(TOAST_ID);
+            toast.message('Updating Utility…', {
+              id: TOAST_ID,
+              duration: CONTROLLER_FALLBACK_MS + 500,
+            });
             activateWorker(worker);
-            setTimeout(async () => {
-              try {
-                await clearWorkboxCaches();
-              } catch (e) {
-                console.error('Failed to clear caches in fallback:', e);
-              }
-              window.location.reload();
-            }, 2000);
+            // If SKIP_WAITING was a no-op (old SW without listener), recover hard.
+            fallbackTimer = setTimeout(() => {
+              if (refreshing) return;
+              void hardRecoverAndReload();
+            }, CONTROLLER_FALLBACK_MS);
           },
         },
         duration: 15000,
@@ -96,24 +123,20 @@ export default function PwaUpdater() {
         if (reg.waiting) {
           activateWorker(reg.waiting);
         } else {
-          try {
-            await clearWorkboxCaches();
-            const regs = await navigator.serviceWorker.getRegistrations();
-            await Promise.all(regs.map((r) => r.unregister()));
-            window.location.reload();
-          } catch (e) {
-            console.error('Failed to recover from offline shell:', e);
-          }
+          await hardRecoverAndReload();
         }
       }
     });
 
     const intervalId = setInterval(checkForUpdates, 3600000);
 
-    let refreshing = false;
     const handleControllerChange = async () => {
       if (refreshing) return;
       refreshing = true;
+      if (fallbackTimer) {
+        clearTimeout(fallbackTimer);
+        fallbackTimer = null;
+      }
       try {
         await clearWorkboxCaches();
       } catch (e) {
@@ -125,6 +148,7 @@ export default function PwaUpdater() {
 
     return () => {
       clearInterval(intervalId);
+      if (fallbackTimer) clearTimeout(fallbackTimer);
       navigator.serviceWorker.removeEventListener('controllerchange', handleControllerChange);
     };
   }, []);
