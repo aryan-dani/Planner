@@ -7,25 +7,25 @@ const eslintConfig = defineConfig([
   ...nextTs,
   {
     rules: {
-      // Gradual cleanup — keep CI green while migrating away from these patterns.
-      "@typescript-eslint/no-explicit-any": "warn",
+      // Enforced after 2026-09 lint hardening — do not downgrade to warn.
+      "@typescript-eslint/no-explicit-any": "error",
       "@typescript-eslint/no-unused-vars": [
-        "warn",
+        "error",
         {
           argsIgnorePattern: "^_",
           varsIgnorePattern: "^_",
           caughtErrorsIgnorePattern: "^_",
         },
       ],
-      "react-hooks/set-state-in-effect": "warn",
-      "react-hooks/refs": "warn",
-      "react-hooks/immutability": "warn",
-      "react-hooks/preserve-manual-memoization": "warn",
-      "react-hooks/purity": "warn",
-      "react-hooks/exhaustive-deps": "warn",
-      "react/no-unescaped-entities": "warn",
-      "@next/next/no-img-element": "warn",
-      "react-hooks/error-boundaries": "warn",
+      "react-hooks/set-state-in-effect": "error",
+      "react-hooks/refs": "error",
+      "react-hooks/immutability": "error",
+      "react-hooks/preserve-manual-memoization": "error",
+      "react-hooks/purity": "error",
+      "react-hooks/exhaustive-deps": "error",
+      "react/no-unescaped-entities": "error",
+      "@next/next/no-img-element": "error",
+      "react-hooks/error-boundaries": "error",
     },
   },
   globalIgnores([

@@ -18,6 +18,8 @@ import { Button, Modal } from '@/components/ui';
 import { authFetch } from '@/lib/authFetch';
 import { getSoonestUpcomingExam } from '@/lib/examCountdown';
 import { useIsClient } from '@/lib/clientHooks';
+import { toggleTaskRecurring as applyRecurringToggle } from '@/lib/planner/recurrence';
+import { normalizeImportedPlan } from '@/lib/planner/importPlan';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -1168,47 +1170,11 @@ export default function PlannerClient() {
 
   const toggleTaskRecurring = (date: string, taskId: string) => {
     setPlanData(prev => {
-      const updatedDateTasks = (prev[date] || []).map(t => {
-        if (t.id === taskId) {
-          const nextRecurring = !t.isRecurring;
-          return { ...t, isRecurring: nextRecurring };
-        }
-        return t;
-      });
-
-      const nextData = { ...prev, [date]: updatedDateTasks };
-
-      const sourceTask = updatedDateTasks.find((t) => t.id === taskId);
-      if (sourceTask?.isRecurring) {
-        const startDate = new Date(date + 'T00:00:00');
-        const activeMonth = startDate.getMonth();
-        const activeYear = startDate.getFullYear();
-
-        const tempDate = new Date(startDate);
-        tempDate.setDate(tempDate.getDate() + 7);
-
-        while (tempDate.getMonth() === activeMonth && tempDate.getFullYear() === activeYear) {
-          const isoString = `${tempDate.getFullYear()}-${String(tempDate.getMonth() + 1).padStart(2, '0')}-${String(tempDate.getDate()).padStart(2, '0')}`;
-          const existing = nextData[isoString] || [];
-          if (!existing.some((t) => t.text === sourceTask.text)) {
-            nextData[isoString] = [
-              ...existing,
-              {
-                ...sourceTask,
-                id: generateId(),
-                isRecurring: true,
-                done: false,
-                status: 'todo',
-                subtasks: []
-              }
-            ];
-          }
-          tempDate.setDate(tempDate.getDate() + 7);
-        }
+      const { plan, propagated } = applyRecurringToggle(prev, date, taskId, generateId);
+      if (propagated) {
         toast.success('Task recurring rule propagated through this month');
       }
-
-      return nextData;
+      return plan;
     });
   };
 
@@ -1408,17 +1374,11 @@ export default function PlannerClient() {
     reader.onload = (ev) => {
       try {
         const parsed = JSON.parse(ev.target?.result as string);
-        if (parsed.data) {
-          pushUndoSnapshot();
-          setPlanData(parsed.data);
-          if (parsed.meta) setPlanMeta(parsed.meta);
-          toast.success('Plan imported');
-        } else {
-          // Try old format
-          pushUndoSnapshot();
-          setPlanData(parsed);
-          toast.success('Plan imported (legacy format)');
-        }
+        const { data, meta, legacy } = normalizeImportedPlan(parsed);
+        pushUndoSnapshot();
+        setPlanData(data);
+        if (meta) setPlanMeta(meta);
+        toast.success(legacy ? 'Plan imported (legacy format)' : 'Plan imported');
       } catch {
         toast.error('Invalid file format');
       }

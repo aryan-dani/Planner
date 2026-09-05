@@ -3,6 +3,7 @@ import { auth, db } from '@/lib/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { logActivity } from '@/lib/activity';
 import { localDateKey } from '@/lib/dateLocal';
+import { applyGrade } from '@/lib/srs/scheduling';
 
 export interface Flashcard {
   id: string;
@@ -71,14 +72,6 @@ function touchLocalMeta() {
 
 function getTodayString() {
   return localDateKey();
-}
-
-function getNextReviewDate(box: number): string {
-  const intervals = [1, 2, 4, 7, 14]; // Box 1 = 1 day, Box 2 = 2 days, etc.
-  const days = intervals[Math.min(box - 1, intervals.length - 1)] || 1;
-  const d = new Date();
-  d.setDate(d.getDate() + days);
-  return localDateKey(d);
 }
 
 async function writeSrsToCloud(): Promise<void> {
@@ -237,18 +230,15 @@ export const useSRSStore = create<SRSState>((set, get) => ({
   },
 
   gradeCard: (cardId, gotIt) => {
+    const today = getTodayString();
     const nextCards = get().cards.map((c) => {
       if (c.id === cardId) {
-        const nextBox = gotIt ? Math.min(c.box + 1, 5) : 1;
-        // Failed cards reset to box 1 and are due again today.
-        const nextReviewDate = gotIt
-          ? getNextReviewDate(nextBox)
-          : getTodayString();
+        const { box, nextReview } = applyGrade(c, gotIt);
         return {
           ...c,
-          box: nextBox,
-          nextReviewDate,
-          lastReviewedDate: getTodayString(),
+          box,
+          nextReviewDate: nextReview,
+          lastReviewedDate: today,
         };
       }
       return c;
