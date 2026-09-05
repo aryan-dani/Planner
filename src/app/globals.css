@@ -637,6 +637,10 @@ input[type="range"].accent-slider::-moz-range-thumb:hover {
 }
 
 /* ── Custom Premium Sonner Toast Styling ───────────────────────────────────────── */
+[data-sonner-toaster] {
+  width: min(100vw - 2rem, 356px) !important;
+}
+
 [data-sonner-toast] {
   background: rgb(var(--card)) !important;
   border: 1px solid rgb(var(--border)) !important;
@@ -645,6 +649,15 @@ input[type="range"].accent-slider::-moz-range-thumb:hover {
   box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2), 0 1px 2px 0 rgba(0, 0, 0, 0.05) !important;
   padding: 14px 16px !important;
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+/* richColors accents stay readable on our card surface */
+[data-sonner-toast][data-rich-colors='true'][data-type='success'],
+[data-sonner-toast][data-rich-colors='true'][data-type='error'],
+[data-sonner-toast][data-rich-colors='true'][data-type='info'],
+[data-sonner-toast][data-rich-colors='true'][data-type='warning'] {
+  background: rgb(var(--card)) !important;
+  color: rgb(var(--foreground)) !important;
 }
 
 [data-sonner-toast]:hover {

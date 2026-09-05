@@ -17,7 +17,7 @@ import { doc, setDoc, getDoc } from "firebase/firestore";
 import { useAcademicStore, AcademicYear, Branch, Semester } from "@/store/academicStore";
 import { DEFAULT_ACADEMIC_YEAR, DEFAULT_SEMESTER, workspaceQuery } from "@/lib/workspace";
 import { BRANCH_OPTIONS_LONG, isAcademicYear } from "@/lib/academic/scope";
-import { toast } from "sonner";
+import { notify } from "@/lib/toast";
 import Link from "next/link";
 import { useTheme } from "next-themes";
 import { useIsClient } from "@/lib/clientHooks";
@@ -162,7 +162,7 @@ export default function ProfileClientComponent() {
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
       if (!user) {
         if (mergingRef.current) return;
-        toast.error("Please sign in to access your profile settings.");
+        notify.error("Please sign in to access your profile settings.");
         router.push("/login?redirectTo=/profile");
         return;
       }
@@ -224,13 +224,13 @@ export default function ProfileClientComponent() {
           setPhotoURL(outcome.user.photoURL || "");
           setTempPhotoUrl(outcome.user.photoURL || "");
           setMergeStep(null);
-          toast.success("Google and GitHub are now one account.");
+          notify.success("Google and GitHub are now one account.");
         } else if (outcome.status === "needs-github-confirm") {
           setMergeStep("github");
         } else if (outcome.status === "needs-google-confirm") {
           setMergeStep("google");
         } else if (outcome.status === "error") {
-          toast.error("Could not finish account linking. Please try again.");
+          notify.error("Could not finish account linking. Please try again.");
         } else {
           setMergeStep(getPendingMergeStep());
         }
@@ -250,46 +250,45 @@ export default function ProfileClientComponent() {
 
     setSaving(true);
     try {
-      // 1. Update Firebase Auth Profile (DisplayName and Avatar)
-      await updateProfile(currentUser, {
-        displayName: displayName.trim() || null,
-        photoURL: photoURL.trim() || null,
-      });
+      await notify.promise(
+        (async () => {
+          await updateProfile(currentUser, {
+            displayName: displayName.trim() || null,
+            photoURL: photoURL.trim() || null,
+          });
 
-      // 2. Save User Profile and Preferences in Firestore
-      const userPrefsRef = doc(db, "users", currentUser.uid);
-      await setDoc(
-        userPrefsRef,
+          const userPrefsRef = doc(db, "users", currentUser.uid);
+          await setDoc(
+            userPrefsRef,
+            {
+              uid: currentUser.uid,
+              email: currentUser.email || "",
+              displayName: displayName.trim() || currentUser.email?.split("@")[0] || "Student",
+              photoURL: photoURL.trim() || "",
+              provider: providerLabel,
+              academic_year: selectedAcademicYear,
+              branch: selectedBranch,
+              semester: Number(selectedSemester),
+              updatedAt: new Date().toISOString(),
+              lastActive: new Date().toISOString(),
+            },
+            { merge: true }
+          );
+
+          setAcademicYear(selectedAcademicYear);
+          setBranch(selectedBranch);
+          setSemester(selectedSemester);
+        })(),
         {
-          uid: currentUser.uid,
-          email: currentUser.email || "",
-          displayName: displayName.trim() || currentUser.email?.split("@")[0] || "Student",
-          photoURL: photoURL.trim() || "",
-          provider: providerLabel,
-          academic_year: selectedAcademicYear,
-          branch: selectedBranch,
-          semester: Number(selectedSemester),
-          updatedAt: new Date().toISOString(),
-          lastActive: new Date().toISOString(),
-        },
-        { merge: true }
+          loading: "Saving profile…",
+          success: "Profile and preferences updated",
+          error: "Could not update profile",
+          id: "profile-save",
+        }
       );
-
-      // 3. Sync Client Store Preferences
-      setAcademicYear(selectedAcademicYear);
-      setBranch(selectedBranch);
-      setSemester(selectedSemester);
       setLastSavedAt(new Date().toISOString());
-
-      toast.success("Profile and preferences updated successfully!");
-    } catch (err: unknown) {
-      const message =
-        err instanceof FirebaseError
-          ? err.message
-          : err instanceof Error
-            ? err.message
-            : String(err);
-      toast.error(`Failed to update profile: ${message}`);
+    } catch {
+      // notify.promise already surfaced the error
     } finally {
       setSaving(false);
     }
@@ -304,7 +303,7 @@ export default function ProfileClientComponent() {
   const handleCustomPhotoUrlSubmit = () => {
     if (tempPhotoUrl.trim()) {
       setPhotoURL(tempPhotoUrl.trim());
-      toast.success("Custom avatar image link applied!");
+      notify.success("Custom avatar image link applied");
     } else {
       setPhotoURL("");
       setTempPhotoUrl("");
@@ -327,19 +326,18 @@ export default function ProfileClientComponent() {
       if (outcome.status === "linked") {
         applyLinkedUser(outcome.user);
         setMergeStep(null);
-        toast.success("GitHub is now linked. You can sign in with either provider.");
+        notify.success("GitHub is now linked. You can sign in with either provider.");
       } else if (outcome.status === "needs-google-confirm") {
         setMergeStep("google");
-        toast.message("Confirm Google to finish merging into one profile.");
+        notify.message("Confirm Google to finish merging into one profile.");
       }
     } catch (err: unknown) {
       const code = err instanceof FirebaseError ? err.code : undefined;
-      const message = err instanceof Error ? err.message : "Could not link GitHub.";
-      toast.error(
-        code === "auth/popup-closed-by-user"
-          ? "Linking was cancelled. Please try again."
-          : message
-      );
+      if (code === "auth/popup-closed-by-user") {
+        notify.error("Linking was cancelled. Please try again.");
+      } else {
+        notify.error(err, "Could not link GitHub.");
+      }
     } finally {
       mergingRef.current = false;
       if (!auth.currentUser) {
@@ -358,19 +356,18 @@ export default function ProfileClientComponent() {
       if (outcome.status === "linked") {
         applyLinkedUser(outcome.user);
         setMergeStep(null);
-        toast.success("Google is now linked. You can sign in with either provider.");
+        notify.success("Google is now linked. You can sign in with either provider.");
       } else if (outcome.status === "needs-github-confirm") {
         setMergeStep("github");
-        toast.message("Confirm GitHub to finish merging into one profile.");
+        notify.message("Confirm GitHub to finish merging into one profile.");
       }
     } catch (err: unknown) {
       const code = err instanceof FirebaseError ? err.code : undefined;
-      const message = err instanceof Error ? err.message : "Could not link Google.";
-      toast.error(
-        code === "auth/popup-closed-by-user"
-          ? "Linking was cancelled. Please try again."
-          : message
-      );
+      if (code === "auth/popup-closed-by-user") {
+        notify.error("Linking was cancelled. Please try again.");
+      } else {
+        notify.error(err, "Could not link Google.");
+      }
     } finally {
       mergingRef.current = false;
       if (!auth.currentUser) {
@@ -389,11 +386,10 @@ export default function ProfileClientComponent() {
       if (outcome.status === "linked") {
         applyLinkedUser(outcome.user);
         setMergeStep(null);
-        toast.success("Google and GitHub are now one account.");
+        notify.success("Google and GitHub are now one account.");
       }
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Could not finish merging GitHub.";
-      toast.error(message);
+      notify.error(err, "Could not finish merging GitHub.");
     } finally {
       mergingRef.current = false;
       if (!auth.currentUser) {
@@ -412,11 +408,10 @@ export default function ProfileClientComponent() {
       if (outcome.status === "linked") {
         applyLinkedUser(outcome.user);
         setMergeStep(null);
-        toast.success("Google and GitHub are now one account.");
+        notify.success("Google and GitHub are now one account.");
       }
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Could not finish merging Google.";
-      toast.error(message);
+      notify.error(err, "Could not finish merging Google.");
     } finally {
       mergingRef.current = false;
       if (!auth.currentUser) {
@@ -748,10 +743,14 @@ export default function ProfileClientComponent() {
                 type="button"
                 onClick={async () => {
                   try {
-                    await clearDriveFileCache();
-                    toast.success("Offline files cleared");
+                    await notify.promise(clearDriveFileCache(), {
+                      loading: "Clearing offline files…",
+                      success: "Offline files cleared",
+                      error: "Could not clear offline cache",
+                      id: "offline-cache-clear",
+                    });
                   } catch {
-                    toast.error("Could not clear offline cache");
+                    // notify.promise already surfaced the error
                   }
                 }}
                 className="self-start inline-flex items-center gap-2 rounded-xl border border-border bg-surface px-3.5 py-2.5 text-xs font-semibold text-foreground hover:bg-surface-hover transition-colors"

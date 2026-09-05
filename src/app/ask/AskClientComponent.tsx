@@ -36,7 +36,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { logActivity } from '@/lib/activity';
 import { NotesDisclaimer } from '@/components/NotesDisclaimer';
-import { toast } from 'sonner';
+import { notify } from '@/lib/toast';
 import { useSRSStore } from '@/store/srsStore';
 import { useSearchParams, useRouter } from 'next/navigation';
 import AcademicBreadcrumb from '@/components/AcademicBreadcrumb';
@@ -283,7 +283,7 @@ function AddToSrsButton({ cards, defaultName }: { cards: Flashcard[]; defaultNam
     addMultipleCards(deckId, formatted);
     setAdded(true);
     setIsOpen(false);
-    toast.success('Added cards to SRS Deck!');
+    notify.success('Added cards to SRS deck');
     setTimeout(() => setAdded(false), 2000);
   };
 
@@ -293,7 +293,7 @@ function AddToSrsButton({ cards, defaultName }: { cards: Flashcard[]; defaultNam
     addMultipleCards(newDeck.id, formatted);
     setAdded(true);
     setIsOpen(false);
-    toast.success(`Created deck "${defaultName}" and added cards!`);
+    notify.success(`Created deck "${defaultName}" and added cards`);
     setTimeout(() => setAdded(false), 2000);
   };
 
@@ -476,7 +476,7 @@ export default function AskClient() {
           const transcript = event.results[0][0].transcript;
           if (transcript) {
             setInput(prev => (prev ? prev + ' ' : '') + transcript);
-            toast.success("Voice transcribed successfully!");
+            notify.success("Voice transcribed");
           }
         };
         rec.onerror = (e: Event) => {
@@ -498,7 +498,7 @@ export default function AskClient() {
 
   const toggleListening = () => {
     if (!recognitionRef.current) {
-      toast.error("Web Speech API is not supported in this browser.");
+      notify.error("Web Speech API is not supported in this browser.");
       return;
     }
     if (isListening) {
@@ -570,7 +570,7 @@ export default function AskClient() {
       (s) => s.marker === marker || s.marker === `S${marker.replace(/^S/i, "")}`,
     );
     if (!source?.resource_id) {
-      toast.message("Source not available");
+      notify.message("Source not available");
       return;
     }
     const page = pageFromSectionLabel(source.section_label);
@@ -765,7 +765,7 @@ export default function AskClient() {
     if (!(input || '').trim() || isLoading) return;
 
     if (!auth.currentUser) {
-      toast.error('Please sign in to use Ask AI.');
+      notify.error('Please sign in to use Ask AI.');
       return;
     }
 
@@ -880,7 +880,7 @@ export default function AskClient() {
 
     try {
       if (!auth.currentUser) {
-        toast.error('Please sign in to generate flashcards.');
+        notify.error('Please sign in to generate flashcards.');
         return;
       }
       const res = await authFetch('/api/study', {
@@ -893,7 +893,7 @@ export default function AskClient() {
         }),
       });
       if (res.status === 401) {
-        toast.error('Please sign in to generate flashcards.');
+        notify.error('Please sign in to generate flashcards.');
         return;
       }
       const data = await res.json();
@@ -903,7 +903,7 @@ export default function AskClient() {
       }
     } catch (err) {
       console.error('Failed to generate flashcards:', err);
-      toast.error('Failed to generate flashcards. Please try again.');
+      notify.error('Failed to generate flashcards. Please try again.');
     } finally {
       setIsGeneratingFlashcards(false);
     }
@@ -914,33 +914,40 @@ export default function AskClient() {
     setIsPublishingDeck(true);
     try {
       if (!auth.currentUser) {
-        toast.error("Sign in to publish a deck.");
+        notify.error("Sign in to publish a deck.");
         return;
       }
       const authorName = auth.currentUser.email
         ? auth.currentUser.email.split('@')[0]
         : 'Anonymous Scholar';
 
-      const res = await authFetch('/api/community-decks', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: flashcardTopic || 'Academic Flashcards',
-          branch,
-          semester,
-          author_name: authorName,
-          flashcards,
-        }),
-      });
-      if (!res.ok) throw new Error(await res.text());
-
-      setPublishedDeck(true);
-      logActivity('community_deck_published', 1);
-      toast.success('Deck published to Community Vault!');
+      await notify.promise(
+        (async () => {
+          const res = await authFetch('/api/community-decks', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              title: flashcardTopic || 'Academic Flashcards',
+              branch,
+              semester,
+              author_name: authorName,
+              flashcards,
+            }),
+          });
+          if (!res.ok) throw new Error(await res.text());
+          setPublishedDeck(true);
+          logActivity('community_deck_published', 1);
+        })(),
+        {
+          loading: 'Publishing deck…',
+          success: 'Deck published to Community Vault',
+          error: 'Could not publish deck',
+          id: 'ask-publish-deck',
+        }
+      );
       setTimeout(() => setPublishedDeck(false), 3000);
-    } catch (err) {
-      console.warn('Publish deck error:', err);
-      toast.error('Failed to publish deck.');
+    } catch {
+      // notify.promise already surfaced the error
     } finally {
       setIsPublishingDeck(false);
     }
@@ -958,7 +965,7 @@ export default function AskClient() {
 
     try {
       if (!auth.currentUser) {
-        toast.error('Please sign in to generate a quiz.');
+        notify.error('Please sign in to generate a quiz.');
         return;
       }
       const res = await authFetch('/api/study', {
@@ -971,7 +978,7 @@ export default function AskClient() {
         }),
       });
       if (res.status === 401) {
-        toast.error('Please sign in to generate a quiz.');
+        notify.error('Please sign in to generate a quiz.');
         return;
       }
       const data = await res.json();
@@ -981,7 +988,7 @@ export default function AskClient() {
       }
     } catch (err) {
       console.error('Failed to generate quiz:', err);
-      toast.error('Failed to generate quiz. Please try again.');
+      notify.error('Failed to generate quiz. Please try again.');
     } finally {
       setIsGeneratingQuiz(false);
     }

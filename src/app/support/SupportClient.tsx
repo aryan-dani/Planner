@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Check, Copy } from "lucide-react";
 import { auth } from "@/lib/firebase";
 import { onAuthStateChanged, type User as FirebaseUser } from "firebase/auth";
-import { toast } from "sonner";
+import { notify } from "@/lib/toast";
 import Link from "next/link";
 
 const UPI_ID = process.env.NEXT_PUBLIC_UPI_ID || "daniaryan212@okicici";
@@ -55,12 +55,16 @@ export default function SupportClient() {
 
   const handleCopyUPI = async () => {
     try {
-      await navigator.clipboard.writeText(UPI_ID);
+      await notify.promise(navigator.clipboard.writeText(UPI_ID), {
+        loading: "Copying…",
+        success: "UPI ID copied",
+        error: "Could not copy UPI ID",
+        id: "support-upi-copy",
+      });
       setIsCopied(true);
-      toast.success("UPI ID copied");
       setTimeout(() => setIsCopied(false), 2000);
     } catch {
-      toast.error("Could not copy UPI ID");
+      // notify.promise already surfaced the error
     }
   };
 
@@ -70,40 +74,49 @@ export default function SupportClient() {
   const handleSubmitMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (amount <= 0) {
-      toast.error("Choose an amount first");
+      notify.error("Choose an amount first");
+      return;
+    }
+
+    const user = auth.currentUser;
+    if (!user) {
+      notify.error("Sign in to send a support message");
       return;
     }
 
     setIsSubmitting(true);
     try {
-      const user = auth.currentUser;
-      if (!user) {
-        toast.error("Sign in to send a support message");
-        return;
-      }
-      const idToken = await user.getIdToken();
-      const res = await fetch("/api/support", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${idToken}`,
-        },
-        body: JSON.stringify({
-          name: formName,
-          email: formEmail,
-          txnId: formTxnId.trim(),
-          message: formMessage.trim(),
-          amount,
-        }),
-      });
-      if (!res.ok) throw new Error(await res.text());
+      await notify.promise(
+        (async () => {
+          const idToken = await user.getIdToken();
+          const res = await fetch("/api/support", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${idToken}`,
+            },
+            body: JSON.stringify({
+              name: formName,
+              email: formEmail,
+              txnId: formTxnId.trim(),
+              message: formMessage.trim(),
+              amount,
+            }),
+          });
+          if (!res.ok) throw new Error(await res.text());
+        })(),
+        {
+          loading: "Sending message…",
+          success: "Thanks. Message saved.",
+          error: "Could not send message",
+          id: "support-submit",
+        }
+      );
       setIsSubmitted(true);
-      toast.success("Thanks. Message saved.");
       setFormTxnId("");
       setFormMessage("");
-    } catch (error) {
-      console.error("Error saving support message:", error);
-      toast.error("Could not send message");
+    } catch {
+      // notify.promise already surfaced the error
     } finally {
       setIsSubmitting(false);
     }

@@ -35,7 +35,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { auth, db } from '@/lib/firebase';
 import { collection, query, where, getDocs, doc, setDoc, updateDoc } from 'firebase/firestore';
-import { toast } from 'sonner';
+import { notify } from '@/lib/toast';
 import { parseUnitKey, unitFolderId } from '@/lib/resourceGroups';
 import { buildResourcesHref } from '@/lib/resourceUrl';
 import AcademicBreadcrumb from '@/components/AcademicBreadcrumb';
@@ -339,7 +339,7 @@ export default function SyllabusClient() {
     planData[scheduleDate].push(newTask);
 
     localStorage.setItem(key, JSON.stringify({ data: planData, meta: planMeta }));
-    toast.success(`Scheduled task on ${scheduleDate}!`);
+    notify.success(`Scheduled task on ${scheduleDate}`);
 
     const user = auth.currentUser;
     if (user) {
@@ -371,7 +371,7 @@ export default function SyllabusClient() {
             updated_at: new Date().toISOString()
           });
         }
-        toast.success('Synced to Cloud Planner');
+        notify.success('Synced to Cloud Planner');
       } catch (err) {
         console.error('Firebase sync error:', err);
       }

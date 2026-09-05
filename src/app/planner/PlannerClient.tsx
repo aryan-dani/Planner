@@ -13,7 +13,7 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { logActivity } from '@/lib/activity';
 import { parsePrompt, mergeEntries } from '@/lib/promptParser';
 import { plannerStorageKey } from '@/lib/plannerStorage';
-import { toast } from 'sonner';
+import { notify } from '@/lib/toast';
 import { Button, Modal } from '@/components/ui';
 import { authFetch } from '@/lib/authFetch';
 import { getSoonestUpcomingExam } from '@/lib/examCountdown';
@@ -407,7 +407,7 @@ function PromptModal({
       console.error(err);
       const message = err instanceof Error ? err.message : 'An error occurred while parsing the study plan.';
       setError(message);
-      toast.error(message);
+      notify.error(err, 'Could not parse study plan');
     } finally {
       setLoading(false);
     }
@@ -572,15 +572,23 @@ function ShareModal({
 
   const handleCopy = () => {
     const shareUrl = `${window.location.origin}${sharePath}`;
-    navigator.clipboard.writeText(shareUrl);
-    setCopied(true);
-    toast.success('Link copied!');
-    setTimeout(() => setCopied(false), 2000);
+    void notify.promise(
+      navigator.clipboard.writeText(shareUrl).then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      }),
+      {
+        loading: 'Copying…',
+        success: 'Link copied',
+        error: 'Could not copy',
+        id: 'planner-link-copy',
+      }
+    );
   };
 
   const handleInvite = () => {
     if (!email.trim() || !email.includes('@')) {
-      toast.error('Enter a valid email address');
+      notify.error('Enter a valid email address');
       return;
     }
     onAddCollaborator(email.trim(), role);
@@ -1005,7 +1013,7 @@ export default function PlannerClient() {
       }
     } catch (e) {
       console.error(e);
-      toast.error('Could not load plan from cloud.');
+      notify.error('Could not load plan from cloud.');
     } finally {
       cloudHydratingRef.current = false;
       setSyncing(false);
@@ -1087,7 +1095,7 @@ export default function PlannerClient() {
       setLastSynced(new Date());
     } catch (e) {
       console.error('Sync error:', e);
-      toast.error('Cloud sync failed. Changes are still saved locally.');
+      notify.error('Cloud sync failed. Changes are still saved locally.');
     } finally {
       setSyncing(false);
     }
@@ -1134,7 +1142,7 @@ export default function PlannerClient() {
       ...prev,
       [date]: (prev[date] || []).filter(t => t.id !== taskId),
     }));
-    toast.message('Task deleted', {
+    notify.message('Task deleted', {
       action: {
         label: 'Undo',
         onClick: () => undoLastChange(),
@@ -1172,7 +1180,7 @@ export default function PlannerClient() {
     setPlanData(prev => {
       const { plan, propagated } = applyRecurringToggle(prev, date, taskId, generateId);
       if (propagated) {
-        toast.success('Task recurring rule propagated through this month');
+        notify.success('Task recurring rule propagated through this month');
       }
       return plan;
     });
@@ -1216,7 +1224,7 @@ export default function PlannerClient() {
   // ── Prompt apply ──
   const handlePromptApply = (entries: ReturnType<typeof parsePrompt>) => {
     setPlanData(prev => mergeEntries(prev, entries));
-    toast.success(`Added ${entries.reduce((s, e) => s + e.tasks.length, 0)} tasks across ${entries.length} days`);
+    notify.success(`Added ${entries.reduce((s, e) => s + e.tasks.length, 0)} tasks across ${entries.length} days`);
   };
 
   // ── Navigation ──
@@ -1240,61 +1248,76 @@ export default function PlannerClient() {
   const togglePublic = async () => {
     const newVal = !planMeta.is_public;
     setPlanMeta(prev => ({ ...prev, is_public: newVal }));
-    toast.success(newVal ? 'Plan is now public' : 'Plan is now private');
+    notify.success(newVal ? 'Plan is now public' : 'Plan is now private');
   };
 
   const addCollaborator = async (email: string, role: 'editor' | 'viewer') => {
     if (!planMeta.id) {
-      toast.error('Save your plan to the cloud first');
+      notify.error('Save your plan to the cloud first');
       return;
     }
+    if (!auth.currentUser) return;
+
     try {
-      if (!auth.currentUser) return;
+      await notify.promise(
+        (async () => {
+          const res = await authFetch('/api/planner/collaborators', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              planId: planMeta.id,
+              email,
+              role
+            })
+          });
 
-      const res = await authFetch('/api/planner/collaborators', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          planId: planMeta.id,
-          email,
-          role
-        })
-      });
+          if (!res.ok) {
+            const errText = await res.text();
+            let parsedErr;
+            try { parsedErr = JSON.parse(errText); } catch {}
+            throw new Error(parsedErr?.error || errText);
+          }
 
-      if (!res.ok) {
-        const errText = await res.text();
-        let parsedErr;
-        try { parsedErr = JSON.parse(errText); } catch {}
-        throw new Error(parsedErr?.error || errText);
-      }
-
-      const resData = await res.json();
-      setCollaborators(prev => [...prev, resData.collaborator]);
-      toast.success(`Invited ${email} as ${role}`);
-    } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : 'Failed to invite';
-      toast.error(message);
-      console.error(e);
+          const resData = await res.json();
+          setCollaborators(prev => [...prev, resData.collaborator]);
+        })(),
+        {
+          loading: 'Inviting collaborator…',
+          success: `Invited ${email} as ${role}`,
+          error: 'Could not invite collaborator',
+          id: 'planner-invite',
+        }
+      );
+    } catch {
+      // notify.promise already surfaced the error
     }
   };
 
   const removeCollaborator = async (id: string) => {
+    if (!auth.currentUser) return;
+
     try {
-      if (!auth.currentUser) return;
+      await notify.promise(
+        (async () => {
+          const res = await authFetch(`/api/planner/collaborators?id=${id}`, {
+            method: 'DELETE',
+          });
 
-      const res = await authFetch(`/api/planner/collaborators?id=${id}`, {
-        method: 'DELETE',
-      });
+          if (!res.ok) throw new Error(await res.text());
 
-      if (!res.ok) throw new Error(await res.text());
-
-      setCollaborators(prev => prev.filter(c => c.id !== id));
-      toast.success('Collaborator removed');
-    } catch (e) {
-      toast.error('Failed to remove');
-      console.error(e);
+          setCollaborators(prev => prev.filter(c => c.id !== id));
+        })(),
+        {
+          loading: 'Removing collaborator…',
+          success: 'Collaborator removed',
+          error: 'Could not remove collaborator',
+          id: 'planner-remove-collaborator',
+        }
+      );
+    } catch {
+      // notify.promise already surfaced the error
     }
   };
 
@@ -1311,11 +1334,11 @@ export default function PlannerClient() {
   const undoLastChange = useCallback(() => {
     const prev = undoStackRef.current.pop();
     if (!prev) {
-      toast.message('Nothing to undo');
+      notify.message('Nothing to undo');
       return;
     }
     setPlanData(prev);
-    toast.success('Restored');
+    notify.success('Restored');
   }, [setPlanData]);
 
   const exportData = () => {
@@ -1364,7 +1387,7 @@ export default function PlannerClient() {
     a.download = `study-plan-${MONTH_NAMES[month - 1].toLowerCase()}-${year}.ics`;
     a.click();
     URL.revokeObjectURL(url);
-    toast.success('Calendar exported');
+    notify.success('Calendar exported');
   };
 
   const importData = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1378,9 +1401,9 @@ export default function PlannerClient() {
         pushUndoSnapshot();
         setPlanData(data);
         if (meta) setPlanMeta(meta);
-        toast.success(legacy ? 'Plan imported (legacy format)' : 'Plan imported');
+        notify.success(legacy ? 'Plan imported (legacy format)' : 'Plan imported');
       } catch {
-        toast.error('Invalid file format');
+        notify.error('Invalid file format');
       }
     };
     reader.readAsText(file);
@@ -1391,7 +1414,7 @@ export default function PlannerClient() {
     if (confirm(`Clear all tasks for ${MONTH_NAMES[month - 1]} ${year}?`)) {
       pushUndoSnapshot();
       setPlanData({});
-      toast.message('Month cleared', {
+      notify.message('Month cleared', {
         action: {
           label: 'Undo',
           onClick: () => undoLastChange(),
@@ -1707,7 +1730,7 @@ export default function PlannerClient() {
                           if (e.key === 'Enter') {
                             if (quickAddText.trim()) {
                               addTask(date, quickAddText.trim());
-                              toast.success('Task added');
+                              notify.success('Task added');
                             }
                             setQuickAddDate(null);
                             setQuickAddText('');
@@ -1719,7 +1742,7 @@ export default function PlannerClient() {
                         onBlur={() => {
                           if (quickAddText.trim()) {
                             addTask(date, quickAddText.trim());
-                            toast.success('Task added');
+                            notify.success('Task added');
                           }
                           setQuickAddDate(null);
                           setQuickAddText('');

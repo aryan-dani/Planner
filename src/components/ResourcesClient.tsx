@@ -27,7 +27,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import dynamic from "next/dynamic";
-import { toast } from "sonner";
+import { notify } from "@/lib/toast";
 import ResourceSection from "./resources/ResourceSection";
 import { cleanResourceTitle } from "@/lib/titleUtils";
 import { NotesDisclaimer } from "./NotesDisclaimer";
@@ -414,7 +414,7 @@ export default function ResourcesClient() {
         semester,
       });
       setFavoriteResources(next);
-      toast.success(
+      notify.success(
         next.some((f) => f.id === item.id)
           ? "Added to favorites"
           : "Removed from favorites",
@@ -474,10 +474,14 @@ export default function ResourcesClient() {
           ? `${window.location.origin}${href}`
           : href;
       try {
-        await navigator.clipboard.writeText(url);
-        toast.success("Share link copied");
+        await notify.promise(navigator.clipboard.writeText(url), {
+          loading: "Copying…",
+          success: "Share link copied",
+          error: "Could not copy link",
+          id: "resources-share-link",
+        });
       } catch {
-        toast.error("Could not copy link");
+        // notify.promise already surfaced the error
       }
     },
     [academicYear, branch, semester],
@@ -521,7 +525,7 @@ export default function ResourcesClient() {
           if (searchRequestId.current === requestId) {
             setContentResults([]);
             setIsSearchingContent(false);
-            toast.message("Sign in for content search");
+            notify.message("Sign in for content search");
           }
           return;
         }

@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic';
 import { PWAProvider } from '@/contexts/PWAContext';
 import { Toaster } from 'sonner';
 import NavigationProgress from './NavigationProgress';
+import { useMediaQuery } from '@/lib/clientHooks';
 
 const CommandPalette = dynamic(() => import('./CommandPalette'), { ssr: false });
 const PwaUpdater = dynamic(() => import('./pwa/PwaUpdater'), { ssr: false });
@@ -12,11 +13,17 @@ const PwaUpdater = dynamic(() => import('./pwa/PwaUpdater'), { ssr: false });
 
 function ToasterProvider() {
   const { theme } = useTheme();
-  
+  const isDesktop = useMediaQuery('(min-width: 768px)', false);
+
   return (
     <Toaster
       theme={theme as 'light' | 'dark' | 'system'}
-      position="bottom-right"
+      position={isDesktop ? 'bottom-right' : 'bottom-center'}
+      richColors
+      closeButton
+      visibleToasts={4}
+      duration={4000}
+      offset="max(1rem, env(safe-area-inset-bottom))"
       toastOptions={{
         className: 'font-sans',
       }}

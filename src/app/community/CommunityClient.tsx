@@ -24,7 +24,7 @@ import {
   Pin,
 } from "lucide-react";
 import { logActivity } from "@/lib/activity";
-import { toast } from "sonner";
+import { notify } from "@/lib/toast";
 import { Button, Badge, Card, Modal, Segmented } from "@/components/ui";
 import { authFetch } from "@/lib/authFetch";
 
@@ -113,7 +113,7 @@ export default function CommunityClient({
 
     const user = auth.currentUser;
     if (!user) {
-      toast.error("Sign in to upvote decks.");
+      notify.error("Sign in to upvote decks.");
       return;
     }
 
@@ -155,7 +155,7 @@ export default function CommunityClient({
           d.id === deckId ? { ...d, upvotes: currentUpvotes } : d,
         ),
       );
-      toast.error("Failed to upvote deck.");
+      notify.error("Could not upvote deck.");
     }
   };
 
@@ -169,19 +169,26 @@ export default function CommunityClient({
 
     setIsDeleting(deckId);
     try {
-      const res = await authFetch(`/api/community-decks/${deckId}`, {
-        method: "DELETE",
-      });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "Failed to delete");
-      }
-      setDecks((prev) => prev.filter((d) => d.id !== deckId));
-      toast.success("Deck deleted successfully");
-    } catch (err: unknown) {
-      console.error(err);
-      const message = err instanceof Error ? err.message : "Failed to delete deck";
-      toast.error(message);
+      await notify.promise(
+        (async () => {
+          const res = await authFetch(`/api/community-decks/${deckId}`, {
+            method: "DELETE",
+          });
+          if (!res.ok) {
+            const data = await res.json();
+            throw new Error(data.error || "Failed to delete");
+          }
+          setDecks((prev) => prev.filter((d) => d.id !== deckId));
+        })(),
+        {
+          loading: "Deleting deck…",
+          success: "Deck deleted",
+          error: "Could not delete deck",
+          id: "community-delete-deck",
+        }
+      );
+    } catch {
+      // notify.promise already surfaced the error
     } finally {
       setIsDeleting(null);
     }
@@ -209,30 +216,46 @@ export default function CommunityClient({
   };
 
   const handleCopyDeck = async (deck: CommunityDeck) => {
+    let full: CommunityDeck;
     try {
-      const full = await ensureDeckCards(deck);
-      initStore();
-      const newDeck = createDeck(full.title || "Community Deck");
-      const cards = (Array.isArray(full.flashcards) ? full.flashcards : [])
-        .map((card: { question?: string; answer?: string }) => ({
-          question: String(card?.question || "").trim(),
-          answer: String(card?.answer || "").trim(),
-        }))
-        .filter((card) => card.question.length > 0);
+      full = await ensureDeckCards(deck);
+    } catch {
+      notify.error("Could not save deck.");
+      return;
+    }
 
-      if (cards.length === 0) {
-        toast.error("This deck has no cards to save.");
-        return;
-      }
+    initStore();
+    const newDeck = createDeck(full.title || "Community Deck");
+    const cards = (Array.isArray(full.flashcards) ? full.flashcards : [])
+      .map((card: { question?: string; answer?: string }) => ({
+        question: String(card?.question || "").trim(),
+        answer: String(card?.answer || "").trim(),
+      }))
+      .filter((card) => card.question.length > 0);
 
-      addMultipleCards(newDeck.id, cards);
-      setCopiedDeckId(deck.id);
-      logActivity("community_deck_copied", 1);
-      toast.success(`Saved “${newDeck.name}” to SRS (${cards.length} cards)`);
+    if (cards.length === 0) {
+      notify.error("This deck has no cards to save.");
+      return;
+    }
+
+    try {
+      await notify.promise(
+        Promise.resolve().then(() => {
+          addMultipleCards(newDeck.id, cards);
+          setCopiedDeckId(deck.id);
+          logActivity("community_deck_copied", 1);
+        }),
+        {
+          loading: "Saving deck…",
+          success: `Saved “${newDeck.name}” to SRS (${cards.length} cards)`,
+          error: "Could not save deck",
+          id: "community-save-deck",
+        }
+      );
       router.push("/srs");
       setTimeout(() => setCopiedDeckId(null), 2000);
     } catch {
-      toast.error("Failed to save deck.");
+      // notify.promise already surfaced the error
     }
   };
 
@@ -243,7 +266,7 @@ export default function CommunityClient({
       setCurrentCardIdx(0);
       setShowAnswer(false);
     } catch {
-      toast.error("Failed to load deck.");
+      notify.error("Could not load deck.");
     }
   };
 

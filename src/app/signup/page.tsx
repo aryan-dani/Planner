@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState, Suspense } from "react";
 import Link from "next/link";
@@ -17,38 +17,7 @@ import {
   takeRememberedRedirectTo,
   linkGithubOverGoogleAccount,
 } from "@/lib/firebaseAuth";
-import { FirebaseError } from "firebase/app";
-
-function authErrorCode(err: unknown): string {
-  if (err instanceof FirebaseError) return err.code;
-  if (err instanceof Error) return err.message;
-  return String(err);
-}
-
-function getFriendlyErrorMessage(errorCode: string): string {
-  switch (errorCode) {
-    case "auth/invalid-email":
-      return "The email address is not formatted correctly.";
-    case "auth/user-disabled":
-      return "This user account has been disabled.";
-    case "auth/email-already-in-use":
-      return "An account with this email address already exists.";
-    case "auth/weak-password":
-      return "The password is too weak. Please use at least 6 characters.";
-    case "auth/popup-closed-by-user":
-      return "Sign-up was cancelled. Please try again.";
-    case "auth/popup-blocked":
-      return "The sign-in popup was blocked. Continue in this tab when prompted.";
-    case "auth/account-exists-with-different-credential":
-      return "This email is already used with Google. Sign in with Google, then you can link GitHub from your profile.";
-    case "auth/credential-already-in-use":
-      return "This GitHub login is already tied to another Utility account.";
-    case "auth/network-request-failed":
-      return "A network error occurred. Please check your internet connection.";
-    default:
-      return "An unexpected error occurred. Please try again later.";
-  }
-}
+import { describeError } from "@/lib/errors";
 
 function SignupContent() {
   const [email, setEmail] = useState("");
@@ -109,7 +78,7 @@ function SignupContent() {
       await createUserWithEmailAndPassword(auth, email, password);
       router.push(redirectTo);
     } catch (err: unknown) {
-      setError(getFriendlyErrorMessage(authErrorCode(err)));
+      setError(describeError(err));
       setLoading(false);
     }
   };
@@ -126,7 +95,7 @@ function SignupContent() {
       }
       router.push(redirectTo);
     } catch (err: unknown) {
-      setError(getFriendlyErrorMessage(authErrorCode(err)));
+      setError(describeError(err));
       setGoogleLoading(false);
     }
   };
@@ -150,11 +119,11 @@ function SignupContent() {
           return;
         }
       } catch (linkErr: unknown) {
-        setError(getFriendlyErrorMessage(authErrorCode(linkErr)));
+        setError(describeError(linkErr));
         setGithubLoading(false);
         return;
       }
-      setError(getFriendlyErrorMessage(authErrorCode(err)));
+      setError(describeError(err));
       setGithubLoading(false);
     }
   };
@@ -326,7 +295,7 @@ function SignupContent() {
               {loading ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  Creating account…
+                  Creating accountâ€¦
                 </>
               ) : (
                 "Create account"
@@ -354,7 +323,7 @@ export default function SignupPage() {
     <Suspense fallback={
       <div className="flex min-h-[calc(100vh-4rem)] flex-col items-center justify-center gap-3" role="status">
         <span className="loading-orb" aria-hidden />
-        <p className="text-xs font-medium text-muted tracking-wide">Loading…</p>
+        <p className="text-xs font-medium text-muted tracking-wide">Loadingâ€¦</p>
       </div>
     }>
       <SignupContent />

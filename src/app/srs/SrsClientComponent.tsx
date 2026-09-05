@@ -25,7 +25,7 @@ import {
 import { motion } from 'framer-motion';
 import { auth } from '@/lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
-import { toast } from 'sonner';
+import { notify } from '@/lib/toast';
 import { localDateKey } from '@/lib/dateLocal';
 
 function getTodayString() {
@@ -91,7 +91,7 @@ export default function SrsClient() {
     a.download = `deck-${deck.name.toLowerCase().replace(/\s+/g, '-')}.json`;
     a.click();
     URL.revokeObjectURL(url);
-    toast.success('Deck exported successfully');
+    notify.success('Deck exported');
   };
 
   const handleImportDeck = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -104,12 +104,12 @@ export default function SrsClient() {
         if (data.deckName && Array.isArray(data.cards)) {
           const newD = createDeck(data.deckName);
           addMultipleCards(newD.id, data.cards);
-          toast.success(`Imported deck "${data.deckName}" with ${data.cards.length} cards`);
+          notify.success(`Imported deck "${data.deckName}" with ${data.cards.length} cards`);
         } else {
-          toast.error('Invalid deck format. File must contain deckName and cards array.');
+          notify.error('Invalid deck format. File must contain deckName and cards array.');
         }
       } catch {
-        toast.error('Failed to parse JSON file.');
+        notify.error('Could not parse JSON file.');
       }
     };
     reader.readAsText(file);
@@ -160,7 +160,7 @@ export default function SrsClient() {
       : activeCards.filter(c => c.nextReviewDate <= today);
       
     if (queue.length === 0) {
-      if (starredOnly) toast.error("No starred cards in this deck.");
+      if (starredOnly) notify.error("No starred cards in this deck.");
       return;
     }
     

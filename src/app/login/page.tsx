@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect, Suspense, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
@@ -17,42 +17,7 @@ import {
   takeRememberedRedirectTo,
   linkGithubOverGoogleAccount,
 } from "@/lib/firebaseAuth";
-import { FirebaseError } from "firebase/app";
-
-function authErrorCode(err: unknown): string {
-  if (err instanceof FirebaseError) return err.code;
-  if (err instanceof Error) return err.message;
-  return String(err);
-}
-
-function getFriendlyErrorMessage(errorCode: string): string {
-  switch (errorCode) {
-    case "auth/invalid-email":
-      return "The email address is not formatted correctly.";
-    case "auth/user-disabled":
-      return "This user account has been disabled.";
-    case "auth/user-not-found":
-    case "auth/wrong-password":
-    case "auth/invalid-credential":
-      return "Incorrect email or password. Please try again.";
-    case "auth/email-already-in-use":
-      return "An account with this email address already exists.";
-    case "auth/weak-password":
-      return "The password is too weak. Please use at least 6 characters.";
-    case "auth/popup-closed-by-user":
-      return "Sign-in was cancelled. Please try again.";
-    case "auth/popup-blocked":
-      return "The sign-in popup was blocked. Continue in this tab when prompted.";
-    case "auth/account-exists-with-different-credential":
-      return "This email is already used with Google. Sign in with Google, then you can link GitHub from your profile.";
-    case "auth/credential-already-in-use":
-      return "This GitHub login is already tied to another Utility account.";
-    case "auth/network-request-failed":
-      return "A network error occurred. Please check your internet connection.";
-    default:
-      return "An unexpected error occurred. Please try again later.";
-  }
-}
+import { describeError } from "@/lib/errors";
 
 function LoginContent() {
   const [email, setEmail] = useState("");
@@ -125,7 +90,7 @@ function LoginContent() {
       await signInWithEmailAndPassword(auth, email, password);
       goAfterAuth(redirectTo);
     } catch (err: unknown) {
-      setError(getFriendlyErrorMessage(authErrorCode(err)));
+      setError(describeError(err));
       setLoading(false);
     }
   };
@@ -142,7 +107,7 @@ function LoginContent() {
       }
       goAfterAuth(redirectTo);
     } catch (err: unknown) {
-      setError(getFriendlyErrorMessage(authErrorCode(err)));
+      setError(describeError(err));
       setGoogleLoading(false);
     }
   };
@@ -166,11 +131,11 @@ function LoginContent() {
           return;
         }
       } catch (linkErr: unknown) {
-        setError(getFriendlyErrorMessage(authErrorCode(linkErr)));
+        setError(describeError(linkErr));
         setGithubLoading(false);
         return;
       }
-      setError(getFriendlyErrorMessage(authErrorCode(err)));
+      setError(describeError(err));
       setGithubLoading(false);
     }
   };
@@ -318,7 +283,7 @@ function LoginContent() {
                   autoComplete="current-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
+                  placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
                   className="w-full bg-background border border-border rounded-xl px-3 py-2.5 pr-10 text-sm outline-none focus:ring-0 focus-visible:ring-0 focus:border-foreground/40 text-foreground placeholder:text-muted transition-[border-color,box-shadow] duration-150 input-premium-focus"
                 />
                 <button
@@ -344,7 +309,7 @@ function LoginContent() {
               {loading ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  Signing in…
+                  Signing inâ€¦
                 </>
               ) : (
                 "Sign in"
@@ -372,7 +337,7 @@ export default function LoginPage() {
     <Suspense fallback={
       <div className="flex min-h-[calc(100vh-4rem)] flex-col items-center justify-center gap-3" role="status">
         <span className="loading-orb" aria-hidden />
-        <p className="text-xs font-medium text-muted tracking-wide">Loading…</p>
+        <p className="text-xs font-medium text-muted tracking-wide">Loadingâ€¦</p>
       </div>
     }>
       <LoginContent />
