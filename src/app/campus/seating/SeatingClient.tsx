@@ -2,8 +2,9 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Search, ChevronLeft, MapPin } from "lucide-react";
+import { Search, ChevronLeft } from "lucide-react";
 import type { FacultySeat } from "@/lib/ishani";
+import { PageHeader } from "@/components/ui";
 
 interface SeatingClientProps {
   initialSeating: FacultySeat[];
@@ -58,20 +59,15 @@ export default function SeatingClient({
           <ChevronLeft className="w-3.5 h-3.5" />
           Campus
         </Link>
-        <div className="flex items-center gap-2 mb-2">
-          <MapPin className="w-4 h-4 text-foreground shrink-0" />
-          <p className="text-xs font-bold uppercase tracking-widest text-muted">
-            Faculty seating
-          </p>
-        </div>
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">
-          Cabin & seating chart
-        </h1>
-        <p className="text-sm text-muted mt-1">
-          {configured
-            ? `${filtered.length} of ${seating.length} entries`
-            : "Campus data unavailable. Set ISHANI_API_URL to enable live seating."}
-        </p>
+        <PageHeader
+          eyebrow="Faculty seating"
+          title="Cabin & seating chart"
+          description={
+            configured
+              ? `${filtered.length} of ${seating.length} entries`
+              : "Campus data unavailable. Set ISHANI_API_URL to enable live seating."
+          }
+        />
       </div>
 
       {!configured ? (

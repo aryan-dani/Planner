@@ -42,7 +42,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import AcademicBreadcrumb from '@/components/AcademicBreadcrumb';
 import Link from 'next/link';
 import { buildResourcesHref, pageFromSectionLabel } from '@/lib/resourceUrl';
-import { Button, Select } from '@/components/ui';
+import { Button, Select, PageHeader } from '@/components/ui';
 import { SourceCardList, renderWithCitations } from '@/components/ask/SourceCard';
 import type { RetrievalSource } from '@/lib/rag/types';
 import { stripInvalidCitations, validMarkerSet } from '@/lib/agent/router';
@@ -1232,7 +1232,10 @@ export default function AskClient() {
                   <div className="w-16 h-16 bg-surface border border-border flex items-center justify-center mb-6 rounded-2xl shadow-sm">
                     <Brain className="w-8 h-8 text-foreground" />
                   </div>
-                  <h1 className="text-2xl font-bold text-foreground mb-4 tracking-tight">Academic AI Assistant</h1>
+                  <PageHeader
+                    className="mb-4 sm:flex-col sm:items-center [&_p]:hidden"
+                    title="Academic AI Assistant"
+                  />
                   <NotesDisclaimer compact className="mb-8 max-w-md mx-auto" />
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-px bg-border/60 rounded-xl overflow-hidden border border-border/70 shadow-sm w-full max-w-lg">

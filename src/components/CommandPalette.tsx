@@ -37,6 +37,7 @@ import { fetchAdminStatus } from '@/lib/adminStatus';
 import { workspaceQuery } from '@/lib/workspace';
 import { toast } from 'sonner';
 import { useIsMac } from '@/lib/clientHooks';
+import { Kbd, IconButton } from '@/components/ui';
 
 interface CommandItem {
   id: string;
@@ -587,7 +588,7 @@ export default function CommandPalette() {
   return (
     <AnimatePresence>
       {isCommandPaletteOpen && (
-        <div className="fixed inset-0 z-[300] flex items-start justify-center pt-[calc(4rem+env(safe-area-inset-top))] sm:pt-24 px-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+        <div className="fixed inset-0 z-launcher flex items-start justify-center pt-[calc(4rem+env(safe-area-inset-top))] sm:pt-24 px-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
           {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
@@ -595,7 +596,7 @@ export default function CommandPalette() {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.15 }}
             onClick={() => setCommandPaletteOpen(false)}
-            className="fixed inset-0 bg-black/50"
+            className="fixed inset-0 bg-background/80 backdrop-blur-sm"
           />
 
           {/* Modal */}
@@ -608,11 +609,11 @@ export default function CommandPalette() {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.97, y: -8 }}
             transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-            className="relative w-full max-w-2xl bg-card border border-border rounded-2xl shadow-popover overflow-hidden flex flex-col z-10"
+            className="relative w-full max-w-2xl os-window shadow-window flex flex-col z-10"
           >
 
             {/* Search Input Header */}
-            <div className="relative flex items-center px-4 py-3.5 border-b border-border bg-surface">
+            <div className="relative flex items-center px-4 py-3 border-b border-border bg-card">
               <Search className="w-5 h-5 text-muted shrink-0 mr-3" />
               <input
                 ref={inputRef}
@@ -623,17 +624,16 @@ export default function CommandPalette() {
                 className="flex-1 bg-transparent border-none outline-none text-base font-medium text-foreground placeholder:text-muted/50 pr-4 focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0"
               />
               {query && (
-                <button
+                <IconButton
+                  size="sm"
+                  label="Clear search"
                   onClick={() => setQuery('')}
-                  className="tap-target text-muted hover:text-foreground rounded-md transition-colors mr-2 bg-surface/40 hover:bg-surface"
-                  aria-label="Clear search"
+                  className="mr-2"
                 >
                   <X className="w-4 h-4" />
-                </button>
+                </IconButton>
               )}
-              <span className="hidden sm:inline-flex px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-surface/55 border border-border/80 text-muted rounded shadow-sm">
-                ESC
-              </span>
+              <Kbd className="hidden sm:inline-flex">Esc</Kbd>
             </div>
 
             {/* Results List */}

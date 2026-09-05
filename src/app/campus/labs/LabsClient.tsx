@@ -2,8 +2,9 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Search, ChevronLeft, FlaskConical } from "lucide-react";
+import { Search, ChevronLeft } from "lucide-react";
 import type { LabFacility } from "@/lib/ishani";
+import { PageHeader } from "@/components/ui";
 
 interface LabsClientProps {
   initialLabs: LabFacility[];
@@ -57,20 +58,15 @@ export default function LabsClient({
           <ChevronLeft className="w-3.5 h-3.5" />
           Campus
         </Link>
-        <div className="flex items-center gap-2 mb-2">
-          <FlaskConical className="w-4 h-4 text-foreground shrink-0" />
-          <p className="text-xs font-bold uppercase tracking-widest text-muted">
-            Lab registry
-          </p>
-        </div>
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">
-          Campus labs
-        </h1>
-        <p className="text-sm text-muted mt-1">
-          {configured
-            ? `${filtered.length} of ${labs.length} labs`
-            : "Campus data unavailable. Set ISHANI_API_URL to enable the lab registry."}
-        </p>
+        <PageHeader
+          eyebrow="Lab registry"
+          title="Campus labs"
+          description={
+            configured
+              ? `${filtered.length} of ${labs.length} labs`
+              : "Campus data unavailable. Set ISHANI_API_URL to enable the lab registry."
+          }
+        />
       </div>
 
       {!configured ? (

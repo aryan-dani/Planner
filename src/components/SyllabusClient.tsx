@@ -40,7 +40,7 @@ import { parseUnitKey, unitFolderId } from '@/lib/resourceGroups';
 import { buildResourcesHref } from '@/lib/resourceUrl';
 import AcademicBreadcrumb from '@/components/AcademicBreadcrumb';
 import Link from 'next/link';
-import { Button, Card, Badge, Input, Select, Segmented, Modal } from '@/components/ui';
+import { Button, Card, Badge, Input, Select, Segmented, Modal, PageHeader } from '@/components/ui';
 import { useWorkspaceResources } from '@/lib/useWorkspaceResources';
 import { useIsClient } from '@/lib/clientHooks';
 import type { Task } from '@/app/planner/PlannerClient';
@@ -483,7 +483,7 @@ export default function SyllabusClient() {
 
   if (!mounted || catalogLoading) {
     return (
-      <div className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 py-12 flex justify-center items-center h-[50vh]">
+      <div className="flex-1 w-full max-w-7xl mx-auto page-gutter py-12 flex justify-center items-center h-[50vh]">
         <span className="text-sm font-semibold text-muted">
           {catalogLoading ? "Loading syllabus…" : "Initializing dashboard..."}
         </span>
@@ -492,38 +492,31 @@ export default function SyllabusClient() {
   }
 
   return (
-    <div className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 py-8 min-h-[90vh] relative">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 border-b border-border pb-6 relative z-10">
-        <div>
-          <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-foreground">
-            Syllabus
-          </h1>
-          <AcademicBreadcrumb
-            branch={branch}
-            semester={semester}
-            crumbs={[{ label: "Syllabus" }]}
-            className="mt-2"
-          />
-          <p className="text-foreground-subtle text-sm mt-1.5">
-            {filtered.length} course{filtered.length !== 1 ? 's' : ''} · units link into the Resource Vault
-          </p>
-          <NotesDisclaimer compact className="mt-3 max-w-xl" />
-        </div>
-
-        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
-          {syllabusUrl && (
-            <Button
-              variant="primary"
-              size="md"
-              className="shrink-0 rounded-lg"
-              onClick={() => window.open(syllabusUrl, "_blank", "noopener,noreferrer")}
-            >
-              <FileText className="w-4 h-4" />
-              Open PDF
-            </Button>
-          )}
-        </div>
+    <div className="flex-1 w-full max-w-7xl mx-auto page-gutter py-8 min-h-[90vh] relative">
+      <div className="mb-8 border-b border-border pb-6 relative z-10 space-y-3">
+        <PageHeader
+          title="Syllabus"
+          description={`${filtered.length} course${filtered.length !== 1 ? 's' : ''} · units link into the Resource Vault`}
+          actions={
+            syllabusUrl ? (
+              <Button
+                variant="primary"
+                size="md"
+                className="shrink-0 rounded-lg"
+                onClick={() => window.open(syllabusUrl, "_blank", "noopener,noreferrer")}
+              >
+                <FileText className="w-4 h-4" />
+                Open PDF
+              </Button>
+            ) : undefined
+          }
+        />
+        <AcademicBreadcrumb
+          branch={branch}
+          semester={semester}
+          crumbs={[{ label: "Syllabus" }]}
+        />
+        <NotesDisclaimer compact className="max-w-xl" />
       </div>
 
       {/* Progress */}

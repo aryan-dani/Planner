@@ -66,7 +66,7 @@ import {
 import { getReadingProgress } from "@/lib/readingProgress";
 import { authFetch } from "@/lib/authFetch";
 import { useWorkspaceResources } from "@/lib/useWorkspaceResources";
-import { Button, Card, Badge } from "@/components/ui";
+import { Button, Card, Badge, PageHeader, Input } from "@/components/ui";
 import PageSkeleton from "@/components/PageSkeleton";
 import type { RAGSearchResult } from "@/lib/ragSearch";
 
@@ -751,16 +751,12 @@ export default function ResourcesClient() {
 
   return (
     <div className="flex-1 w-full max-w-7xl mx-auto page-gutter py-8 min-h-[80vh]">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-3 gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">
-            Resource Vault
-          </h1>
-          <p className="text-muted text-sm mt-1">
-            {branch} · Semester {semester} · {resources.length} files
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        className="mb-3"
+        eyebrow="Vault"
+        title="Resource Vault"
+        description={`${branch} · Semester ${semester} · ${resources.length} files`}
+      />
 
       {/* Breadcrumb trail */}
       <nav
@@ -1038,12 +1034,12 @@ export default function ResourcesClient() {
 
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted pointer-events-none" />
-                    <input
+                    <Input
                       type="search"
                       value={searchQuery}
                       onChange={(e) => handleVaultSearch(e.target.value)}
                       placeholder="Search files… (3+ chars for content match)"
-                      className="w-full rounded-xl border border-border bg-background pl-9 pr-3 py-2 text-sm text-foreground placeholder:text-muted outline-none focus:border-foreground/30 focus:ring-1 focus:ring-foreground/10"
+                      className="pl-9 rounded-xl"
                       aria-label="Search vault"
                     />
                   </div>

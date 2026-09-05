@@ -4,7 +4,7 @@ import type { ButtonHTMLAttributes, ReactNode } from "react";
 import { cn } from "@/lib/cn";
 
 export type ButtonVariant = "primary" | "secondary" | "ghost" | "destructive";
-export type ButtonSize = "sm" | "md" | "lg";
+export type ButtonSize = "sm" | "md" | "lg" | "icon";
 
 const variantClasses: Record<ButtonVariant, string> = {
   primary:
@@ -21,6 +21,7 @@ const sizeClasses: Record<ButtonSize, string> = {
   sm: "min-h-8 px-3 text-xs gap-1.5",
   md: "min-h-11 px-4 text-sm gap-2",
   lg: "min-h-12 px-5 text-sm gap-2",
+  icon: "min-h-11 min-w-11 h-11 w-11 sm:min-h-9 sm:min-w-9 sm:h-9 sm:w-9 px-0",
 };
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {

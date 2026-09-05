@@ -27,6 +27,7 @@ import { auth } from '@/lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { notify } from '@/lib/toast';
 import { localDateKey } from '@/lib/dateLocal';
+import { PageHeader } from '@/components/ui';
 
 function getTodayString() {
   return localDateKey();
@@ -296,42 +297,37 @@ export default function SrsClient() {
       {view === 'dashboard' && (
         <div className="space-y-8">
           
-          {/* Header */}
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-6 border-b border-border">
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight text-foreground">Flashcards (SRS)</h1>
-              <p className="text-xs text-muted mt-1">
-                Active Leitner spacing system. Review due terms to lock them in long-term memory.
-              </p>
-            </div>
-            
-            <div className="flex items-center gap-2">
-              {/* Import button */}
-              <button
-                onClick={() => srsFileInputRef.current?.click()}
-                className="inline-flex items-center gap-1.5 text-xs font-semibold border border-border bg-surface hover:bg-surface-hover rounded-xl px-4 py-2.5 transition-all text-foreground"
-                title="Import Deck from JSON"
-              >
-                <Upload className="w-4 h-4" />
-                Import Deck
-              </button>
-              <input
-                ref={srsFileInputRef}
-                type="file"
-                accept=".json"
-                className="hidden"
-                onChange={handleImportDeck}
-              />
-              
-              <button
-                onClick={() => setShowCreateDeckModal(true)}
-                className="inline-flex items-center gap-1.5 text-xs font-semibold text-background bg-foreground hover:bg-foreground/90 rounded-xl px-4 py-2.5 transition-all shadow-sm"
-              >
-                <Plus className="w-4 h-4" />
-                Create Deck
-              </button>
-            </div>
-          </div>
+          <PageHeader
+            className="pb-6 border-b border-border"
+            title="Flashcards (SRS)"
+            description="Active Leitner spacing system. Review due terms to lock them in long-term memory."
+            actions={
+              <>
+                <button
+                  onClick={() => srsFileInputRef.current?.click()}
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold border border-border bg-surface hover:bg-surface-hover rounded-xl px-4 py-2.5 transition-all text-foreground"
+                  title="Import Deck from JSON"
+                >
+                  <Upload className="w-4 h-4" />
+                  Import Deck
+                </button>
+                <input
+                  ref={srsFileInputRef}
+                  type="file"
+                  accept=".json"
+                  className="hidden"
+                  onChange={handleImportDeck}
+                />
+                <button
+                  onClick={() => setShowCreateDeckModal(true)}
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-background bg-foreground hover:bg-foreground/90 rounded-xl px-4 py-2.5 transition-all shadow-sm"
+                >
+                  <Plus className="w-4 h-4" />
+                  Create Deck
+                </button>
+              </>
+            }
+          />
 
           {/* Review Finished Notification Banner */}
           {reviewSummary && (reviewSummary.gotIt > 0 || reviewSummary.forgot > 0) && (

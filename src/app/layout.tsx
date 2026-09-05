@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from 'next';
 import { Inter, Newsreader } from 'next/font/google';
-import Script from 'next/script';
 import { Suspense } from 'react';
 import './globals.css';
 import Navigation from '@/components/Navigation';
@@ -80,12 +79,15 @@ export default function RootLayout({
       className={`${inter.variable} ${newsreader.variable}`}
       suppressHydrationWarning
     >
-      <body className={`${inter.className} antialiased min-h-screen bg-background text-foreground overflow-x-hidden`}>
-        <Script
+      {/* Inline in <head> so it runs before paint; next/script beforeInteractive
+          triggers a React 19 client warning when rendered in <body>. */}
+      <head>
+        <script
           id="utility-sw-recovery"
-          strategy="beforeInteractive"
           dangerouslySetInnerHTML={{ __html: SW_RECOVERY_SCRIPT }}
         />
+      </head>
+      <body className={`${inter.className} antialiased min-h-screen bg-background text-foreground overflow-x-hidden`}>
         <a
           href="#main-content"
           className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[9999] focus:rounded-md focus:bg-foreground focus:px-4 focus:py-2 focus:text-sm focus:text-background"

@@ -14,7 +14,7 @@ import { logActivity } from '@/lib/activity';
 import { parsePrompt, mergeEntries } from '@/lib/promptParser';
 import { plannerStorageKey } from '@/lib/plannerStorage';
 import { notify } from '@/lib/toast';
-import { Button, Modal } from '@/components/ui';
+import { Button, Modal, PageHeader } from '@/components/ui';
 import { authFetch } from '@/lib/authFetch';
 import { getSoonestUpcomingExam } from '@/lib/examCountdown';
 import { useIsClient } from '@/lib/clientHooks';
@@ -1444,30 +1444,30 @@ export default function PlannerClient() {
     <div className="flex-1 w-full min-w-0 page-gutter py-8 max-w-7xl mx-auto min-h-[80vh]">
       {/* ── Header ── */}
       <div className="flex flex-col gap-4 mb-6 pb-5 border-b border-border min-w-0">
-        {/* Title row */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 min-w-0">
-          <div className="flex items-center gap-3 min-w-0 w-full sm:w-auto">
-            {editingTitle ? (
+        <PageHeader
+          className="min-w-0"
+          title={
+            editingTitle ? (
               <input
                 autoFocus
                 value={planMeta.title}
                 onChange={(e) => setPlanMeta(prev => ({ ...prev, title: e.target.value }))}
                 onBlur={() => setEditingTitle(false)}
                 onKeyDown={(e) => e.key === 'Enter' && setEditingTitle(false)}
-                className="text-2xl font-bold tracking-tight text-foreground bg-transparent border-b-2 border-foreground outline-none w-full min-w-0 max-w-full"
+                className="font-display text-2xl sm:text-3xl tracking-tight text-foreground bg-transparent border-b-2 border-foreground outline-none w-full min-w-0 max-w-full"
               />
             ) : (
-              <h1
-                className="text-2xl font-bold tracking-tight text-foreground cursor-pointer hover:opacity-70 transition-opacity break-words min-w-0"
+              <span
+                className="cursor-pointer hover:opacity-70 transition-opacity break-words min-w-0"
                 onClick={() => setEditingTitle(true)}
                 title="Click to rename"
               >
                 {planMeta.title}
-              </h1>
-            )}
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2 min-w-0 w-full sm:w-auto">
+              </span>
+            )
+          }
+          actions={
+            <div className="flex flex-wrap items-center gap-2 min-w-0 w-full sm:w-auto">
             {upcomingExam && (
               <span
                 className="inline-flex items-center gap-1.5 text-xs font-semibold text-foreground border border-border rounded-full px-2.5 py-1 bg-surface"
@@ -1591,8 +1591,9 @@ export default function PlannerClient() {
               )}
             </div>
             <input ref={fileInputRef} type="file" accept=".json" className="hidden" onChange={importData} />
-          </div>
-        </div>
+            </div>
+          }
+        />
 
         {/* Month nav + progress */}
         <div className="flex flex-col gap-3 min-w-0">

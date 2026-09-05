@@ -5,12 +5,12 @@ import Link from "next/link";
 import {
   Search,
   ChevronLeft,
-  BookUser,
   Mail,
   ExternalLink,
   X,
 } from "lucide-react";
 import type { StaffMember } from "@/lib/ishani";
+import { PageHeader } from "@/components/ui";
 
 const FACULTY_GROUP_ORDER = [
   "B.Tech Computer Science & Engineering",
@@ -98,20 +98,15 @@ export default function DirectoryClient({
           <ChevronLeft className="w-3.5 h-3.5" />
           Campus
         </Link>
-        <div className="flex items-center gap-2 mb-2">
-          <BookUser className="w-4 h-4 text-foreground shrink-0" />
-          <p className="text-xs font-bold uppercase tracking-widest text-muted">
-            Faculty directory
-          </p>
-        </div>
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">
-          Staff directory
-        </h1>
-        <p className="text-sm text-muted mt-1">
-          {configured
-            ? `${filtered.length} of ${staff.length} people`
-            : "Campus data unavailable. Set ISHANI_API_URL to enable the directory."}
-        </p>
+        <PageHeader
+          eyebrow="Faculty directory"
+          title="Staff directory"
+          description={
+            configured
+              ? `${filtered.length} of ${staff.length} people`
+              : "Campus data unavailable. Set ISHANI_API_URL to enable the directory."
+          }
+        />
       </div>
 
       {!configured ? (

@@ -22,6 +22,7 @@ import {
 import { matchCachedDriveFile, type DriveFetchProgress } from "@/lib/driveFileCache";
 import { setReadingProgress } from "@/lib/readingProgress";
 import { cn } from "@/lib/cn";
+import { IconButton, Input, Kbd, Toolbar, ToolbarGroup } from "@/components/ui";
 
 export type PdfPreviewHandle = {
   /** Returns true if find UI was open and is now closed. */
@@ -445,16 +446,15 @@ const PdfPreview = forwardRef<PdfPreviewHandle, PdfPreviewProps>(
 
     return (
       <div className="relative h-full w-full flex flex-col bg-background">
-        <div className="flex flex-wrap items-center gap-2 overflow-x-auto border-b border-border bg-card/95 px-3 py-2 text-xs shrink-0">
-          <div className="flex items-center gap-1 rounded-lg border border-border bg-background px-1.5 py-1">
-            <button
-              type="button"
+        <Toolbar className="shrink-0">
+          <ToolbarGroup>
+            <IconButton
+              size="sm"
+              label="Previous page"
               onClick={() => scrollToPage(Math.max(1, page - 1))}
-              className="tap-target rounded-md text-muted hover:text-foreground hover:bg-surface"
-              aria-label="Previous page"
             >
               <ChevronLeft className="h-3.5 w-3.5" />
-            </button>
+            </IconButton>
             <input
               value={jumpValue}
               onChange={(e) => setJumpValue(e.target.value.replace(/[^\d]/g, ""))}
@@ -467,48 +467,45 @@ const PdfPreview = forwardRef<PdfPreviewHandle, PdfPreviewProps>(
                   scrollToPage(n);
                 }
               }}
-              className="w-10 bg-transparent text-center font-semibold text-foreground outline-none"
+              className="w-10 bg-transparent text-center text-xs font-semibold text-foreground outline-none"
               aria-label="Page number"
             />
-            <span className="text-muted tabular-nums pr-1">/ {pageCount || "—"}</span>
-            <button
-              type="button"
+            <span className="text-muted tabular-nums pr-1 text-xs">/ {pageCount || "—"}</span>
+            <IconButton
+              size="sm"
+              label="Next page"
               onClick={() => scrollToPage(Math.min(pageCount, page + 1))}
-              className="tap-target rounded-md text-muted hover:text-foreground hover:bg-surface"
-              aria-label="Next page"
             >
               <ChevronRight className="h-3.5 w-3.5" />
-            </button>
-          </div>
+            </IconButton>
+          </ToolbarGroup>
 
-          <div className="flex items-center gap-1 rounded-lg border border-border bg-background px-1.5 py-1">
-            <button
-              type="button"
+          <ToolbarGroup>
+            <IconButton
+              size="sm"
+              label="Zoom out"
               onClick={() => setScale((s) => Math.max(0.7, +(s - 0.15).toFixed(2)))}
-              className="tap-target rounded-md text-muted hover:text-foreground hover:bg-surface"
-              aria-label="Zoom out"
             >
               <ZoomOut className="h-3.5 w-3.5" />
-            </button>
-            <span className="w-10 text-center font-semibold tabular-nums">
+            </IconButton>
+            <span className="w-10 text-center text-xs font-semibold tabular-nums">
               {Math.round(scale * 100)}%
             </span>
-            <button
-              type="button"
+            <IconButton
+              size="sm"
+              label="Zoom in"
               onClick={() => setScale((s) => Math.min(2.4, +(s + 0.15).toFixed(2)))}
-              className="tap-target rounded-md text-muted hover:text-foreground hover:bg-surface"
-              aria-label="Zoom in"
             >
               <ZoomIn className="h-3.5 w-3.5" />
-            </button>
+            </IconButton>
             <button
               type="button"
               onClick={() => setScale(1)}
-              className="px-1.5 min-h-11 rounded-md text-[10px] font-bold uppercase tracking-wide text-muted hover:text-foreground"
+              className="px-1.5 min-h-8 rounded-md text-2xs font-bold uppercase tracking-wide text-muted hover:text-foreground"
             >
               Fit
             </button>
-          </div>
+          </ToolbarGroup>
 
           <button
             type="button"
@@ -519,7 +516,7 @@ const PdfPreview = forwardRef<PdfPreviewHandle, PdfPreviewProps>(
               requestAnimationFrame(() => findInputRef.current?.focus());
             }}
             className={cn(
-              "flex min-h-11 items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 font-semibold",
+              "inline-flex min-h-8 items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 text-xs font-semibold",
               textReady
                 ? "text-muted hover:text-foreground"
                 : "text-muted/50 cursor-not-allowed",
@@ -529,21 +526,22 @@ const PdfPreview = forwardRef<PdfPreviewHandle, PdfPreviewProps>(
             {textReady ? (
               <>
                 Find
-                <kbd className="hidden sm:inline text-[10px] opacity-60">Ctrl F</kbd>
+                <Kbd className="hidden sm:inline-flex ml-0.5">Ctrl F</Kbd>
               </>
             ) : (
               "Indexing…"
             )}
           </button>
 
-          <span className="ml-auto truncate text-muted hidden md:inline">{title}</span>
-        </div>
+          <span className="ml-auto truncate text-muted text-xs hidden md:inline">{title}</span>
+        </Toolbar>
 
         {findOpen && (
-          <div className="shrink-0 border-b border-border bg-card px-3 py-2 flex items-center gap-2 animate-in fade-in slide-in-from-top-2">
+          <div className="shrink-0 border-b border-border bg-card px-3 py-2 flex items-center gap-2">
             <Search className="h-3.5 w-3.5 text-muted shrink-0" />
-            <input
+            <Input
               ref={findInputRef}
+              inputSize="sm"
               value={findQuery}
               onChange={(e) => setFindQuery(e.target.value)}
               onKeyDown={(e) => {
@@ -557,40 +555,25 @@ const PdfPreview = forwardRef<PdfPreviewHandle, PdfPreviewProps>(
                 }
               }}
               placeholder="Find in document"
-              className="flex-1 min-w-0 bg-transparent text-sm outline-none text-foreground placeholder:text-muted"
+              className="flex-1 min-w-0 border-0 bg-transparent shadow-none px-0"
               autoFocus
             />
-            <span className="text-[11px] font-semibold tabular-nums text-muted shrink-0">
+            <span className="text-2xs font-semibold tabular-nums text-muted shrink-0">
               {hits.length === 0
                 ? findQuery.trim()
                   ? "0 matches"
                   : ""
                 : `${hitIndex + 1} / ${hits.length}`}
             </span>
-            <button
-              type="button"
-              onClick={() => goHit(-1)}
-              className="tap-target rounded-md border border-border text-muted hover:text-foreground"
-              aria-label="Previous match"
-            >
+            <IconButton size="sm" label="Previous match" onClick={() => goHit(-1)}>
               <ChevronLeft className="h-3.5 w-3.5" />
-            </button>
-            <button
-              type="button"
-              onClick={() => goHit(1)}
-              className="tap-target rounded-md border border-border text-muted hover:text-foreground"
-              aria-label="Next match"
-            >
+            </IconButton>
+            <IconButton size="sm" label="Next match" onClick={() => goHit(1)}>
               <ChevronRight className="h-3.5 w-3.5" />
-            </button>
-            <button
-              type="button"
-              onClick={() => setFindOpen(false)}
-              className="tap-target rounded-md text-muted hover:text-foreground"
-              aria-label="Close find"
-            >
+            </IconButton>
+            <IconButton size="sm" label="Close find" onClick={() => setFindOpen(false)}>
               <X className="h-3.5 w-3.5" />
-            </button>
+            </IconButton>
           </div>
         )}
 

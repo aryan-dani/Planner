@@ -39,11 +39,11 @@ import {
   CalendarCheck,
   ExternalLink,
   CheckCircle2,
-  Sparkles,
   HardDrive,
 } from "lucide-react";
 import { clearDriveFileCache } from "@/lib/driveFileCache";
 import { ScopeSelector } from "@/components/academic/ScopeSelector";
+import { PageHeader } from "@/components/ui";
 
 // Helper to generate self-contained SVG base64 Data URLs for monochrome avatars
 function generateAvatarDataUrl(emoji: string, gradientStart: string, gradientEnd: string): string {
@@ -489,7 +489,7 @@ export default function ProfileClientComponent() {
   ] as const;
 
   return (
-    <div className="min-h-screen bg-background relative px-4 md:px-8 py-6 md:py-12 overflow-x-hidden">
+    <div className="min-h-screen bg-background relative page-gutter py-6 md:py-12 overflow-x-hidden">
       {/* Ambient background glow */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none -z-10">
         <div className="absolute top-[10%] left-[20%] w-[40vw] h-[40vw] rounded-full bg-primary/3 blur-[90px]" />
@@ -506,19 +506,12 @@ export default function ProfileClientComponent() {
           Back to Workspace
         </Link>
 
-        {/* Title */}
-        <div className="flex flex-col gap-2 mb-8">
-          <div className="inline-flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.18em] text-muted">
-            <Sparkles className="w-3.5 h-3.5" />
-            Your account
-          </div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-foreground">
-            Profile Settings
-          </h1>
-          <p className="text-sm text-muted max-w-2xl">
-            Personalize your avatar, set your academic workspace, and manage how you sign in across Utility.
-          </p>
-        </div>
+        <PageHeader
+          className="mb-8"
+          eyebrow="Your account"
+          title="Profile Settings"
+          description="Personalize your avatar, set your academic workspace, and manage how you sign in across Utility."
+        />
 
         {/* Main Content Grid */}
         <form onSubmit={handleSave} className="grid grid-cols-1 lg:grid-cols-3 gap-8">

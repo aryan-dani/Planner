@@ -24,14 +24,29 @@ import {
   isCsvExtension,
   isImageExtension,
 } from "@/lib/fileUtils";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { cleanResourceTitle, shortCodeLabel } from "@/lib/titleUtils";
-import NotebookViewer from "@/components/NotebookViewer";
-import PdfPreview, { type PdfPreviewHandle } from "@/components/PdfPreview";
-import CsvPreview from "@/components/CsvPreview";
+import dynamic from "next/dynamic";
+import type { PdfPreviewHandle } from "@/components/PdfPreview";
 import { folderIdForResource, folderLabelFromId, getResourceFileRole } from "@/lib/resourceGroups";
 import { getDirectDownloadUrl, matchCachedDriveFile } from "@/lib/driveFileCache";
 import { useIsClient } from "@/lib/clientHooks";
+import { WindowChrome, IconButton } from "@/components/ui";
+
+const PdfPreview = dynamic(() => import("@/components/PdfPreview"), {
+  ssr: false,
+  loading: () => (
+    <div className="h-full w-full flex items-center justify-center">
+      <span className="loading-orb" aria-hidden />
+    </div>
+  ),
+});
+const NotebookViewer = dynamic(() => import("@/components/NotebookViewer"), {
+  ssr: false,
+});
+const CsvPreview = dynamic(() => import("@/components/CsvPreview"), {
+  ssr: false,
+});
 
 const FOCUSABLE =
   'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])';
@@ -89,6 +104,7 @@ export default function ResourceViewer({
   onOpenRelated,
   initialPage = null,
 }: ResourceViewerProps) {
+  const reduceMotion = useReducedMotion();
   const extension = getFileExtension(resource.title, resource.file_url);
   const isDrive = resource.file_url.includes("drive.google.com");
   const isPdf = extension === "pdf";
@@ -387,128 +403,104 @@ export default function ResourceViewer({
       role="dialog"
       aria-modal="true"
       aria-labelledby="viewer-title"
-      initial={{ opacity: 0 }}
+      initial={reduceMotion ? false : { opacity: 0 }}
       animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.2 }}
-      className="fixed inset-0 z-[100] bg-background outline-none flex flex-col overscroll-none"
+      exit={reduceMotion ? undefined : { opacity: 0 }}
+      transition={{ duration: 0.18 }}
+      className="fixed inset-0 z-modal bg-background outline-none flex flex-col overscroll-none p-2 sm:p-3"
     >
-      <motion.div
-        initial={{ y: -20, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ delay: 0.1, duration: 0.3 }}
-        className="absolute top-3 left-3 z-10 flex items-center gap-2 bg-card border border-border rounded-xl pl-1.5 pr-2.5 py-1.5 shadow-popover max-w-[min(58vw,20rem)]"
-      >
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border bg-surface">
-          <FileIcon className="h-4 w-4 text-foreground" />
-        </div>
-        <div className="min-w-0 leading-tight">
-          <h2
-            id="viewer-title"
-            className="truncate text-sm font-semibold text-foreground"
-            title={
-              resource.category === "notes" || /notes?/i.test(resource.title)
-                ? `${resource.title} — Reference only. Not a guarantee of exam content.`
-                : resource.title
-            }
-          >
-            {cleanResourceTitle(resource.title)}
-          </h2>
-          <p
-            className="text-[10px] text-muted truncate"
-            title={trailParts.join(" / ")}
-          >
-            {trailParts.slice(0, -1).join(" / ") || viewerKindLabel}
-            {trailParts.length > 1 && (
-              <span className="ml-1.5 uppercase tracking-wide">
-                · {viewerKindLabel}
-              </span>
-            )}
-          </p>
-        </div>
-      </motion.div>
-
-      <motion.div
-        initial={{ y: -20, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ delay: 0.1, duration: 0.3 }}
-        className="absolute top-3 right-3 z-10 flex items-center gap-1 bg-card border border-border rounded-xl p-1 shadow-popover"
-      >
-        <div className="hidden sm:flex items-center gap-1.5 px-2 border-r border-border/50 mr-0.5 text-[10px] font-semibold tracking-wide text-muted uppercase">
-          <span>O</span>
-          <span>F</span>
-          <span>D</span>
-          <span>Esc</span>
-        </div>
-        {isNotebook && colabUrl && (
-          <a
-            href={colabUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hidden sm:inline-flex items-center gap-1.5 h-8 px-2.5 rounded-lg text-xs font-semibold text-foreground bg-surface hover:bg-surface-hover border border-border transition-colors"
-            title="Open in Google Colab"
-          >
-            <Play className="h-3.5 w-3.5" />
-            Colab
-          </a>
-        )}
-        <a
-          ref={externalRef}
-          href={isDrive ? driveViewUrl : resource.file_url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="tap-target rounded-lg text-muted transition-colors hover:bg-surface hover:text-foreground"
-          title="Open in new tab (O)"
-          aria-label="Open in new tab"
-        >
-          <ExternalLink className="h-4 w-4" />
-        </a>
-        <button
-          onClick={() => {
-            if (!document.fullscreenElement) {
-              containerRef.current?.requestFullscreen().catch(() => {});
-            } else {
-              document.exitFullscreen().catch(() => {});
-            }
-          }}
-          className="hidden sm:inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg text-muted transition-colors hover:bg-surface hover:text-foreground"
-          title="Fullscreen (F)"
-          aria-label="Fullscreen"
-        >
-          <Maximize className="h-4 w-4" />
-        </button>
-        <a
-          ref={downloadRef}
-          href={downloadUrl}
-          download
-          className="tap-target rounded-lg text-muted transition-colors hover:bg-surface hover:text-foreground"
-          title="Download (D)"
-          aria-label="Download"
-        >
-          <Download className="h-4 w-4" />
-        </a>
-        <button
-          type="button"
-          onClick={onClose}
-          className="tap-target rounded-lg bg-surface/50 text-foreground transition-colors hover:bg-destructive/10 hover:text-destructive border border-transparent hover:border-destructive/20"
-          title="Close viewer (Esc)"
-          aria-label="Close viewer"
-        >
-          <X className="h-4 w-4" />
-        </button>
-      </motion.div>
-
       <div
-        className={`flex-1 w-full h-full p-2 sm:p-3 pt-14 sm:pt-16 relative ${
-          hasRelatedBar ? "pb-20 sm:pb-24" : ""
+        className={`os-window flex flex-col flex-1 min-h-0 relative shadow-window ${
+          hasRelatedBar ? "pb-16 sm:pb-20" : ""
         }`}
       >
-        <motion.div
-          initial={{ scale: 0.97, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ delay: 0.15, duration: 0.3 }}
-          className="h-full w-full overflow-hidden rounded-2xl border border-border bg-card relative shadow-md"
-        >
+        <WindowChrome
+          titleId="viewer-title"
+          icon={<FileIcon className="h-4 w-4" />}
+          title={
+            <span
+              title={
+                resource.category === "notes" || /notes?/i.test(resource.title)
+                  ? `${resource.title} — Reference only. Not a guarantee of exam content.`
+                  : resource.title
+              }
+            >
+              {cleanResourceTitle(resource.title)}
+            </span>
+          }
+          meta={
+            <span title={trailParts.join(" / ")}>
+              {trailParts.slice(0, -1).join(" / ") || viewerKindLabel}
+              {trailParts.length > 1 ? (
+                <span className="ml-1.5 uppercase tracking-wide">
+                  · {viewerKindLabel}
+                </span>
+              ) : null}
+            </span>
+          }
+          hints={["O", "F", "D", "Esc"]}
+          actions={
+            <>
+              {isNotebook && colabUrl ? (
+                <a
+                  href={colabUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hidden sm:inline-flex items-center justify-center gap-1.5 h-8 px-3 text-xs font-medium rounded-lg bg-surface border border-border text-foreground hover:bg-surface-hover"
+                  title="Open in Google Colab"
+                >
+                  <Play className="h-3.5 w-3.5" />
+                  Colab
+                </a>
+              ) : null}
+              <a
+                ref={externalRef}
+                href={isDrive ? driveViewUrl : resource.file_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex shrink-0 items-center justify-center rounded-lg transition-colors text-muted hover:text-foreground hover:bg-surface/80 min-h-11 min-w-11 h-11 w-11 sm:min-h-9 sm:min-w-9 sm:h-9 sm:w-9"
+                title="Open in new tab (O)"
+                aria-label="Open in new tab"
+              >
+                <ExternalLink className="h-4 w-4" />
+              </a>
+              <IconButton
+                label="Fullscreen"
+                title="Fullscreen (F)"
+                className="hidden sm:inline-flex"
+                onClick={() => {
+                  if (!document.fullscreenElement) {
+                    containerRef.current?.requestFullscreen().catch(() => {});
+                  } else {
+                    document.exitFullscreen().catch(() => {});
+                  }
+                }}
+              >
+                <Maximize className="h-4 w-4" />
+              </IconButton>
+              <a
+                ref={downloadRef}
+                href={downloadUrl}
+                download
+                className="inline-flex shrink-0 items-center justify-center rounded-lg transition-colors text-muted hover:text-foreground hover:bg-surface/80 min-h-11 min-w-11 h-11 w-11 sm:min-h-9 sm:min-w-9 sm:h-9 sm:w-9"
+                title="Download (D)"
+                aria-label="Download"
+              >
+                <Download className="h-4 w-4" />
+              </a>
+              <IconButton
+                label="Close viewer"
+                title="Close viewer (Esc)"
+                variant="destructive"
+                onClick={onClose}
+              >
+                <X className="h-4 w-4" />
+              </IconButton>
+            </>
+          }
+        />
+
+        <div className="relative flex-1 min-h-0 overflow-hidden bg-card">
           {isLoading && (
             <div className="absolute inset-0 flex flex-col items-between justify-between p-8 bg-background z-20">
               <div className="w-full flex-1 flex flex-col gap-6 mt-12 max-w-4xl mx-auto">
@@ -539,7 +531,7 @@ export default function ResourceViewer({
                 </p>
                 {loadError && (
                   <motion.div
-                    initial={{ opacity: 0, y: 10 }}
+                    initial={reduceMotion ? false : { opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     className="text-xs text-muted flex flex-col items-center gap-1.5 mt-2"
                   >
@@ -616,20 +608,20 @@ export default function ResourceViewer({
               )}
             </div>
           ) : isCode ? (
-            <div className="h-full w-full overflow-auto bg-[#0c0c0e] p-4 sm:p-6">
+            <div className="h-full w-full overflow-auto bg-background p-4 sm:p-6">
               {codeContent !== null && (
-                <pre className="text-[12px] sm:text-[13px] leading-relaxed font-mono text-zinc-200 whitespace-pre tab-size-4">
+                <pre className="text-xs sm:text-sm leading-relaxed font-mono text-foreground whitespace-pre tab-size-4">
                   <code>{codeContent}</code>
                 </pre>
               )}
               {!isLoading && loadError && codeContent === null && (
-                <div className="h-full flex flex-col items-center justify-center gap-3 text-center text-zinc-400">
+                <div className="h-full flex flex-col items-center justify-center gap-3 text-center text-muted">
                   <p className="text-sm">Could not load source in-app.</p>
                   <a
                     href={resource.file_url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-zinc-100 underline underline-offset-4 text-sm"
+                    className="text-foreground underline underline-offset-4 text-sm"
                   >
                     Open on Drive
                   </a>
@@ -700,17 +692,17 @@ export default function ResourceViewer({
               </a>
             </div>
           )}
-        </motion.div>
+        </div>
       </div>
 
       {hasRelatedBar && (
         <motion.div
-          initial={{ y: 20, opacity: 0 }}
+          initial={reduceMotion ? false : { y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.15, duration: 0.3 }}
+          transition={{ delay: 0.1, duration: 0.2 }}
           className="absolute bottom-4 inset-x-0 z-10 flex justify-center px-4 pointer-events-none"
         >
-          <div className="pointer-events-auto flex flex-col sm:flex-row items-stretch sm:items-center gap-2 bg-card border border-border rounded-2xl pl-3 pr-1.5 py-1.5 shadow-popover max-w-[min(96vw,48rem)]">
+          <div className="pointer-events-auto flex flex-col sm:flex-row items-stretch sm:items-center gap-2 bg-card/95 backdrop-blur-md border border-border rounded-2xl pl-3 pr-1.5 py-1.5 shadow-popover max-w-[min(96vw,48rem)]">
             <RelatedChipRow
               label={folderLabel ? `This assignment` : "Related files"}
               icon={<Code2 className="h-3.5 w-3.5 text-muted" />}

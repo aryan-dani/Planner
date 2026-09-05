@@ -18,6 +18,7 @@ import {
   linkGithubOverGoogleAccount,
 } from "@/lib/firebaseAuth";
 import { describeError } from "@/lib/errors";
+import { PageHeader } from "@/components/ui";
 
 function LoginContent() {
   const [email, setEmail] = useState("");
@@ -191,10 +192,11 @@ function LoginContent() {
             </div>
           </div>
 
-          <h1 className="text-xl font-bold text-foreground mb-1">Sign in</h1>
-          <p className="text-sm text-muted mb-6">
-            Sign in to access your planner and resources.
-          </p>
+          <PageHeader
+            className="mb-6"
+            title="Sign in"
+            description="Sign in to access your planner and resources."
+          />
 
           {error && (
             <div className="mb-5 text-sm text-destructive bg-destructive/10 border border-destructive/20 p-3 rounded-xl">

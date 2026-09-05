@@ -18,6 +18,7 @@ import {
   linkGithubOverGoogleAccount,
 } from "@/lib/firebaseAuth";
 import { describeError } from "@/lib/errors";
+import { PageHeader } from "@/components/ui";
 
 function SignupContent() {
   const [email, setEmail] = useState("");
@@ -176,10 +177,11 @@ function SignupContent() {
             </div>
           </div>
 
-          <h1 className="text-xl font-bold text-foreground mb-1">Sign up</h1>
-          <p className="text-sm text-muted mb-6">
-            Create an account with Google, GitHub, or email and password.
-          </p>
+          <PageHeader
+            className="mb-6"
+            title="Sign up"
+            description="Create an account with Google, GitHub, or email and password."
+          />
 
           {error && (
             <div className="mb-5 text-sm text-destructive bg-destructive/10 border border-destructive/20 p-3 rounded-xl">

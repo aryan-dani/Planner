@@ -2,20 +2,18 @@
 
 import { Download } from 'lucide-react';
 import Link from 'next/link';
+import { PageHeader } from '@/components/ui';
 
 export default function InstallPage() {
   return (
-    <div className="flex-1 flex flex-col items-center max-w-xl mx-auto px-6 py-20 page-fade-in text-center">
-      <p className="font-display text-4xl text-foreground tracking-tight mb-3">
-        Utility
-      </p>
-      <h1 className="text-2xl font-semibold tracking-tight text-foreground mb-3">
-        Install the app
-      </h1>
-      <p className="text-sm text-foreground-subtle mb-10 leading-relaxed max-w-md">
-        Add Utility to your home screen or desktop for faster access and an
-        app-like window.
-      </p>
+    <div className="flex-1 flex flex-col items-center max-w-xl mx-auto page-gutter py-20 page-fade-in text-center">
+      <PageHeader
+        className="mb-10 sm:flex-col sm:items-center [&_p]:mx-auto"
+        size="hero"
+        eyebrow="Utility"
+        title="Install the app"
+        description="Add Utility to your home screen or desktop for faster access and an app-like window."
+      />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-px w-full mb-10 rounded-xl overflow-hidden border border-border bg-border shadow-sm text-left">
         <div className="bg-card p-5">

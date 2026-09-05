@@ -20,7 +20,7 @@ import { FadeIn, ScaleButton } from '@/components/Animations';
 import Link from 'next/link';
 import { useAcademicStore } from '@/store/academicStore';
 import { getAidsGpaData } from '@/lib/syllabusData';
-import { Segmented, Select } from '@/components/ui';
+import { Segmented, Select, PageHeader } from '@/components/ui';
 
 interface Subject {
   id: string;
@@ -514,23 +514,30 @@ export default function GPAClient() {
       <div className="flex-1 w-full max-w-7xl mx-auto page-gutter py-8 min-h-[80vh]">
         <FadeIn>
           <div className="text-center mb-12">
-            <h1 className="text-4xl font-black tracking-tight text-foreground mb-4 flex items-center justify-center gap-3">
-              <Calculator className="w-10 h-10" />
-              Course Table Override
-            </h1>
-            <p className="text-muted text-lg max-w-xl mx-auto">
-              Workspace is {workspaceBranch} Sem {workspaceSemester}. Pick a Sem 4 fallback table if needed (CSE defaults to CORE).
-            </p>
-            <button
-              type="button"
-              onClick={() => {
-                setCourseKeyOverride(null);
-                setShowCoursePicker(false);
-              }}
-              className="mt-4 text-sm font-bold text-primary underline underline-offset-4"
-            >
-              Use workspace syllabus defaults
-            </button>
+            <PageHeader
+              className="sm:flex-col sm:items-center [&_h1]:flex [&_h1]:items-center [&_h1]:justify-center [&_h1]:gap-3 [&_p]:mx-auto"
+              title={
+                <>
+                  <Calculator className="w-8 h-8 sm:w-10 sm:h-10" />
+                  Course Table Override
+                </>
+              }
+              description={
+                <>
+                  Workspace is {workspaceBranch} Sem {workspaceSemester}. Pick a Sem 4 fallback table if needed (CSE defaults to CORE).
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCourseKeyOverride(null);
+                      setShowCoursePicker(false);
+                    }}
+                    className="mt-4 block w-full text-sm font-semibold text-primary underline underline-offset-4"
+                  >
+                    Use workspace syllabus defaults
+                  </button>
+                </>
+              }
+            />
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -607,47 +614,48 @@ export default function GPAClient() {
           </div>
         )}
         <FadeIn>
-          <div className="flex flex-col md:flex-row justify-between items-start gap-6 mb-8">
-            <div>
-              <button 
-                onClick={() => {
-                  setShowCoursePicker(true);
-                  setIsCalculated(false);
-                }}
-                className="group flex items-center gap-2 text-muted hover:text-foreground text-sm font-bold uppercase tracking-wider mb-4 transition-colors"
-              >
-                <ChevronLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-                Change course table
-              </button>
-              <h1 className="text-3xl font-black tracking-tight text-foreground flex items-center gap-3">
-                {currentBranch?.name}
-              </h1>
-              <p className="text-muted text-sm mt-2 flex items-center gap-2">
-                <Info className="w-4 h-4" />
-                Sem {calcSemester} from workspace ({workspaceBranch}). Credits follow the official syllabus where available.
-              </p>
-            </div>
+          <div className="mb-8 space-y-4">
+            <button 
+              onClick={() => {
+                setShowCoursePicker(true);
+                setIsCalculated(false);
+              }}
+              className="group flex items-center gap-2 text-muted hover:text-foreground text-sm font-semibold uppercase tracking-wider transition-colors"
+            >
+              <ChevronLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+              Change course table
+            </button>
+            <PageHeader
+              title={currentBranch?.name}
+              description={
+                <span className="flex items-center gap-2">
+                  <Info className="w-4 h-4 shrink-0" />
+                  Sem {calcSemester} from workspace ({workspaceBranch}). Credits follow the official syllabus where available.
+                </span>
+              }
+              actions={
+                <div className="flex gap-3">
+                  <ScaleButton
+                    onClick={() => {
+                      setMarks({});
+                      setIsCalculated(false);
+                    }}
+                    className="bg-surface border border-border text-muted hover:text-foreground px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest flex items-center gap-2 transition-all"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    Reset Marks
+                  </ScaleButton>
 
-            <div className="flex gap-3">
-              <ScaleButton
-                onClick={() => {
-                  setMarks({});
-                  setIsCalculated(false);
-                }}
-                className="bg-surface border border-border text-muted hover:text-foreground px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest flex items-center gap-2 transition-all"
-              >
-                <RotateCcw className="w-3.5 h-3.5" />
-                Reset Marks
-              </ScaleButton>
-
-              <ScaleButton
-                onClick={() => window.print()}
-                className="bg-surface border border-border text-muted hover:text-foreground px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest flex items-center gap-2 transition-all"
-              >
-                <Printer className="w-3.5 h-3.5" />
-                Print Report
-              </ScaleButton>
-            </div>
+                  <ScaleButton
+                    onClick={() => window.print()}
+                    className="bg-surface border border-border text-muted hover:text-foreground px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest flex items-center gap-2 transition-all"
+                  >
+                    <Printer className="w-3.5 h-3.5" />
+                    Print Report
+                  </ScaleButton>
+                </div>
+              }
+            />
           </div>
 
           {/* Premium Tab Bar */}

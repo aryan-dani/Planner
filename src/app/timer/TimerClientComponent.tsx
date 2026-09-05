@@ -19,6 +19,7 @@ import {
   CloudRain
 } from 'lucide-react';
 import { FadeIn } from '@/components/Animations';
+import { PageHeader } from '@/components/ui';
 import { logActivity, localDateKey } from '@/lib/activity';
 import { incrementTaskFocus } from '@/lib/plannerStorage';
 
@@ -433,16 +434,19 @@ export default function TimerClient() {
       
       {/* Left panel: Pomodoro timer */}
       <div className="flex-1 flex flex-col items-center max-w-md w-full">
-        <FadeIn className="w-full text-center mb-6 flex flex-col items-center">
-          <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider mb-4 border border-border transition-all duration-300 ${themeColorClass}`}>
+        <FadeIn className="w-full mb-6 flex flex-col items-center">
+          <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-lg text-[10px] font-semibold uppercase tracking-wider mb-4 border border-border transition-all duration-300 ${themeColorClass}`}>
             {mode === 'work' ? <Brain className="w-3 h-3" /> : <Coffee className="w-3 h-3" />}
             {mode === 'work' ? 'Deep Work Session' : mode === 'break' ? 'Short Break' : 'Long Break'}
           </div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-foreground">Stay Focused</h1>
-          <p className="text-xs text-muted mt-1.5 mb-5">Pomodoro tracker optimized for your weekly targets.</p>
+          <PageHeader
+            className="text-center sm:flex-col sm:items-center [&_h1]:mx-auto [&_p]:mx-auto"
+            title="Stay Focused"
+            description="Pomodoro tracker optimized for your weekly targets."
+          />
 
           {/* Mode Selector Tabs */}
-          <div className="flex bg-surface/50 border border-border/80 rounded-xl p-1 w-full max-w-[280px] shadow-xs">
+          <div className="flex bg-surface/50 border border-border/80 rounded-xl p-1 w-full max-w-[280px] shadow-xs mt-5">
             {(['work', 'break', 'longBreak'] as const).map((m) => {
               const labelMap = {
                 work: 'Focus',

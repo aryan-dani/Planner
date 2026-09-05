@@ -26,6 +26,7 @@ import { useRouter } from "next/navigation";
 import type { Branch, Semester } from "@/lib/academic/scope";
 import { BRANCH_OPTIONS, SEMESTER_OPTIONS } from "@/lib/academic/scope";
 import { Select } from "@/components/ui/Select";
+import { PageHeader } from "@/components/ui";
 import { fetchAdminStatus } from "@/lib/adminStatus";
 import { authFetch } from "@/lib/authFetch";
 
@@ -269,13 +270,14 @@ export default function AdminClient() {
       <div className="flex-1 flex flex-col items-center justify-center min-h-screen w-full p-6 text-center">
         <div className="max-w-md w-full bg-card border border-border p-8 rounded-2xl shadow-sm flex flex-col items-center">
           <ShieldAlert className="w-12 h-12 text-destructive mb-4 animate-pulse" />
-          <h2 className="text-xl font-extrabold tracking-tight text-foreground mb-2">Access Denied</h2>
-          <p className="text-xs text-muted mb-6 leading-relaxed">
-            You do not have permissions to access the admin dashboard. Please sign in with an authorized administrator account.
-          </p>
+          <PageHeader
+            className="text-center sm:flex-col sm:items-center [&_p]:mx-auto mb-2"
+            title="Access Denied"
+            description="You do not have permissions to access the admin dashboard. Please sign in with an authorized administrator account."
+          />
           <Link
             href="/"
-            className="px-4 py-2 bg-foreground text-background font-semibold text-xs rounded-xl hover:opacity-90 transition-all shadow-xs"
+            className="mt-6 px-4 py-2 bg-foreground text-background font-semibold text-xs rounded-xl hover:opacity-90 transition-all shadow-xs"
           >
             Return Home
           </Link>
@@ -300,7 +302,7 @@ export default function AdminClient() {
           </Link>
           <div className="flex items-center gap-2 mb-8">
             <ShieldCheck className="w-5 h-5 text-foreground" />
-            <h2 className="text-xl font-bold tracking-tight text-foreground">
+            <h2 className="font-display text-xl tracking-tight text-foreground">
               Admin
             </h2>
           </div>
@@ -380,9 +382,11 @@ export default function AdminClient() {
           >
             <ArrowLeft className="w-4 h-4" />
           </Link>
-          <h2 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
-            <ShieldCheck className="w-5 h-5 text-foreground" /> Admin
-          </h2>
+          <PageHeader
+            className="min-w-0 flex-1"
+            title="Admin"
+            description={userEmail ?? undefined}
+          />
 
           <div className="ml-auto flex items-center gap-px bg-border/60 rounded-xl overflow-hidden border border-border/70 shadow-sm shrink-0">
             <button

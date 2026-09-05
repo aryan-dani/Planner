@@ -25,6 +25,7 @@ import {
 import { getResourceFileRole } from "@/lib/resourceGroups";
 import { cleanResourceTitle } from "@/lib/titleUtils";
 import { getDirectDownloadUrl } from "@/lib/driveFileCache";
+import { Button, IconButton } from "@/components/ui";
 
 interface ResourceFileRowProps {
   item: ResourceItem;
@@ -148,6 +149,12 @@ export default function ResourceFileRow({
     };
   }, [driveId, item.id]);
 
+  const stop = (e: MouseEvent, fn: () => void) => {
+    e.preventDefault();
+    e.stopPropagation();
+    fn();
+  };
+
   return (
     <div
       ref={rowRef}
@@ -176,14 +183,14 @@ export default function ResourceFileRow({
         >
           {cleanResourceTitle(item.title)}
         </p>
-        <p className="text-[10px] font-semibold text-muted uppercase tracking-wider mt-0.5 flex items-center gap-1.5">
+        <p className="text-2xs font-semibold text-muted uppercase tracking-wider mt-0.5 flex items-center gap-1.5">
           <span>
             {roleLabel(item)}
             {extension ? ` · ${extension.toUpperCase()}` : ""}
           </span>
           {offline && (
             <span
-              className="inline-flex items-center gap-0.5 normal-case tracking-normal text-[10px] font-medium text-foreground/70"
+              className="inline-flex items-center gap-0.5 normal-case tracking-normal text-2xs font-medium text-foreground/70"
               title="Available offline"
             >
               <HardDrive className="w-2.5 h-2.5" />
@@ -195,66 +202,45 @@ export default function ResourceFileRow({
 
       <div className="flex items-center gap-1.5 flex-shrink-0 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
         {onFavorite && (
-          <button
-            type="button"
-            onClick={(e: MouseEvent) => {
-              e.preventDefault();
-              e.stopPropagation();
-              onFavorite(item);
-            }}
-            className={`inline-flex items-center justify-center min-h-11 min-w-11 sm:min-h-0 sm:min-w-0 p-2 sm:p-1.5 rounded-lg border border-border transition-colors ${
-              isFavorite
-                ? "bg-foreground text-background"
-                : "bg-surface hover:bg-surface-hover text-muted hover:text-foreground"
-            }`}
-            aria-label={isFavorite ? "Remove favorite" : "Add favorite"}
-            title={isFavorite ? "Remove favorite" : "Favorite"}
+          <IconButton
+            size="sm"
+            label={isFavorite ? "Remove favorite" : "Add favorite"}
+            variant={isFavorite ? "primary" : "secondary"}
+            onClick={(e) => stop(e, () => onFavorite(item))}
           >
-            <Star
-              className={`w-3.5 h-3.5 ${isFavorite ? "fill-current" : ""}`}
-            />
-          </button>
+            <Star className={`w-3.5 h-3.5 ${isFavorite ? "fill-current" : ""}`} />
+          </IconButton>
         )}
         {onShare && (
-          <button
-            type="button"
-            onClick={(e: MouseEvent) => {
-              e.preventDefault();
-              e.stopPropagation();
-              onShare(item);
-            }}
-            className="inline-flex items-center gap-1 px-2.5 py-2 min-h-11 rounded-lg bg-surface hover:bg-surface-hover border border-border text-xs font-medium text-foreground transition-colors"
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={(e) => stop(e, () => onShare(item))}
             aria-label="Copy share link"
             title="Copy share link"
+            className="gap-1"
           >
             <Link2 className="w-3 h-3 text-muted" />
-            Share
-          </button>
+            <span className="hidden sm:inline">Share</span>
+          </Button>
         )}
-        <button
-          type="button"
-          onClick={(e: MouseEvent) => {
-            e.preventDefault();
-            e.stopPropagation();
-            handleOpen();
-          }}
-          className="inline-flex items-center gap-1 px-2.5 py-2 min-h-11 rounded-lg bg-surface hover:bg-surface-hover border border-border text-xs font-medium text-foreground transition-colors"
+        <Button
+          size="sm"
+          variant="secondary"
+          onClick={(e) => stop(e, handleOpen)}
+          className="gap-1"
         >
           <ExternalLink className="w-3 h-3 text-muted" />
-          Open
-        </button>
+          <span className="hidden sm:inline">Open</span>
+        </Button>
         {isSummarizable && (
-          <button
-            type="button"
-            onClick={(e: MouseEvent) => {
-              e.preventDefault();
-              e.stopPropagation();
-              onSummarize?.(item);
-            }}
-            className="inline-flex items-center gap-1 px-2.5 py-2 min-h-11 rounded-lg bg-foreground text-background hover:opacity-90 text-xs font-medium transition-opacity"
+          <Button
+            size="sm"
+            variant="primary"
+            onClick={(e) => stop(e, () => onSummarize?.(item))}
           >
             Summarize
-          </button>
+          </Button>
         )}
       </div>
     </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, Waypoints } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { motion } from "framer-motion";
 import {
   ALGORITHMS,
@@ -16,6 +16,7 @@ import {
 } from "@/components/visualize/TopicMarks";
 import { fadeUp, stagger } from "@/components/visualize/motion";
 import type { AlgorithmMeta, VisualizerType } from "@/lib/visualize/types";
+import { PageHeader } from "@/components/ui";
 
 const START_MARKS = [RippleMark, StarMark, QueenMark];
 
@@ -124,41 +125,29 @@ export function AlgorithmExplorer() {
       >
         <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_20rem] gap-8 lg:gap-12 items-end">
           <div>
-            <motion.div variants={fadeUp} className="flex items-center gap-2 mb-3">
-              <Waypoints className="w-4 h-4 text-foreground shrink-0" />
-              <p className="text-xs font-bold uppercase tracking-widest text-muted">
-                Visualize
-              </p>
-            </motion.div>
-            <motion.h1
-              variants={fadeUp}
-              className="font-display text-4xl sm:text-5xl md:text-6xl text-foreground tracking-tight mb-4 max-w-xl"
-            >
-              Watch it decide
-            </motion.h1>
-            <motion.p
-              variants={fadeUp}
-              className="text-sm sm:text-base text-foreground-subtle leading-relaxed max-w-xl"
-            >
-              Pathfinding, game trees, and N-Queens, one step at a time. Press
-              Watch it run. You do not need the theory first.
-            </motion.p>
-            <motion.div
-              variants={fadeUp}
-              className="mt-6 flex flex-wrap items-center gap-2"
-            >
-              <Link
-                href="/visualize/bfs"
-                className="inline-flex items-center justify-center min-h-11 px-5 rounded-xl bg-foreground text-background text-sm font-medium hover:opacity-90 transition-opacity"
-              >
-                Start with BFS
-              </Link>
-              <Link
-                href="/visualize/progress"
-                className="inline-flex items-center justify-center min-h-11 px-4 rounded-xl text-sm text-muted hover:text-foreground hover:bg-surface transition-colors"
-              >
-                Your runs
-              </Link>
+            <motion.div variants={fadeUp}>
+              <PageHeader
+                size="hero"
+                eyebrow="Visualize"
+                title="Watch it decide"
+                description="Pathfinding, game trees, and N-Queens, one step at a time. Press Watch it run. You do not need the theory first."
+                actions={
+                  <>
+                    <Link
+                      href="/visualize/bfs"
+                      className="inline-flex items-center justify-center min-h-11 px-5 rounded-xl bg-foreground text-background text-sm font-medium hover:opacity-90 transition-opacity"
+                    >
+                      Start with BFS
+                    </Link>
+                    <Link
+                      href="/visualize/progress"
+                      className="inline-flex items-center justify-center min-h-11 px-4 rounded-xl text-sm text-muted hover:text-foreground hover:bg-surface transition-colors"
+                    >
+                      Your runs
+                    </Link>
+                  </>
+                }
+              />
             </motion.div>
           </div>
 

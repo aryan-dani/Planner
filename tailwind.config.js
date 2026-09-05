@@ -5,19 +5,19 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        background: 'rgb(var(--background))',
-        'background-subtle': 'rgb(var(--background-subtle))',
+        background: 'rgb(var(--background) / <alpha-value>)',
+        'background-subtle': 'rgb(var(--background-subtle) / <alpha-value>)',
         foreground: 'rgb(var(--foreground) / <alpha-value>)',
         'foreground-subtle': 'rgb(var(--foreground-subtle) / <alpha-value>)',
 
-        card: 'rgb(var(--card))',
-        'card-hover': 'rgb(var(--card-hover))',
+        card: 'rgb(var(--card) / <alpha-value>)',
+        'card-hover': 'rgb(var(--card-hover) / <alpha-value>)',
 
-        surface: 'rgb(var(--surface))',
-        'surface-hover': 'rgb(var(--surface-hover))',
+        surface: 'rgb(var(--surface) / <alpha-value>)',
+        'surface-hover': 'rgb(var(--surface-hover) / <alpha-value>)',
 
-        border: 'rgb(var(--border))',
-        'border-strong': 'rgb(var(--border-strong))',
+        border: 'rgb(var(--border) / <alpha-value>)',
+        'border-strong': 'rgb(var(--border-strong) / <alpha-value>)',
 
         muted: 'rgb(var(--muted) / <alpha-value>)',
         'muted-hover': 'rgb(var(--muted-hover) / <alpha-value>)',
@@ -30,6 +30,7 @@ module.exports = {
         'destructive-foreground': 'rgb(var(--destructive-foreground) / <alpha-value>)',
         accent: 'rgb(var(--accent) / <alpha-value>)',
         'accent-hover': 'rgb(var(--accent-hover) / <alpha-value>)',
+        ring: 'rgb(var(--ring) / <alpha-value>)',
       },
       fontFamily: {
         sans: ['var(--font-sans)', 'system-ui', 'sans-serif'],
@@ -45,6 +46,7 @@ module.exports = {
         dropdown: '110',
         sticky: '50',
         modal: '100',
+        launcher: '150',
         toast: '200',
       },
       borderRadius: {
@@ -66,17 +68,18 @@ module.exports = {
         8: '8px',
       },
       boxShadow: {
-        DEFAULT: '0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05)',
+        DEFAULT: 'var(--elev-1)',
         sm: '0 1px 2px 0 rgba(0, 0, 0, 0.03)',
-        md: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05)',
-        lg: '0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -4px rgba(0, 0, 0, 0.05)',
-        xl: '0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05)',
-        '2xl': '0 25px 50px -12px rgba(0, 0, 0, 0.15)',
+        md: 'var(--elev-1)',
+        lg: 'var(--elev-2)',
+        xl: 'var(--elev-2)',
+        '2xl': 'var(--elev-3)',
         '3xs': '0 1px 1px 0 rgba(0, 0, 0, 0.02)',
         'xs': '0 1px 2px 0 rgba(0, 0, 0, 0.03)',
-        'card': '0 4px 12px -2px rgba(0, 0, 0, 0.03)',
-        'card-hover': '0 12px 24px -4px rgba(0, 0, 0, 0.06)',
-        'popover': '0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 16px -6px rgba(0, 0, 0, 0.08)',
+        'card': 'var(--elev-1)',
+        'card-hover': 'var(--elev-2)',
+        'popover': 'var(--elev-2)',
+        'window': 'var(--elev-3)',
         'glow': '0 0 16px 2px rgba(var(--foreground), 0.08)',
       },
       animation: {

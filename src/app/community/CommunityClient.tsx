@@ -17,7 +17,6 @@ import {
   Trash2,
   Clock,
   ExternalLink,
-  MessageCircle,
   Megaphone,
   MessagesSquare,
   Bug,
@@ -25,7 +24,7 @@ import {
 } from "lucide-react";
 import { logActivity } from "@/lib/activity";
 import { notify } from "@/lib/toast";
-import { Button, Badge, Card, Modal, Segmented } from "@/components/ui";
+import { Button, Badge, Card, Modal, Segmented, PageHeader } from "@/components/ui";
 import { authFetch } from "@/lib/authFetch";
 
 const WHATSAPP_COMMUNITY_URL =
@@ -297,32 +296,23 @@ export default function CommunityClient({
     <div className="flex-1 w-full max-w-7xl mx-auto page-gutter py-8 min-h-[80vh]">
       {/* WhatsApp community */}
       <section className="mb-12 space-y-5">
-        <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-5 border-b border-border pb-6">
-          <div className="min-w-0 max-w-2xl">
-            <div className="flex items-center gap-2 mb-2">
-              <MessageCircle className="w-4 h-4 text-foreground shrink-0" />
-              <p className="text-[11px] font-bold uppercase tracking-widest text-muted">
-                WhatsApp community
-              </p>
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
-              Utility OS · MIT-WPU
-            </h1>
-            <p className="text-sm text-muted mt-2 leading-relaxed">
-              One community invite unlocks four rooms. Pick what you need:
-              updates, casual chat, academic help, or product feedback.
-            </p>
-          </div>
-          <Button
-            variant="primary"
-            size="md"
-            className="shrink-0 rounded-xl"
-            onClick={() => window.open(WHATSAPP_COMMUNITY_URL, "_blank", "noopener,noreferrer")}
-          >
-            Join on WhatsApp
-            <ExternalLink className="w-3.5 h-3.5" />
-          </Button>
-        </div>
+        <PageHeader
+          className="border-b border-border pb-6"
+          eyebrow="WhatsApp community"
+          title="Utility OS · MIT-WPU"
+          description="One community invite unlocks four rooms. Pick what you need: updates, casual chat, academic help, or product feedback."
+          actions={
+            <Button
+              variant="primary"
+              size="md"
+              className="shrink-0 rounded-xl"
+              onClick={() => window.open(WHATSAPP_COMMUNITY_URL, "_blank", "noopener,noreferrer")}
+            >
+              Join on WhatsApp
+              <ExternalLink className="w-3.5 h-3.5" />
+            </Button>
+          }
+        />
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {WHATSAPP_GROUPS.map(({ name, blurb, tip, Icon }) => (

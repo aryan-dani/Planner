@@ -4,8 +4,8 @@ import {
   BookUser,
   FlaskConical,
   ArrowRight,
-  Building2,
 } from "lucide-react";
+import { PageHeader } from "@/components/ui";
 
 const CAMPUS_LINKS = [
   {
@@ -34,21 +34,12 @@ const CAMPUS_LINKS = [
 export default function CampusHubPage() {
   return (
     <div className="flex-1 w-full max-w-7xl mx-auto page-gutter py-8 min-h-[80vh]">
-      <div className="mb-10 border-b border-border pb-6">
-        <div className="flex items-center gap-2 mb-2">
-          <Building2 className="w-4 h-4 text-foreground shrink-0" />
-          <p className="text-xs font-bold uppercase tracking-widest text-muted">
-            Campus
-          </p>
-        </div>
-        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
-          MIT-WPU campus data
-        </h1>
-        <p className="text-sm text-muted mt-2 max-w-2xl leading-relaxed">
-          Faculty seating, directory, and lab registry. Live from the same
-          campus backend. Updates there show up here without a Utility redeploy.
-        </p>
-      </div>
+      <PageHeader
+        className="mb-10 pb-6 border-b border-border"
+        eyebrow="Campus"
+        title="MIT-WPU campus data"
+        description="Faculty seating, directory, and lab registry. Live from the same campus backend. Updates there show up here without a Utility redeploy."
+      />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         {CAMPUS_LINKS.map(({ href, label, description, Icon }) => (

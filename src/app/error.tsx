@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { AlertCircle, RotateCcw, Home, Terminal, ChevronDown, ChevronUp } from 'lucide-react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
+import { PageHeader } from '@/components/ui';
 
 export default function GlobalError({
   error,
@@ -46,17 +47,15 @@ export default function GlobalError({
           </motion.div>
         </div>
 
-        <h1 className="text-2xl sm:text-3xl font-extrabold text-foreground mb-3 tracking-tight">
-          Application Error
-        </h1>
-        
-        <p className="text-foreground-subtle text-sm mb-8 leading-relaxed max-w-sm mx-auto">
-          We encountered an unexpected issue while loading this page. The system error has been captured.
-        </p>
+        <PageHeader
+          className="mb-3 sm:flex-col sm:items-center [&_p]:mx-auto"
+          title="Application Error"
+          description="We encountered an unexpected issue while loading this page. The system error has been captured."
+        />
 
         {/* Error Digest/Details */}
         {error.digest && (
-          <div className="mb-8 text-left">
+          <div className="mb-8 mt-8 text-left">
             <button
               onClick={() => setShowDetails(!showDetails)}
               className="flex items-center gap-1.5 text-xs font-semibold text-muted hover:text-foreground transition-colors mx-auto"

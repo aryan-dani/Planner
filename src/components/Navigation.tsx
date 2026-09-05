@@ -209,9 +209,9 @@ function NavigationInner() {
   } = useAcademicStore();
 
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [collapsed, setCollapsed] = useState(() =>
-    typeof window === "undefined" ? false : readLocalStorageBoolean("sidebar-collapsed"),
-  );
+  // Always start expanded to match SSR; sync from localStorage after mount
+  // (reading window in useState caused React hydration mismatches).
+  const [collapsed, setCollapsed] = useState(false);
   const [userEmail, setUserEmail] = useState<string | undefined>();
   const [isAdmin, setIsAdmin] = useState(false);
   const isMac = useIsMac();
@@ -223,6 +223,10 @@ function NavigationInner() {
     setPrevPathname(pathname);
     if (mobileOpen) setMobileOpen(false);
   }
+
+  useEffect(() => {
+    setCollapsed(readLocalStorageBoolean("sidebar-collapsed"));
+  }, []);
 
   const handleCollapseToggle = () => {
     const nextState = !collapsed;
@@ -335,7 +339,7 @@ function NavigationInner() {
     pathname === "/planner" ||
     pathname.startsWith("/planner");
 
-  const renderNavLink = useCallback((link: NavLinkItem) => {
+  const renderNavLink = useCallback((link: NavLinkItem, isCollapsed: boolean) => {
     // Prefer store scope for hrefs so static SSR matches the first client paint.
     // URL deep-links sync into the store after mount via the effect above.
     const finalHref = `${link.href}?year=${encodeURIComponent(academicYear)}&branch=${branch}&semester=${semester}`;
@@ -346,36 +350,39 @@ function NavigationInner() {
         href={finalHref}
         onClick={() => setSearchQuery("")}
         aria-label={link.label}
-        title={collapsed ? link.label : undefined}
-        className={`flex items-center min-h-10 ${collapsed ? "justify-center px-0" : "justify-between px-2.5"} py-2 rounded-lg text-[13px] font-medium tracking-tight transition-colors border group relative overflow-visible ${
+        title={isCollapsed ? link.label : undefined}
+        className={`flex items-center min-h-10 mx-1 ${isCollapsed ? "justify-center px-0" : "justify-between px-2.5"} py-2 rounded-lg text-sm font-medium tracking-tight transition-colors border group relative overflow-visible ${
           active
-            ? "bg-card border-border text-foreground shadow-xs"
+            ? "bg-foreground text-background border-transparent shadow-card"
             : "text-muted hover:text-foreground hover:bg-surface/60 active:bg-surface border-transparent"
         }`}
       >
         {active && (
           <motion.div
             layoutId="activeIndicator"
-            className="absolute left-0 top-1.5 bottom-1.5 w-[2.5px] rounded-full bg-foreground"
+            className="absolute left-0 top-1.5 bottom-1.5 w-[2.5px] rounded-full bg-background/80"
             transition={{ type: "spring", stiffness: 380, damping: 30 }}
           />
         )}
 
         <span className="flex items-center gap-2.5 min-w-0">
-          <link.Icon className={`w-[17px] h-[17px] shrink-0 ${active ? "text-foreground" : "text-muted group-hover:text-foreground"}`} />
-          {!collapsed && <span className="truncate">{link.label}</span>}
+          <link.Icon className={`w-[17px] h-[17px] shrink-0 ${active ? "text-background" : "text-muted group-hover:text-foreground"}`} />
+          {!isCollapsed && <span className="truncate">{link.label}</span>}
         </span>
-        {!collapsed && link.featured && (
-          <span className="flex items-center px-1.5 py-px rounded-md text-[9px] font-bold uppercase tracking-[0.12em] bg-foreground text-background shrink-0">
+        {!isCollapsed && link.featured && (
+          <span className={`flex items-center px-1.5 py-px rounded-md text-3xs font-bold uppercase tracking-[0.12em] shrink-0 ${
+            active ? "bg-background/20 text-background" : "bg-foreground text-background"
+          }`}>
             Core
           </span>
         )}
       </Link>
     );
-  }, [collapsed, isActive, setSearchQuery, academicYear, branch, semester]);
+  }, [isActive, setSearchQuery, academicYear, branch, semester]);
 
   const renderSidebarContent = (isMobile: boolean = false) => {
     const isCollapsed = collapsed && !isMobile;
+    const link = (item: NavLinkItem) => renderNavLink(item, isCollapsed);
     return (
       <div className="flex flex-col h-full select-none">
         {/* Brand / Logo */}
@@ -469,7 +476,7 @@ function NavigationInner() {
                 <span className="font-medium">Search…</span>
               </span>
               <kbd
-                className="hidden sm:inline-flex px-1.5 py-0.5 text-[10px] font-semibold bg-background border border-border rounded-md text-muted"
+                className="kbd hidden sm:inline-flex"
                 suppressHydrationWarning
               >
                 {isMac ? "⌘K" : "Ctrl+K"}
@@ -481,23 +488,23 @@ function NavigationInner() {
         {/* Navigation Sections */}
         <div className="flex-1 overflow-y-auto px-2 py-4 space-y-5 custom-scrollbar">
           <NavSection title="Academic" collapsed={isCollapsed}>
-            {ACADEMIC_LINKS.map(renderNavLink)}
+            {ACADEMIC_LINKS.map(link)}
           </NavSection>
 
           <NavSection title="Campus" collapsed={isCollapsed}>
-            {CAMPUS_LINKS.map(renderNavLink)}
+            {CAMPUS_LINKS.map(link)}
           </NavSection>
 
           <NavSection title="Productivity" collapsed={isCollapsed}>
-            {PRODUCTIVITY_LINKS.map(renderNavLink)}
+            {PRODUCTIVITY_LINKS.map(link)}
           </NavSection>
 
           <NavSection title="Connect" collapsed={isCollapsed}>
-            {SOCIAL_LINKS.map(renderNavLink)}
+            {SOCIAL_LINKS.map(link)}
           </NavSection>
 
           <NavSection title="System" collapsed={isCollapsed}>
-            {SYSTEM_LINKS.map(renderNavLink)}
+            {SYSTEM_LINKS.map(link)}
             {isAdmin && (
               <Link
                 href="/admin"
@@ -599,16 +606,16 @@ function NavigationInner() {
       </aside>
 
       {/* 2. Mobile Top Header */}
-      <header className="fixed top-0 inset-x-0 w-full max-w-[100vw] h-[calc(3.5rem+env(safe-area-inset-top))] pt-[env(safe-area-inset-top)] border-b border-border bg-background z-50 flex items-center justify-between gap-3 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] md:hidden transition-colors">
+      <header className="fixed top-0 inset-x-0 w-full max-w-[100vw] h-[calc(3.5rem+env(safe-area-inset-top))] pt-[env(safe-area-inset-top)] border-b border-border/80 bg-background/80 backdrop-blur-md z-sticky flex items-center justify-between gap-3 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] md:hidden transition-colors">
         <Link
           href="/"
           onClick={() => setSearchQuery("")}
           className="text-sm font-bold tracking-tight text-foreground flex items-center gap-2 min-h-11 min-w-0"
         >
-          <div className="w-6 h-6 rounded bg-foreground flex items-center justify-center text-background shrink-0">
+          <div className="w-6 h-6 rounded-lg bg-foreground flex items-center justify-center text-background shrink-0">
             <Layers className="w-3.5 h-3.5" />
           </div>
-          <span className="font-extrabold truncate">Utility OS</span>
+          <span className="font-display font-medium truncate">Utility</span>
         </Link>
 
         <div className="flex items-center gap-1 shrink-0">
@@ -639,10 +646,10 @@ function NavigationInner() {
             {/* Backdrop Overlay */}
             <motion.div
               initial={{ opacity: 0 }}
-              animate={{ opacity: 0.5 }}
+              animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setMobileOpen(false)}
-              className="fixed inset-0 bg-black/60 z-[100] md:hidden"
+              className="fixed inset-0 bg-background/80 backdrop-blur-sm z-modal md:hidden"
             />
 
             {/* Sidebar drawer content */}
@@ -651,7 +658,7 @@ function NavigationInner() {
               animate={{ x: 0 }}
               exit={{ x: "-100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 300, mass: 0.8 }}
-              className="fixed top-0 bottom-0 left-0 w-80 max-w-[88vw] bg-background-subtle border-r border-border/80 shadow-popover z-[101] md:hidden flex flex-col pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]"
+              className="fixed top-0 bottom-0 left-0 w-80 max-w-[88vw] bg-background-subtle border-r border-border/80 shadow-window z-dropdown md:hidden flex flex-col pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]"
             >
               {renderSidebarContent(true)}
             </motion.aside>

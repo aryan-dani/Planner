@@ -1,6 +1,7 @@
 import { WifiOff } from 'lucide-react';
 import Link from 'next/link';
 import OfflineRecovery from '@/components/pwa/OfflineRecovery';
+import { PageHeader } from '@/components/ui';
 
 export default function Offline() {
   return (
@@ -8,10 +9,11 @@ export default function Offline() {
       <div className="bg-surface border border-border rounded-full p-4 mb-6">
         <WifiOff className="w-8 h-8 text-muted" />
       </div>
-      <h1 className="text-2xl font-bold text-foreground mb-2">You&apos;re Offline</h1>
-      <p className="text-muted max-w-md mb-4">
-        It looks like you&apos;ve lost your internet connection. Some features of Utility may be unavailable until you reconnect.
-      </p>
+      <PageHeader
+        className="mb-4 sm:flex-col sm:items-center [&_p]:mx-auto"
+        title="You're Offline"
+        description="It looks like you've lost your internet connection. Some features of Utility may be unavailable until you reconnect."
+      />
       <OfflineRecovery />
       <Link 
         href="/"
