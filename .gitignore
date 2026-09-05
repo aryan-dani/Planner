@@ -60,4 +60,8 @@ restructure-drive-log.txt
 /public/workbox-*.js
 /public/fallback-*.js
 
+# Next.js agent hint files (disabled via agentRules: false; ignore if regenerated)
+/AGENTS.md
+/CLAUDE.md
+
 .vercel

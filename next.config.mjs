@@ -7,6 +7,8 @@ const withBundleAnalyzer = bundleAnalyzer({
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Stop next dev from writing AGENTS.md / CLAUDE.md into the repo root.
+  agentRules: false,
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "lh3.googleusercontent.com" },
