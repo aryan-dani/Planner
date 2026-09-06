@@ -126,33 +126,57 @@ Without `GEMINI_API_KEY`, search falls back to keyword/BM25 (still scoped by sem
 
 ### 3. Drive Sync & Indexing
 
+Prefer the unified **drive** CLI. Uploading one notes/PPT file only upserts that resource — it does **not** rebuild the full catalog.
+
 ```bash
-# Upload a local tree into the year-scoped Drive folder
-npm run upload-drive -- "C:\path\to\2026-2027"
-npm run upload-drive -- "C:\path\to\Sem_5_AIDS" --year=2026-2027
+# One-file put (recommended) — upload + catalog upsert only
+npm run drive -- put "C:\path\to\GML_Unit_1_Notes.pdf" \
+  --year=2026-2027 --branch=AIDS --semester=5 --subject=GML --category=notes \
+  --as=GML_Unit_1_Notes.pdf --revalidate
 
-# Update files that already exist (same folder + name only — not global)
-npm run upload-drive:overwrite -- "C:\path\to\2026-2027"
-node runtime/tools/upload-drive.mjs "C:\path\to\folder" --overwrite --dry-run --no-sync
+# Same via explicit Drive path
+npm run drive -- put ./file.pdf --to=2026-2027/AIDS/Sem_5_AIDS/Sem_5_PPT/GML --as=GML_Unit_2.pdf
 
-# Sync Drive folder → Firestore subjects/resources
-npm run sync-drive
-# Preview deletes/upserts without writing: node runtime/tools/sync-drive.mjs --dry-run
+# Optional: index just that file after put
+npm run drive -- put ./file.pdf --year=2026-2027 --branch=AIDS --semester=5 --subject=GML --index
 
-# Index document text for RAG / search
+# Path-scoped sync (walk one subtree, prune only inside it)
+npm run drive -- sync --path=2026-2027/AIDS/Sem_5_AIDS/Sem_5_Notes/GML
+npm run drive -- sync --year=2026-2027 --branch=AIDS --semester=5 --subject=GML --category=notes
+
+# Full catalog sync (nightly / after bulk moves). Also: npm run sync-drive
+npm run drive -- sync --full
+npm run drive -- sync --full --dry-run --verbose
+
+# Incremental changes (after a --full has saved a page token)
+npm run drive -- sync --incremental
+
+# List / find / move / trash
+npm run drive -- ls 2026-2027/AIDS/Sem_5_AIDS/Sem_5_Notes/GML
+npm run drive -- find GML_Unit
+npm run drive -- rm 2026-2027/AIDS/Sem_5_AIDS/Sem_5_Notes/GML/old.pdf --dry-run
+npm run drive -- mv <from-path> <to-folder> --apply
+
+# Targeted index
+npm run drive -- index --subject=GML
+npm run drive -- index --title=GML_Unit_1
 npm run index-content
 
-# Both
+# Legacy directory upload (path-scoped sync afterward, not full rebuild)
+npm run upload-drive -- "C:\path\to\2026-2027"
+npm run upload-drive:overwrite -- "C:\path\to\2026-2027"
+
+# Both full sync + index
 npm run sync-all
 
-# Read-only: compare Drive subjects/categories vs Firestore (via subjects join)
+# Read-only: compare Drive vs Firestore
 npm run audit-drive-site
 # Optional: --branch=AIDS --semester=3
 ```
 
-Nightly sync is scheduled **only** in GitHub Actions (`.github/workflows/storage-sync.yml` at 00:00 UTC). The Vercel cron was removed to avoid double-dispatching the same workflow.
+Nightly sync is scheduled **only** in GitHub Actions (`.github/workflows/storage-sync.yml` at 00:00 UTC) and runs **`--full`**. Use `put` for day-to-day notes.
 
-Resources are cached ~10 minutes (`unstable_cache` / `revalidate: 600`). After changing what the site shows (or after sync), wait for revalidate, redeploy, or use **Sync Now**.
+Resources are cached ~10 minutes (`unstable_cache` / `revalidate: 600`). After `put --revalidate` (or CI), tags refresh immediately; otherwise wait for revalidate, redeploy, or use **Sync Now**.
 
 Drive folder naming convention:
 

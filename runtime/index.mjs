@@ -1,7 +1,6 @@
 /**
  * runtime/index.mjs
  * Unified entry point for the Academic OS Runtime CLI.
- * Routes commands to appropriate libraries and tools.
  */
 
 import { listBuckets, listAllFiles, buildFileTree } from "./lib/storage.mjs";
@@ -10,6 +9,13 @@ import syncProject from "./tools/sync-drive.mjs";
 import indexContent from "./tools/index-content.mjs";
 import purgeCache from "./tools/purge-cache.mjs";
 import doctor from "./tools/doctor.mjs";
+import drivePut from "./tools/drive-put.mjs";
+import {
+  driveLs,
+  driveFind,
+  driveRm,
+  driveMv,
+} from "./tools/drive-ops.mjs";
 
 function parseFlag(args, name) {
   const eq = args.find((a) => a.startsWith(`--${name}=`));
@@ -26,29 +32,35 @@ Academic OS Runtime CLI (Firebase Backend)
 
 Usage:
   node runtime/index.mjs [command] [args]
+  npm run drive -- [command] [args]
 
-Commands:
+Drive commands (preferred for notes uploads):
+  put <file|dir> --to=YEAR/BRANCH/Sem_N_BRANCH/Sem_N_Notes/SUBJECT
+  put <file> --year= --branch= --semester= --subject= [--category=notes|ppt|…]
+                 [--as=Name.pdf] [--index] [--revalidate] [--no-sync] [--dry-run]
+  ls [path] [--depth=4]
+  find <name-fragment>
+  rm <drive-path> --dry-run|--apply
+  mv <from-path> <to-folder-or-path> --dry-run|--apply
+  sync [--full] [--path=…] [--year=] [--branch=] [--semester=] [--subject=]
+       [--incremental] [--dry-run] [--verbose]
+  index [--id=] [--title=] [--subject=] [--path=] [--shrink-content]
+
+Other commands:
   help              Show this help menu
   buckets           List all storage buckets
   files <bucket>    List all files in a bucket (recursive tree)
   pdf <bucket> <path> Extract text and metadata from a PDF
   search <term>     Search all PDFs locally in 'course-content' for a term
-  sync              Synchronize Google Drive with Firestore database
-                      --subject=<name>  Limit sync + prune to matching subjects
-                      --dry-run         Print actions without writing
-  index             Index resource contents into Firestore for RAG search
-                      --shrink-content  Truncate oversized resource_content
-                                        fields to 6k chars (no full reindex)
   purge-cache       Purge expired semantic cache entries
   doctor            Check env vars + Firestore collection health
-  
+
 Examples:
-  node runtime/index.mjs files course-content
-  node runtime/index.mjs sync
-  node runtime/index.mjs sync --subject=ML --dry-run
+  npm run drive -- put ./GML_Unit_1_Notes.pdf --year=2026-2027 --branch=AIDS --semester=5 --subject=GML --category=notes --as=GML_Unit_1_Notes.pdf --revalidate
+  npm run drive -- sync --path=2026-2027/AIDS/Sem_5_AIDS/Sem_5_Notes/GML
+  npm run drive -- sync --full
+  npm run drive -- index --subject=GML
   node runtime/index.mjs doctor
-  node runtime/index.mjs index
-  node runtime/index.mjs purge-cache
 `;
 
 async function main() {
@@ -65,6 +77,26 @@ async function main() {
       case "--help":
       case "-h":
         console.log(helpText);
+        break;
+
+      case "put":
+        await drivePut(args);
+        break;
+
+      case "ls":
+        await driveLs(args);
+        break;
+
+      case "find":
+        await driveFind(args);
+        break;
+
+      case "rm":
+        await driveRm(args);
+        break;
+
+      case "mv":
+        await driveMv(args);
         break;
 
       case "buckets": {
@@ -106,7 +138,16 @@ async function main() {
       case "sync": {
         await syncProject({
           subject: parseFlag(args, "subject"),
+          path: parseFlag(args, "path"),
+          year: parseFlag(args, "year"),
+          branch: parseFlag(args, "branch"),
+          semester: parseFlag(args, "semester"),
+          category: parseFlag(args, "category"),
           dryRun: args.includes("--dry-run"),
+          verbose: args.includes("--verbose"),
+          full: args.includes("--full"),
+          incremental: args.includes("--incremental"),
+          argv: args,
         });
         break;
       }
@@ -114,6 +155,10 @@ async function main() {
       case "index": {
         await indexContent({
           shrinkContent: args.includes("--shrink-content"),
+          ids: args.filter((a) => a.startsWith("--id=")).map((a) => a.slice(5)),
+          title: parseFlag(args, "title"),
+          subject: parseFlag(args, "subject"),
+          path: parseFlag(args, "path"),
         });
         break;
       }

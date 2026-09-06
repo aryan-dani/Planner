@@ -1,368 +1,298 @@
 /**
  * runtime/tools/sync-drive.mjs
- * Synchronizes Google Drive Shared Folder contents with the Firestore Database.
- * Scans Google Drive directory recursively and updates 'subjects' and 'resources' collections.
+ * Synchronize Google Drive → Firestore.
+ *
+ * Usage:
+ *   node runtime/tools/sync-drive.mjs --full
+ *   node runtime/tools/sync-drive.mjs --path=2026-2027/AIDS/Sem_5_AIDS/Sem_5_Notes/GML
+ *   node runtime/tools/sync-drive.mjs --year=2026-2027 --branch=AIDS --semester=5 --subject=GML
+ *   node runtime/tools/sync-drive.mjs --incremental
+ *   node runtime/tools/sync-drive.mjs --dry-run --verbose
  */
-
-import { db } from "../lib/firebase.mjs";
-import crypto from "crypto";
 import path from "path";
 import { pathToFileURL } from "url";
 import { getEnv } from "../lib/env.mjs";
 import { getDrive } from "../lib/drive.mjs";
 import {
-  parseAcademicYearFromPath,
-  LEGACY_ACADEMIC_YEAR,
-} from "../lib/academicYear.mjs";
+  getRootFolderId,
+  walkFiles,
+  resolveFolderPath,
+} from "../lib/driveTree.mjs";
+import {
+  upsertResources,
+  buildDestSegments,
+  parseDrivePath,
+  getDriveSyncState,
+  setDriveSyncState,
+} from "../lib/driveCatalog.mjs";
+import { DEFAULT_ACADEMIC_YEAR } from "../lib/academicYear.mjs";
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-function generateId(input) {
-  const hash = crypto.createHash("sha256").update(input).digest("hex");
-  return `${hash.substring(0, 8)}-${hash.substring(8, 12)}-4${hash.substring(12, 15)}-a${hash.substring(15, 18)}-${hash.substring(18, 30)}`;
+function parseFlag(argv, name) {
+  const eq = argv.find((a) => a.startsWith(`--${name}=`));
+  if (eq) return eq.slice(`--${name}=`.length);
+  const idx = argv.indexOf(`--${name}`);
+  if (idx >= 0 && argv[idx + 1] && !argv[idx + 1].startsWith("-")) {
+    return argv[idx + 1];
+  }
+  return null;
 }
 
-/** Recursively retrieve all files from a Google Drive folder */
-async function retrieveAllFiles(folderId, currentPath = "") {
-  const filesList = [];
-  let pageToken = null;
-  const drive = getDrive();
+function parseSyncOptions(options = {}, argv = process.argv.slice(2)) {
+  const dryRun = options.dryRun === true || argv.includes("--dry-run");
+  const verbose = options.verbose === true || argv.includes("--verbose");
+  const incremental =
+    options.incremental === true || argv.includes("--incremental");
+  const fullFlag = options.full === true || argv.includes("--full");
+
+  const pathArg = options.path || parseFlag(argv, "path");
+  const year = options.year || parseFlag(argv, "year");
+  const branch = options.branch || parseFlag(argv, "branch");
+  const semester = options.semester || parseFlag(argv, "semester");
+  const subject = options.subject || parseFlag(argv, "subject");
+  const category = options.category || parseFlag(argv, "category");
+
+  let scopePath = pathArg || null;
+  const hasFolderHints = Boolean(branch && semester);
+
+  if (!scopePath && hasFolderHints) {
+    scopePath = buildDestSegments({
+      year: year || DEFAULT_ACADEMIC_YEAR,
+      branch,
+      semester,
+      subject: subject || "",
+      category: category || "notes",
+    })
+      .filter(Boolean)
+      .join("/");
+  }
+
+  // Legacy: --subject=ML alone still walks full tree but filters + no stats clobber
+  const subjectFilterOnly =
+    !pathArg && !hasFolderHints && subject ? subject : null;
+
+  const isScoped = Boolean(scopePath);
+  const isFull =
+    fullFlag || (!isScoped && !subjectFilterOnly && !incremental);
+
+  return {
+    dryRun,
+    verbose,
+    incremental,
+    full: isFull,
+    scopePath,
+    subjectFilter: subjectFilterOnly,
+    year,
+    branch,
+    semester,
+    subject,
+    category,
+  };
+}
+
+async function resolveWalkRoot(opts) {
+  const rootId = getRootFolderId();
+  if (!opts.scopePath) {
+    return { folderId: rootId, pathPrefix: "", prunePrefix: null };
+  }
+
+  // If subject folder may not exist yet when using year/branch/sem only, try progressively.
+  const segments = opts.scopePath.replace(/\\/g, "/").split("/").filter(Boolean);
+  try {
+    const { folderId, path: resolved } = await resolveFolderPath(segments, {
+      create: false,
+      drive: getDrive(),
+    });
+    return { folderId, pathPrefix: resolved, prunePrefix: resolved };
+  } catch (err) {
+    // Fall back one level at a time
+    for (let len = segments.length - 1; len >= 1; len--) {
+      try {
+        const partial = segments.slice(0, len);
+        const { folderId, path: resolved } = await resolveFolderPath(partial, {
+          create: false,
+          drive: getDrive(),
+        });
+        console.warn(
+          `  ⚠️  ${err.message}; walking ${resolved} instead`,
+        );
+        return { folderId, pathPrefix: resolved, prunePrefix: resolved };
+      } catch {
+        /* continue */
+      }
+    }
+    throw err;
+  }
+}
+
+async function syncIncremental(opts) {
+  const drive = getDrive(["https://www.googleapis.com/auth/drive.readonly"]);
+  const rootId = getRootFolderId();
+  let state = await getDriveSyncState();
+  let pageToken = state?.page_token;
+
+  if (!pageToken) {
+    const start = await drive.changes.getStartPageToken({
+      supportsAllDrives: true,
+    });
+    pageToken = start.data.startPageToken;
+    if (!opts.dryRun) {
+      await setDriveSyncState({ page_token: pageToken, mode: "incremental" });
+    }
+    console.log(
+      "  No saved page token — saved start token. Run --full once, then --incremental.",
+    );
+    return { stats: { resourcesWritten: 0 } };
+  }
+
+  console.log(`\n🔄 Incremental Drive sync from page token…\n`);
+  const changedFiles = [];
+  let newToken = pageToken;
 
   do {
-    const res = await drive.files.list({
-      q: `'${folderId}' in parents and trashed = false`,
-      fields: "nextPageToken, files(id, name, mimeType, modifiedTime)",
+    const res = await drive.changes.list({
+      pageToken: newToken,
+      fields:
+        "nextPageToken, newStartPageToken, changes(fileId, removed, file(id, name, mimeType, modifiedTime, parents, trashed))",
       pageSize: 100,
-      pageToken: pageToken,
       supportsAllDrives: true,
       includeItemsFromAllDrives: true,
+      spaces: "drive",
     });
 
-    const files = res.data.files || [];
-    for (const file of files) {
-      const relativePath = currentPath
-        ? `${currentPath}/${file.name}`
-        : file.name;
-      if (file.mimeType === "application/vnd.google-apps.folder") {
-        const subFiles = await retrieveAllFiles(file.id, relativePath);
-        filesList.push(...subFiles);
-      } else {
-        filesList.push({
+    for (const change of res.data.changes || []) {
+      if (change.removed || change.file?.trashed) {
+        // Path-based delete needs drive_file_id lookup — handled lightly
+        continue;
+      }
+      const file = change.file;
+      if (!file || file.mimeType === "application/vnd.google-apps.folder") {
+        continue;
+      }
+      // Reconstruct path via parents walk (best-effort)
+      try {
+        const pathParts = [file.name];
+        let parentId = file.parents?.[0];
+        let guard = 0;
+        while (parentId && parentId !== rootId && guard++ < 20) {
+          const parent = await drive.files.get({
+            fileId: parentId,
+            fields: "id, name, parents",
+            supportsAllDrives: true,
+          });
+          pathParts.unshift(parent.data.name);
+          parentId = parent.data.parents?.[0];
+          if (parentId === rootId) break;
+        }
+        if (parentId !== rootId && guard >= 20) continue;
+        const relativePath = pathParts.join("/");
+        const parsed = parseDrivePath(relativePath);
+        if (!parsed?.ok) continue;
+        changedFiles.push({
           id: file.id,
           name: file.name,
           path: relativePath,
           updatedAt: file.modifiedTime,
         });
+      } catch {
+        /* skip unresolvable */
       }
     }
-    pageToken = res.data.nextPageToken;
-  } while (pageToken);
 
-  return filesList;
+    if (res.data.nextPageToken) {
+      newToken = res.data.nextPageToken;
+    } else {
+      newToken = res.data.newStartPageToken || newToken;
+      break;
+    }
+  } while (true);
+
+  console.log(`📦 ${changedFiles.length} changed file(s) under catalog paths.\n`);
+
+  const result = await upsertResources(changedFiles, {
+    dryRun: opts.dryRun,
+    verbose: opts.verbose,
+    prune: false,
+    updateStats: changedFiles.length ? "bump" : "none",
+  });
+
+  if (!opts.dryRun) {
+    await setDriveSyncState({
+      page_token: newToken,
+      mode: "incremental",
+      last_change_count: changedFiles.length,
+    });
+  }
+
+  printSummary(result.stats, { incremental: true });
+  return result;
 }
 
-// ── Sync Process ──────────────────────────────────────────────────────────────
+function printSummary(stats, extra = {}) {
+  console.log(`\n✨ Sync Complete${extra.incremental ? " (incremental)" : ""}!`);
+  console.log(`   - Resources written: ${stats.resourcesWritten}`);
+  console.log(`   - Resources unchanged (skipped): ${stats.resourcesSkipped}`);
+  console.log(`   - Reindex flagged: ${stats.reindexFlagged}`);
+  console.log(`   - Path skipped: ${stats.pathSkipped}`);
+  console.log(`   - Filter skipped: ${stats.filterSkipped}`);
+  console.log(`   - Resources deleted: ${stats.deletedResources}`);
+  console.log(`   - Subjects deleted: ${stats.deletedSubjects}`);
+  console.log(`   - Subjects touched: ${stats.subjects}\n`);
+}
 
 async function syncDrive(options = {}) {
-  const dryRun = options.dryRun === true || process.argv.includes("--dry-run");
-  const subjectArg =
-    options.subject ||
-    (() => {
-      const eq = process.argv.find((a) => a.startsWith("--subject="));
-      if (eq) return eq.slice("--subject=".length);
-      const idx = process.argv.indexOf("--subject");
-      if (idx >= 0 && process.argv[idx + 1] && !process.argv[idx + 1].startsWith("-")) {
-        return process.argv[idx + 1];
-      }
-      return null;
-    })();
-  const subjectFilter = subjectArg ? String(subjectArg).trim().toLowerCase() : null;
+  const argv = options.argv || process.argv.slice(2);
+  const opts = parseSyncOptions(options, argv);
+
+  if (opts.incremental && !opts.full) {
+    return syncIncremental(opts);
+  }
+
+  const scopeLabel = opts.scopePath
+    ? ` [path=${opts.scopePath}]`
+    : opts.subjectFilter
+      ? ` [subject≈${opts.subjectFilter}]`
+      : " [full]";
 
   console.log(
-    `\n🚀 Starting Google Drive Sync...${dryRun ? " (dry-run)" : ""}${
-      subjectFilter ? ` [subject≈${subjectArg}]` : ""
-    }\n`,
+    `\n🚀 Starting Google Drive Sync...${opts.dryRun ? " (dry-run)" : ""}${scopeLabel}\n`,
   );
 
   try {
-    const driveFolderId = getEnv("GOOGLE_DRIVE_FOLDER_ID");
-    if (!driveFolderId) {
-      throw new Error(
-        "❌ Missing GOOGLE_DRIVE_FOLDER_ID in environment variables.",
-      );
-    }
-    const files = await retrieveAllFiles(driveFolderId);
-    console.log(`📦 Found ${files.length} files in Google Drive folder.\n`);
+    getEnv("GOOGLE_DRIVE_FOLDER_ID");
+    const { folderId, pathPrefix, prunePrefix } = await resolveWalkRoot(opts);
+    const files = await walkFiles(folderId, pathPrefix);
+    console.log(`📦 Found ${files.length} files to consider.\n`);
 
-    const stats = {
-      subjects: 0,
-      resources: 0,
-      skipped: 0,
-      deletedResources: 0,
-      deletedSubjects: 0,
-      reindexFlagged: 0,
-    };
-    const liveSubjectIds = new Set();
-    const liveResourceIds = new Set();
-    const syncedSubjectIds = new Set();
-    const uniqueBranches = new Set();
-    const uniqueSemesters = new Set();
+    const isFull = opts.full && !opts.scopePath && !opts.subjectFilter;
 
-    for (const file of files) {
-      // Expected path: [optional_branch_parent/]Semester_Branch/Category/Subject/File
-      const parts = file.path.split("/");
-      if (parts.length < 1) continue;
-
-      const academicYear = parseAcademicYearFromPath(parts);
-
-      const semIndex = parts.findIndex((p) => p.match(/Sem_(\d+)_(\w+)/i));
-
-      if (semIndex === -1) {
-        console.log(`  ⚠️  Skipping non-standard path: ${file.path}`);
-        stats.skipped++;
-        continue;
-      }
-
-      const semBranchFolder = parts[semIndex];
-      const semMatch = semBranchFolder.match(/Sem_(\d+)_(\w+)/i);
-      const semester = parseInt(semMatch[1]);
-      const branch = semMatch[2].toUpperCase();
-
-      let subjectName = "General";
-      let fileName = parts[parts.length - 1];
-
-      // Syllabus special case
-      if (fileName.toLowerCase().includes("syllabus")) {
-        subjectName = "Syllabus";
-      } else if (parts.length >= semIndex + 4) {
-        subjectName = parts[semIndex + 2];
-      } else if (parts.length === semIndex + 3) {
-        subjectName = "General";
-      }
-
-      // Clean subject name
-      subjectName = subjectName
-        .replace(/_/g, " ")
-        .split(" ")
-        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-        .join(" ");
-
-      if (
-        subjectFilter &&
-        !subjectName.toLowerCase().includes(subjectFilter)
-      ) {
-        stats.skipped++;
-        continue;
-      }
-
-      // 1. Sync Subject to Firestore
-      const subjectId = generateId(
-        `subject-${academicYear}-${branch}-${semester}-${subjectName.toLowerCase()}`,
-      );
-      const subjectRef = db.collection("subjects").doc(subjectId);
-      if (!syncedSubjectIds.has(subjectId)) {
-        if (!dryRun) {
-          await subjectRef.set(
-            {
-              name: subjectName,
-              branch: branch,
-              semester: semester,
-              academic_year: academicYear,
-            },
-            { merge: true },
-          );
-        }
-        syncedSubjectIds.add(subjectId);
-        stats.subjects++;
-      }
-      liveSubjectIds.add(subjectId);
-      uniqueBranches.add(branch);
-      uniqueSemesters.add(semester);
-
-      // 2. Sync Resource to Firestore
-      // Instead of forcing a download, use the Google Drive preview link so it opens nicely in an iframe
-      const fileUrl = `https://drive.google.com/file/d/${file.id}/preview`;
-      const resourceId = generateId(file.path);
-      const resourceRef = db.collection("resources").doc(resourceId);
-
-      let category = "other";
-      if (parts.length >= semIndex + 2) {
-        const catSegment = parts[semIndex + 1].toLowerCase();
-        if (catSegment.includes("notes")) category = "notes";
-        else if (
-          catSegment.includes("ppt") ||
-          catSegment.includes("presentation")
-        )
-          category = "ppt";
-        else if (catSegment.includes("pyq")) category = "pyq";
-        else if (
-          catSegment.includes("qb") ||
-          catSegment.includes("question_bank")
-        ) {
-          category = fileName.toLowerCase().includes("solved")
-            ? "solved-question-bank"
-            : "question-bank";
-        } else if (catSegment.includes("writeup")) category = "writeup";
-        else if (catSegment.includes("code")) category = "codes";
-      }
-
-      const driveModifiedAt = file.updatedAt || new Date().toISOString();
-      const existingSnap = await resourceRef.get();
-      const existing = existingSnap.exists ? existingSnap.data() : null;
-      const contentChanged =
-        !existing ||
-        existing.drive_modified_at !== driveModifiedAt ||
-        existing.file_url !== fileUrl;
-
-      const payload = {
-        title: fileName,
-        file_url: fileUrl,
-        subject_id: subjectId,
-        category: category,
-        academic_year: academicYear,
-        branch,
-        semester,
-        created_at: existing?.created_at || driveModifiedAt,
-        drive_modified_at: driveModifiedAt,
-      };
-
-      // Clear indexed hashes so index-content re-extracts updated Drive files.
-      if (contentChanged && existing?.content_hash) {
-        payload.content_hash = null;
-        payload.ai_summary = null;
-        stats.reindexFlagged++;
-      }
-
-      if (!dryRun) {
-        await resourceRef.set(payload, { merge: true });
-        if (contentChanged && existing?.content_hash) {
-          await db.collection("resource_content").doc(resourceId).set(
-            { content_hash: null, ai_summary: null },
-            { merge: true },
-          );
-        }
-      }
-
-      liveResourceIds.add(resourceId);
-      stats.resources++;
-
-      console.log(
-        `  ✅ Synced: ${fileName.substring(0, 30).padEnd(30)} [${subjectName}]${contentChanged && existing?.content_hash ? " (reindex)" : ""}`,
-      );
-    }
-
-    // 3. Cleanup Stale Data
-    console.log(`\n🧹 Cleaning up stale database records...`);
-
-    // Fetch all current resources in Firestore
-    const allResourcesSnap = await db.collection("resources").get();
-    const staleResourceIds = [];
-    allResourcesSnap.forEach((doc) => {
-      if (liveResourceIds.has(doc.id)) return;
-      if (subjectFilter) {
-        // Scoped sync: only prune resources under subjects we touched
-        const sid = doc.data()?.subject_id;
-        if (!liveSubjectIds.has(sid)) return;
-      }
-      staleResourceIds.push(doc.id);
+    const result = await upsertResources(files, {
+      dryRun: opts.dryRun,
+      verbose: opts.verbose,
+      prune: true,
+      prunePrefix: isFull ? null : prunePrefix,
+      updateStats: isFull ? "full" : "none",
+      subjectFilter: opts.subjectFilter,
     });
 
-    if (staleResourceIds.length > 0) {
-      console.log(
-        `  🗑️ Deleting ${staleResourceIds.length} stale resources${dryRun ? " (dry-run)" : ""}${
-          subjectFilter ? " (subject-scoped)" : ""
-        }...`,
-      );
-      if (!dryRun) {
-        const chunkSize = 40;
-        for (let i = 0; i < staleResourceIds.length; i += chunkSize) {
-          const chunk = staleResourceIds.slice(i, i + chunkSize);
-          const batch = db.batch();
-          for (const id of chunk) {
-            batch.delete(db.collection("resources").doc(id));
-            batch.delete(db.collection("resource_content").doc(id));
-          }
-          await batch.commit();
-
-          // Also delete orphan RAG chunks for each stale resource
-          for (const id of chunk) {
-            const chunkSnap = await db
-              .collection("resource_chunks")
-              .where("resource_id", "==", id)
-              .limit(500)
-              .get();
-            if (chunkSnap.empty) continue;
-            const chunkBatch = db.batch();
-            chunkSnap.docs.forEach((d) => chunkBatch.delete(d.ref));
-            await chunkBatch.commit();
-          }
-
-          if (staleResourceIds.length > chunkSize) {
-            console.log(
-              `     … deleted ${Math.min(i + chunkSize, staleResourceIds.length)}/${staleResourceIds.length}`,
-            );
-          }
-        }
+    // Save start page token after full sync so incremental can follow
+    if (!opts.dryRun && isFull) {
+      try {
+        const drive = getDrive();
+        const start = await drive.changes.getStartPageToken({
+          supportsAllDrives: true,
+        });
+        await setDriveSyncState({
+          page_token: start.data.startPageToken,
+          mode: "full",
+          last_full_at: new Date().toISOString(),
+        });
+      } catch (err) {
+        console.warn(`  ⚠️  Could not save changes page token: ${err.message}`);
       }
-      stats.deletedResources = staleResourceIds.length;
     }
 
-    // Fetch all current subjects in Firestore (skip full prune when subject-scoped)
-    if (!subjectFilter) {
-      const allSubjectsSnap = await db.collection("subjects").get();
-      const staleSubjectIds = [];
-      allSubjectsSnap.forEach((doc) => {
-        if (!liveSubjectIds.has(doc.id)) {
-          staleSubjectIds.push(doc.id);
-        }
-      });
-
-      if (staleSubjectIds.length > 0) {
-        console.log(
-          `  🗑️ Deleting ${staleSubjectIds.length} stale subjects${dryRun ? " (dry-run)" : ""}...`,
-        );
-        if (!dryRun) {
-          const chunkSize = 200;
-          for (let i = 0; i < staleSubjectIds.length; i += chunkSize) {
-            const chunk = staleSubjectIds.slice(i, i + chunkSize);
-            const batch = db.batch();
-            for (const id of chunk) {
-              batch.delete(db.collection("subjects").doc(id));
-            }
-            await batch.commit();
-          }
-        }
-        stats.deletedSubjects = staleSubjectIds.length;
-      }
-    } else {
-      console.log(
-        `  ⏭️ Skipping subject prune (subject-scoped sync: ${subjectArg})`,
-      );
-    }
-
-    console.log(`\n✨ Sync Complete!`);
-    console.log(`   - Resources Synced: ${stats.resources}`);
-    console.log(`   - Reindex Flagged: ${stats.reindexFlagged}`);
-    console.log(`   - Resources Deleted: ${stats.deletedResources}`);
-    console.log(`   - Subjects Synced: ${liveSubjectIds.size}`);
-    console.log(`   - Subjects Deleted: ${stats.deletedSubjects}`);
-    console.log(`   - Files Skipped: ${stats.skipped}\n`);
-
-    if (!dryRun) {
-      await db.collection("stats").doc("global").set(
-        {
-          subjects: liveSubjectIds.size,
-          resources: liveResourceIds.size,
-          branches: uniqueBranches.size,
-          semesters: uniqueSemesters.size,
-          updated_at: new Date().toISOString(),
-        },
-        { merge: true },
-      );
-      console.log(
-        `📊 Wrote stats/global (${liveSubjectIds.size} subjects, ${liveResourceIds.size} resources).\n`,
-      );
-    }
+    printSummary(result.stats);
+    return result;
   } catch (error) {
     console.error(`\n❌ Sync failed: ${error.message}`);
     if (error.stack) console.error(error.stack);
@@ -370,7 +300,6 @@ async function syncDrive(options = {}) {
   }
 }
 
-// Allow running directly (safe when imported by Next.js / other tools)
 const isDirectRun =
   !!process.argv[1] &&
   import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href;

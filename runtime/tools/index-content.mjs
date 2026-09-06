@@ -158,7 +158,42 @@ export default async function indexContent(options = {}) {
     return;
   }
 
-  console.log("\n🔍 Starting Hybrid Content Indexing…\n");
+  const idFilters = new Set(
+    [
+      ...(options.ids || []),
+      ...process.argv
+        .filter((a) => a.startsWith("--id="))
+        .map((a) => a.slice(5)),
+    ].filter(Boolean),
+  );
+  const titleFilter = (
+    options.title ||
+    process.argv.find((a) => a.startsWith("--title="))?.slice(8) ||
+    ""
+  )
+    .trim()
+    .toLowerCase();
+  const subjectFilter = (
+    options.subject ||
+    process.argv.find((a) => a.startsWith("--subject="))?.slice(10) ||
+    ""
+  )
+    .trim()
+    .toLowerCase();
+  const pathFilter = (
+    options.path ||
+    process.argv.find((a) => a.startsWith("--path="))?.slice(7) ||
+    ""
+  )
+    .trim()
+    .replace(/\\/g, "/");
+
+  const targeted =
+    idFilters.size > 0 || titleFilter || subjectFilter || pathFilter;
+
+  console.log(
+    `\n🔍 Starting Hybrid Content Indexing${targeted ? " (targeted)" : ""}…\n`,
+  );
 
   const hasGemini = Boolean(process.env.GEMINI_API_KEY);
   if (!hasGemini) {
@@ -170,7 +205,43 @@ export default async function indexContent(options = {}) {
   const stats = { ok: 0, skipped: 0, failed: 0, chunksWritten: 0 };
 
   try {
-    const resources = await fetchAll("resources");
+    let resources;
+    if (idFilters.size > 0) {
+      resources = [];
+      for (const id of idFilters) {
+        const snap = await db.collection("resources").doc(id).get();
+        if (snap.exists) resources.push({ id: snap.id, ...snap.data() });
+        else console.warn(`  ⚠️  Resource not found: ${id}`);
+      }
+    } else {
+      resources = await fetchAll("resources");
+    }
+
+    if (titleFilter) {
+      resources = resources.filter((r) =>
+        String(r.title || "")
+          .toLowerCase()
+          .includes(titleFilter),
+      );
+    }
+    if (pathFilter) {
+      resources = resources.filter((r) =>
+        String(r.drive_path || "").startsWith(pathFilter),
+      );
+    }
+
+    const subjects = await fetchAll("subjects");
+    const subjectsMap = new Map(subjects.map((s) => [s.id, s]));
+
+    if (subjectFilter) {
+      resources = resources.filter((r) => {
+        const sub = subjectsMap.get(r.subject_id);
+        return String(sub?.name || "")
+          .toLowerCase()
+          .includes(subjectFilter);
+      });
+    }
+
     const indexable = resources.filter((r) => {
       const ext = getExt(r);
       return SUPPORTED_EXTS.some((e) => e === `.${ext}`);
@@ -178,17 +249,33 @@ export default async function indexContent(options = {}) {
 
     console.log(`📦 ${indexable.length} indexable resources.\n`);
 
-    const subjects = await fetchAll("subjects");
-    const subjectsMap = new Map(subjects.map((s) => [s.id, s]));
-
-    const indexedContent = await fetchAll("resource_content", "resource_id, last_indexed, search_tokens, content_hash");
+    const indexedContent = await fetchAll(
+      "resource_content",
+      "resource_id, last_indexed, search_tokens, content_hash",
+    );
     const indexedMap = new Map(indexedContent.map((i) => [i.resource_id, i]));
 
-    const existingChunks = await fetchAll("resource_chunks", "resource_id, content_hash, chunk_index");
+    const existingChunks = targeted
+      ? []
+      : await fetchAll("resource_chunks", "resource_id, content_hash, chunk_index");
     const chunkHashMap = new Map();
     for (const c of existingChunks) {
-      if (!chunkHashMap.has(c.resource_id)) chunkHashMap.set(c.resource_id, new Set());
+      if (!chunkHashMap.has(c.resource_id))
+        chunkHashMap.set(c.resource_id, new Set());
       chunkHashMap.get(c.resource_id).add(c.content_hash);
+    }
+
+    // For targeted runs, load chunk hashes only for those resources
+    if (targeted) {
+      for (const res of indexable) {
+        const { data } = await select("resource_chunks", {
+          columns: "resource_id, content_hash",
+          where: [{ column: "resource_id", op: "eq", value: res.id }],
+          limit: 5000,
+        });
+        const set = new Set(data.map((d) => d.content_hash));
+        chunkHashMap.set(res.id, set);
+      }
     }
 
     const toIndex = [];
@@ -200,6 +287,11 @@ export default async function indexContent(options = {}) {
     };
 
     for (const res of indexable) {
+      // Targeted: always (re)index selected resources
+      if (targeted) {
+        queue(res);
+        continue;
+      }
       const doc = indexedMap.get(res.id);
       if (!doc) {
         queue(res);
@@ -209,17 +301,14 @@ export default async function indexContent(options = {}) {
         queue(res);
         continue;
       }
-      // Missing hash on the resource means sync cleared it after a Drive edit.
       if (!res.content_hash) {
         queue(res);
         continue;
       }
-      // Hash mismatch between catalog and indexed content → reindex.
       if (doc.content_hash && res.content_hash !== doc.content_hash) {
         queue(res);
         continue;
       }
-      // Drive mtime newer than last index → reindex even if hashes still match.
       const driveMtime = res.drive_modified_at || res.created_at;
       if (
         driveMtime &&
@@ -229,7 +318,6 @@ export default async function indexContent(options = {}) {
         queue(res);
         continue;
       }
-      // Same hash already indexed — skip.
       if (res.content_hash && doc.content_hash === res.content_hash) continue;
       queue(res);
     }
@@ -263,7 +351,6 @@ export default async function indexContent(options = {}) {
           .replace(/\\u0000/g, "")
           .replace(/\x00/g, "");
 
-        // Legacy resource_content (summarize API) — store short excerpt only
         const excerpt = excerptContent(cleanText);
         const legacyTokens = buildSearchTokens(excerpt);
         await upsert(
@@ -287,8 +374,11 @@ export default async function indexContent(options = {}) {
           "resource_id",
         );
 
-        // Chunk-level index
-        const chunks = chunkUnits(units.length ? units : [{ text: cleanText, sectionLabel: "Document", sectionIndex: 1 }]);
+        const chunks = chunkUnits(
+          units.length
+            ? units
+            : [{ text: cleanText, sectionLabel: "Document", sectionIndex: 1 }],
+        );
 
         for (const chunk of chunks) {
           chunk.content_hash = crypto
@@ -343,7 +433,6 @@ export default async function indexContent(options = {}) {
         await db.collection("resources").doc(res.id).set(
           {
             content_hash: contentHash,
-            // Clear stale AI summary so summarize re-generates for new content.
             ai_summary: null,
           },
           { merge: true },
@@ -366,25 +455,34 @@ export default async function indexContent(options = {}) {
     }
     await Promise.all(executing);
 
-    // Corpus stats for BM25 IDF
-    console.log("\n📊 Computing corpus statistics…");
-    const allChunksForStats = await fetchAll("resource_chunks", "chunk_tokens, token_count");
-    const df = buildDocFreq(allChunksForStats);
-    const totalTokens = allChunksForStats.reduce((s, c) => s + (c.token_count || 0), 0);
-    const avgTokenCount = allChunksForStats.length
-      ? totalTokens / allChunksForStats.length
-      : 0;
+    if (!targeted) {
+      console.log("\n📊 Computing corpus statistics…");
+      const allChunksForStats = await fetchAll(
+        "resource_chunks",
+        "chunk_tokens, token_count",
+      );
+      const df = buildDocFreq(allChunksForStats);
+      const totalTokens = allChunksForStats.reduce(
+        (s, c) => s + (c.token_count || 0),
+        0,
+      );
+      const avgTokenCount = allChunksForStats.length
+        ? totalTokens / allChunksForStats.length
+        : 0;
 
-    await db.collection("rag_stats").doc("global").set({
-      total_chunks: allChunksForStats.length,
-      avg_token_count: avgTokenCount,
-      doc_freq: capDocFreq(df, MAX_DOC_FREQ_TERMS),
-      updated_at: new Date().toISOString(),
-    });
+      await db.collection("rag_stats").doc("global").set({
+        total_chunks: allChunksForStats.length,
+        avg_token_count: avgTokenCount,
+        doc_freq: capDocFreq(df, MAX_DOC_FREQ_TERMS),
+        updated_at: new Date().toISOString(),
+      });
 
-    console.log(
-      `\n✨ Indexing complete. ${allChunksForStats.length} total chunks in corpus.`,
-    );
+      console.log(
+        `\n✨ Indexing complete. ${allChunksForStats.length} total chunks in corpus.`,
+      );
+    } else {
+      console.log(`\n✨ Targeted indexing complete.`);
+    }
     console.log(
       `   Resources: ${stats.ok} indexed, ${stats.skipped} skipped (no text), ${stats.failed} failed.`,
     );
