@@ -9,15 +9,20 @@ import {
   CheckCircle2,
   PenTool,
   Code2,
+  Link2,
+  Star,
 } from "lucide-react";
 import { ResourceItem, ResourceCategory } from "@/lib/dataFetcher";
 import { getFileExtension, isCodeExtension } from "@/lib/fileUtils";
 import { cleanResourceTitle } from "@/lib/titleUtils";
+import { Button, IconButton } from "@/components/ui";
 
 interface ResourceCardProps {
   item: ResourceItem;
   onOpenResource: (item: ResourceItem) => void;
-  onSummarize: (item: ResourceItem) => void;
+  onShare?: (item: ResourceItem) => void;
+  onFavorite?: (item: ResourceItem) => void;
+  isFavorite?: boolean;
   relatedCodes?: ResourceItem[];
 }
 
@@ -38,22 +43,21 @@ const CATEGORY_CONFIG: Record<
   other: { color: "var(--accent-other)", label: "Other" },
 };
 
-// Removed isNewResource utility
-
 export default function ResourceCard({
   item,
   onOpenResource,
-  onSummarize,
+  onShare,
+  onFavorite,
+  isFavorite = false,
   relatedCodes = [],
 }: ResourceCardProps) {
   const extension = getFileExtension(item.title, item.file_url);
   const isDrivePreview = item.file_url.includes("drive.google.com/file/d/");
-  const isPdf = extension === "pdf" || (isDrivePreview && !extension); // Default to PDF styling for generic drive files if no ext
+  const isPdf = extension === "pdf" || (isDrivePreview && !extension);
   const isPpt = extension === "ppt" || extension === "pptx";
   const isDoc = extension === "doc" || extension === "docx";
   const isCode = isCodeExtension(extension) || item.category === "codes";
   const opensInViewer = isPdf || isPpt || isDrivePreview || isCode;
-  const isSummarizable = isPdf || isPpt || isDoc || (isDrivePreview && !isCode);
   const isSolved = item.category === "solved-question-bank";
   const config = CATEGORY_CONFIG[item.category] || CATEGORY_CONFIG["other"];
   const hasRelatedCode = relatedCodes.length > 0;
@@ -66,6 +70,12 @@ export default function ResourceCard({
     }
   };
 
+  const stop = (e: MouseEvent, fn: () => void) => {
+    e.preventDefault();
+    e.stopPropagation();
+    fn();
+  };
+
   const handleOpenCode = (e: MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -73,7 +83,6 @@ export default function ResourceCard({
       onOpenResource(relatedCodes[0]);
       return;
     }
-    // Multiple codes: open writeup so the related-code bar lists all of them
     onOpenResource(item);
   };
 
@@ -87,6 +96,8 @@ export default function ResourceCard({
           ? PenTool
           : HardDrive;
 
+  const actionCount = 1 + (onShare ? 1 : 0) + (hasRelatedCode ? 1 : 0);
+
   return (
     <div
       role="button"
@@ -99,25 +110,26 @@ export default function ResourceCard({
         }
       }}
       className="group bg-card hover:bg-surface/50 p-5 flex flex-col gap-3.5 text-left cursor-pointer relative overflow-hidden h-full transition-colors duration-200 w-full focus-visible:outline-offset-2 focus-visible:z-10"
-      style={{
-        ["--card-accent" as string]: config.color,
-      } as React.CSSProperties}
+      style={
+        {
+          ["--card-accent" as string]: config.color,
+        } as React.CSSProperties
+      }
     >
-      {/* Accent top border */}
       <div
         className="absolute top-0 left-0 right-0 h-[3px] opacity-60 group-hover:opacity-100 transition-opacity"
         style={{ background: "var(--card-accent)" }}
       />
-      
-      {/* Premium accent radial background glow */}
-      <div 
+
+      <div
         className="absolute inset-0 opacity-0 group-hover:opacity-[0.025] transition-opacity duration-300 pointer-events-none"
-        style={{ background: `radial-gradient(circle at center, var(--card-accent) 0%, transparent 80%)` }}
+        style={{
+          background: `radial-gradient(circle at center, var(--card-accent) 0%, transparent 80%)`,
+        }}
       />
 
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-2.5 min-w-0 flex-1">
-          {/* File type icon with accent color */}
           <div
             className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors"
             style={{
@@ -140,8 +152,7 @@ export default function ResourceCard({
           </p>
         </div>
 
-        {/* Badges */}
-        <div className="flex items-center gap-1.5 flex-shrink-0">
+        <div className="flex items-center gap-1 flex-shrink-0">
           {hasRelatedCode && (
             <span
               className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md inline-flex items-center gap-1"
@@ -168,10 +179,22 @@ export default function ResourceCard({
               Solved
             </span>
           )}
+          {onFavorite && (
+            <IconButton
+              size="sm"
+              label={isFavorite ? "Remove favorite" : "Add favorite"}
+              variant={isFavorite ? "primary" : "ghost"}
+              onClick={(e) => stop(e, () => onFavorite(item))}
+              className="relative z-10"
+            >
+              <Star
+                className={`w-3.5 h-3.5 ${isFavorite ? "fill-current" : ""}`}
+              />
+            </IconButton>
+          )}
         </div>
       </div>
 
-      {/* File info */}
       <p className="text-xs font-semibold text-muted uppercase tracking-wider mt-auto">
         {isCode
           ? extension.toUpperCase() || "CODE"
@@ -185,55 +208,52 @@ export default function ResourceCard({
         · {config.label}
       </p>
 
-      {/* Actions */}
       <div
         className={`grid gap-2 ${
-          isSummarizable && hasRelatedCode
-            ? "grid-cols-1 sm:grid-cols-3"
-            : isSummarizable || hasRelatedCode
-              ? "grid-cols-1 sm:grid-cols-2"
+          actionCount >= 3
+            ? "grid-cols-2 sm:grid-cols-2"
+            : actionCount === 2
+              ? "grid-cols-2"
               : "grid-cols-1"
         }`}
       >
-        <button
-          type="button"
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            handleOpen();
-          }}
-          className="flex items-center justify-center gap-1.5 w-full min-h-11 py-2 bg-surface hover:bg-surface-hover active:bg-surface-hover border border-border rounded-xl text-xs font-medium text-foreground transition-colors"
+        {onShare && (
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={(e) => stop(e, () => onShare(item))}
+            aria-label="Copy share link"
+            title="Copy share link"
+            className="w-full gap-1.5 min-h-11 rounded-xl"
+          >
+            <Link2 className="w-3.5 h-3.5 text-muted" />
+            Share
+          </Button>
+        )}
+        <Button
+          size="sm"
+          variant="secondary"
+          onClick={(e) => stop(e, handleOpen)}
+          className="w-full gap-1.5 min-h-11 rounded-xl"
         >
           <ExternalLink className="w-3.5 h-3.5 text-muted" />
           Open
-        </button>
+        </Button>
         {hasRelatedCode && (
-          <button
-            type="button"
+          <Button
+            size="sm"
+            variant="secondary"
             onClick={handleOpenCode}
-            className="flex items-center justify-center gap-1.5 w-full min-h-11 py-2 bg-surface hover:bg-surface-hover border border-border rounded-xl text-xs font-medium text-foreground transition-colors"
             title={
               relatedCodes.length === 1
                 ? relatedCodes[0].title
                 : "Open writeup to pick a related code"
             }
+            className="w-full gap-1.5 min-h-11 rounded-xl"
           >
             <Code2 className="w-3.5 h-3.5 text-muted" />
             Code
-          </button>
-        )}
-        {isSummarizable && (
-          <button
-            type="button"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              onSummarize(item);
-            }}
-            className="flex items-center justify-center gap-1.5 w-full min-h-11 py-2 bg-foreground text-background hover:opacity-90 rounded-xl text-xs font-medium transition-opacity"
-          >
-            Summarize
-          </button>
+          </Button>
         )}
       </div>
     </div>

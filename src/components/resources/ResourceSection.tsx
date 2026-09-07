@@ -235,7 +235,9 @@ export default function ResourceSection({
                         <ResourceCard
                           item={item}
                           onOpenResource={onOpenResource}
-                          onSummarize={onSummarize}
+                          onShare={onShare}
+                          onFavorite={onFavorite}
+                          isFavorite={favoriteIds?.has(item.id)}
                           relatedCodes={relatedCodesById[item.id]}
                         />
                       </motion.div>
@@ -303,7 +305,9 @@ export default function ResourceSection({
                     <ResourceCard
                       item={item}
                       onOpenResource={onOpenResource}
-                      onSummarize={onSummarize}
+                      onShare={onShare}
+                      onFavorite={onFavorite}
+                      isFavorite={favoriteIds?.has(item.id)}
                       relatedCodes={relatedCodesById[item.id]}
                     />
                   </motion.div>

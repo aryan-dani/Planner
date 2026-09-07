@@ -35,7 +35,7 @@ import { startNavigationProgress } from './NavigationProgress';
 import { subjectToSlug } from '@/lib/resourceUrl';
 import { fetchAdminStatus } from '@/lib/adminStatus';
 import { workspaceQuery } from '@/lib/workspace';
-import { toast } from 'sonner';
+import { notify } from '@/lib/toast';
 import { useIsMac } from '@/lib/clientHooks';
 import { Kbd, IconButton } from '@/components/ui';
 
@@ -278,7 +278,7 @@ export default function CommandPalette() {
         badge: '?',
         hint: 'Alt+T timer · Alt+B break · Alt+A ask · Alt+G GPA · Alt+R SRS · Alt+S syllabus · Alt+C community · Viewer: Ctrl+F find, Esc close, F fullscreen, D download, O open',
         action: () => {
-          toast.message('Shortcuts', {
+          notify.message('Shortcuts', {
             description:
               'Alt+T timer · Alt+B break · Alt+A ask · Alt+G GPA · Alt+R SRS · Alt+S syllabus · Alt+C community. Viewer: Ctrl/⌘+F find, Esc close, F fullscreen, D download, O open tab.',
             duration: 8000,

@@ -36,7 +36,7 @@ describe("parseDrivePath", () => {
   it("parses year-scoped notes path", () => {
     const p = parseDrivePath(
       "2026-2027/AIDS/Sem_5_AIDS/Sem_5_Notes/GML/GML_Unit_1_Notes.pdf",
-    );
+    )!;
     expect(p.ok).toBe(true);
     expect(p.academicYear).toBe("2026-2027");
     expect(p.branch).toBe("AIDS");
@@ -49,25 +49,25 @@ describe("parseDrivePath", () => {
   it("title-cases multi-token subjects", () => {
     const p = parseDrivePath(
       "2026-2027/AIDS/Sem_5_AIDS/Sem_5_Notes/Machine_Learning/ML_Unit_1_Notes.pdf",
-    );
+    )!;
     expect(p.subjectName).toBe("Machine Learning");
   });
 
   it("detects syllabus special case", () => {
-    const p = parseDrivePath("2026-2027/AIDS/Sem_5_AIDS/Sem_5_Syllabus.pdf");
+    const p = parseDrivePath("2026-2027/AIDS/Sem_5_AIDS/Sem_5_Syllabus.pdf")!;
     expect(p.ok).toBe(true);
     expect(p.subjectName).toBe("Syllabus");
   });
 
   it("rejects paths without Sem_ folder", () => {
-    const p = parseDrivePath("random/file.pdf");
+    const p = parseDrivePath("random/file.pdf")!;
     expect(p.ok).toBe(false);
   });
 
   it("parses ppt category", () => {
     const p = parseDrivePath(
       "2026-2027/AIDS/Sem_5_AIDS/Sem_5_PPT/GML/GML_Unit_2.pptx",
-    );
+    )!;
     expect(p.category).toBe("ppt");
   });
 });

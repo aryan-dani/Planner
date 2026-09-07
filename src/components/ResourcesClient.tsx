@@ -24,6 +24,7 @@ import {
   ClipboardList,
   Clock,
   Star,
+  X,
   type LucideIcon,
 } from "lucide-react";
 import dynamic from "next/dynamic";
@@ -61,12 +62,13 @@ import {
 import {
   getFavoriteResources,
   toggleFavoriteResource,
+  removeFavoriteResource,
   type FavoriteResource,
 } from "@/lib/favoriteResources";
 import { getReadingProgress } from "@/lib/readingProgress";
 import { authFetch } from "@/lib/authFetch";
 import { useWorkspaceResources } from "@/lib/useWorkspaceResources";
-import { Button, Card, Badge, PageHeader, Input } from "@/components/ui";
+import { Button, Card, Badge, PageHeader, Input, IconButton } from "@/components/ui";
 import PageSkeleton from "@/components/PageSkeleton";
 import type { RAGSearchResult } from "@/lib/ragSearch";
 
@@ -408,19 +410,61 @@ export default function ResourcesClient() {
 
   const handleFavorite = useCallback(
     (item: ResourceItem) => {
+      const wasFavorite = favoriteIds.has(item.id);
       const next = toggleFavoriteResource(item, {
         academicYear,
         branch,
         semester,
       });
       setFavoriteResources(next);
-      notify.success(
-        next.some((f) => f.id === item.id)
-          ? "Added to favorites"
-          : "Removed from favorites",
-      );
+      const title = cleanResourceTitle(item.title);
+      if (!wasFavorite) {
+        notify.star(title);
+      } else {
+        notify.unstar(title, {
+          onUndo: () => {
+            const restored = toggleFavoriteResource(item, {
+              academicYear,
+              branch,
+              semester,
+            });
+            setFavoriteResources(restored);
+            notify.star(title);
+          },
+        });
+      }
     },
-    [academicYear, branch, semester, setFavoriteResources],
+    [academicYear, branch, semester, favoriteIds, setFavoriteResources],
+  );
+
+  const handleUnfavorite = useCallback(
+    (id: string, title: string) => {
+      const snapshot = favoriteResources.find((f) => f.id === id);
+      const next = removeFavoriteResource(id);
+      setFavoriteResources(next);
+      notify.unstar(cleanResourceTitle(title), {
+        onUndo: () => {
+          if (!snapshot) return;
+          const restored = toggleFavoriteResource(
+            {
+              id: snapshot.id,
+              title: snapshot.title,
+              subject_name: snapshot.subject_name,
+              category: snapshot.category as ResourceItem["category"],
+              file_url: snapshot.file_url,
+            },
+            {
+              academicYear: snapshot.academic_year,
+              branch: snapshot.branch,
+              semester: snapshot.semester,
+            },
+          );
+          setFavoriteResources(restored);
+          notify.star(cleanResourceTitle(title));
+        },
+      });
+    },
+    [favoriteResources, setFavoriteResources],
   );
 
   useEffect(() => {
@@ -474,14 +518,13 @@ export default function ResourcesClient() {
           ? `${window.location.origin}${href}`
           : href;
       try {
-        await notify.promise(navigator.clipboard.writeText(url), {
-          loading: "Copying…",
-          success: "Share link copied",
-          error: "Could not copy link",
+        await navigator.clipboard.writeText(url);
+        notify.success("Link copied", {
+          description: cleanResourceTitle(item.title),
           id: "resources-share-link",
         });
       } catch {
-        // notify.promise already surfaced the error
+        notify.error("Could not copy link", { id: "resources-share-link" });
       }
     },
     [academicYear, branch, semester],
@@ -917,39 +960,61 @@ export default function ResourcesClient() {
                 className="space-y-8"
               >
                 {favoriteResources.length > 0 && (
-                  <div className="rounded-xl border border-border/70 bg-surface/40 p-3">
-                    <div className="flex items-center gap-1.5 mb-2">
-                      <Star className="w-3.5 h-3.5 text-muted" />
+                  <div className="rounded-xl border border-border/70 bg-card/80 p-3 shadow-card">
+                    <div className="flex items-center gap-1.5 mb-2.5">
+                      <div className="flex h-6 w-6 items-center justify-center rounded-md border border-border bg-foreground text-background">
+                        <Star className="w-3 h-3 fill-current" />
+                      </div>
                       <p className="text-[11px] font-bold uppercase tracking-wider text-muted">
                         Favorites
                       </p>
+                      <span className="text-[10px] font-semibold text-muted tabular-nums">
+                        {favoriteResources.length}
+                      </span>
                     </div>
                     <div className="flex gap-2 overflow-x-auto pb-0.5 scrollbar-none">
                       {favoriteResources.slice(0, 8).map((r) => {
                         const live = resources.find((x) => x.id === r.id);
                         const resume = getReadingProgress(r.id);
                         return (
-                          <button
+                          <div
                             key={r.id}
-                            type="button"
-                            onClick={() => {
-                              if (live) openResource(live);
-                              else if (r.subject_name) {
-                                setLastUserSubject(r.subject_name);
-                                setSelectedSubject(r.subject_name);
-                              }
-                            }}
-                            className="shrink-0 max-w-[11rem] rounded-lg border border-border bg-card px-2.5 py-2 text-left hover:bg-surface-hover transition-colors"
-                            title={cleanResourceTitle(r.title)}
+                            className="group/fav relative shrink-0 max-w-[12rem] rounded-lg border border-border bg-surface/60 pl-2.5 pr-1 py-1.5 flex items-center gap-1.5 hover:bg-surface-hover hover:border-border-strong transition-colors"
                           >
-                            <p className="text-xs font-medium text-foreground truncate">
-                              {cleanResourceTitle(r.title)}
-                            </p>
-                            <p className="text-[10px] text-muted truncate mt-0.5">
-                              {r.subject_name}
-                              {resume ? ` · Resume p.${resume}` : ""}
-                            </p>
-                          </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (live) openResource(live);
+                                else if (r.subject_name) {
+                                  setLastUserSubject(r.subject_name);
+                                  setSelectedSubject(r.subject_name);
+                                }
+                              }}
+                              className="min-w-0 flex-1 text-left"
+                              title={cleanResourceTitle(r.title)}
+                            >
+                              <p className="text-xs font-medium text-foreground truncate">
+                                {cleanResourceTitle(r.title)}
+                              </p>
+                              <p className="text-[10px] text-muted truncate mt-0.5">
+                                {r.subject_name}
+                                {resume ? ` · Resume p.${resume}` : ""}
+                              </p>
+                            </button>
+                            <IconButton
+                              size="sm"
+                              variant="ghost"
+                              label="Remove from favorites"
+                              className="opacity-70 group-hover/fav:opacity-100 shrink-0"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleUnfavorite(r.id, r.title);
+                              }}
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </IconButton>
+                          </div>
                         );
                       })}
                     </div>

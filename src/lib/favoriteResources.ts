@@ -46,6 +46,12 @@ export function isFavoriteResource(id: string): boolean {
   return readAll().some((r) => r.id === id);
 }
 
+export function removeFavoriteResource(id: string): FavoriteResource[] {
+  const next = readAll().filter((r) => r.id !== id);
+  writeAll(next);
+  return next.sort((a, b) => b.favoritedAt - a.favoritedAt);
+}
+
 export function toggleFavoriteResource(
   item: Pick<
     ResourceItem,

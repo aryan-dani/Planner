@@ -19,13 +19,14 @@ function ToasterProvider() {
     <Toaster
       theme={theme as 'light' | 'dark' | 'system'}
       position={isDesktop ? 'bottom-right' : 'bottom-center'}
-      richColors
-      closeButton
+      closeButton={false}
       visibleToasts={4}
       duration={4000}
       offset="max(1rem, env(safe-area-inset-bottom))"
+      gap={10}
       toastOptions={{
-        className: 'font-sans',
+        className: 'font-sans !bg-transparent !border-0 !shadow-none !p-0',
+        unstyled: true,
       }}
     />
   );

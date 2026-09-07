@@ -1,7 +1,7 @@
-'use client';
+﻿'use client';
 
 import { useEffect } from 'react';
-import { toast } from 'sonner';
+import { notify } from '@/lib/toast';
 
 const TOAST_ID = 'utility-sw-update';
 const CONTROLLER_FALLBACK_MS = 1500;
@@ -64,16 +64,16 @@ export default function PwaUpdater() {
       if (toastShown || updateInFlight) return;
       toastShown = true;
 
-      toast.info('A new version of Utility is available.', {
+      notify.info('Update available', {
         id: TOAST_ID,
-        description: 'Update now for the latest app shell, icons, and fixes.',
+        description: 'New app shell, icons, and fixes are ready.',
         action: {
-          label: 'Update Now',
+          label: 'Update',
           onClick: () => {
             if (updateInFlight) return;
             updateInFlight = true;
-            toast.dismiss(TOAST_ID);
-            toast.message('Updating Utility…', {
+            notify.dismiss(TOAST_ID);
+            notify.message('Updating Utility…', {
               id: TOAST_ID,
               duration: CONTROLLER_FALLBACK_MS + 500,
             });

@@ -660,112 +660,25 @@ input[type="range"].accent-slider::-moz-range-thumb:hover {
 
 /* ── Custom Premium Sonner Toast Styling ───────────────────────────────────────── */
 [data-sonner-toaster] {
-  width: min(100vw - 2rem, 356px) !important;
+  width: min(100vw - 2rem, 22rem) !important;
+  --width: min(100vw - 2rem, 22rem);
 }
 
+/* Host shell is transparent — AppToast supplies the chrome */
 [data-sonner-toast] {
-  background: rgb(var(--card)) !important;
-  border: 1px solid rgb(var(--border)) !important;
-  color: rgb(var(--foreground)) !important;
-  border-radius: var(--radius-lg) !important;
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2), 0 1px 2px 0 rgba(0, 0, 0, 0.05) !important;
-  padding: 14px 16px !important;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  width: 100% !important;
 }
 
-/* richColors accents stay readable on our card surface */
-[data-sonner-toast][data-rich-colors='true'][data-type='success'],
-[data-sonner-toast][data-rich-colors='true'][data-type='error'],
-[data-sonner-toast][data-rich-colors='true'][data-type='info'],
-[data-sonner-toast][data-rich-colors='true'][data-type='warning'] {
-  background: rgb(var(--card)) !important;
-  color: rgb(var(--foreground)) !important;
+[data-sonner-toast][data-styled='true'] {
+  background: transparent !important;
 }
 
 [data-sonner-toast]:hover {
-  border-color: rgb(var(--border-strong)) !important;
-  box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.3), 0 1px 3px 0 rgba(0, 0, 0, 0.1) !important;
-  transform: translateY(-1px);
-}
-
-[data-sonner-toast] [data-title] {
-  font-family: var(--font-sans), sans-serif !important;
-  font-weight: 600 !important;
-  font-size: 0.875rem !important;
-  color: rgb(var(--foreground)) !important;
-  letter-spacing: -0.01em;
-}
-
-[data-sonner-toast] [data-description] {
-  font-family: var(--font-sans), sans-serif !important;
-  font-size: 0.75rem !important;
-  color: rgb(var(--foreground-subtle)) !important;
-  margin-top: 3px !important;
-}
-
-/* Ensure toast action/cancel buttons match monochrome design */
-[data-sonner-toast] [data-button] {
-  font-family: var(--font-sans), sans-serif !important;
-  font-size: 0.75rem !important;
-  font-weight: 500 !important;
-  border-radius: var(--radius) !important;
-  padding: 6px 12px !important;
-  transition: all 0.15s ease !important;
-}
-
-[data-sonner-toast] [data-action-button] {
-  background: rgb(var(--foreground)) !important;
-  color: rgb(var(--background)) !important;
-}
-
-[data-sonner-toast] [data-action-button]:hover {
-  opacity: 0.9 !important;
-}
-
-[data-sonner-toast] [data-cancel-button] {
-  background: rgb(var(--surface)) !important;
-  color: rgb(var(--foreground)) !important;
-  border: 1px solid rgb(var(--border)) !important;
-}
-
-[data-sonner-toast] [data-cancel-button]:hover {
-  background: rgb(var(--surface-hover)) !important;
-}
-
-/* Custom monochrome iconography/styles for different states */
-[data-sonner-toast] [data-icon] {
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  width: 20px !important;
-  height: 20px !important;
-}
-
-/* Make toast icons inherit theme foreground colors */
-[data-sonner-toast] [data-icon] svg {
-  color: rgb(var(--foreground)) !important;
-  stroke: rgb(var(--foreground)) !important;
-}
-
-[data-sonner-toast][data-type="success"] {
-  border-left: 3px solid rgb(var(--foreground)) !important;
-}
-
-[data-sonner-toast][data-type="error"] {
-  border-left: 3px solid rgb(var(--destructive)) !important;
-}
-
-[data-sonner-toast][data-type="error"] [data-icon] svg {
-  color: rgb(var(--destructive)) !important;
-  stroke: rgb(var(--destructive)) !important;
-}
-
-[data-sonner-toast][data-type="info"] {
-  border-left: 3px solid rgb(var(--muted)) !important;
-}
-
-[data-sonner-toast][data-type="warning"] {
-  border-left: 3px solid rgb(var(--destructive)) !important;
+  transform: none;
 }
 
 /* ── OS chrome helpers ─────────────────────────────────────────────────────────── */
