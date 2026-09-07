@@ -365,6 +365,9 @@ export default function ResourceViewer({
       }
     }
 
+    const prevBodyOverflow = document.body.style.overflow;
+    const prevBodyOverscroll = document.body.style.overscrollBehavior;
+    const prevHtmlOverscroll = document.documentElement.style.overscrollBehavior;
     document.body.style.overflow = "hidden";
     document.body.style.overscrollBehavior = "none";
     document.documentElement.style.overscrollBehavior = "none";
@@ -374,9 +377,9 @@ export default function ResourceViewer({
     });
 
     return () => {
-      document.body.style.overflow = "";
-      document.body.style.overscrollBehavior = "";
-      document.documentElement.style.overscrollBehavior = "";
+      document.body.style.overflow = prevBodyOverflow;
+      document.body.style.overscrollBehavior = prevBodyOverscroll;
+      document.documentElement.style.overscrollBehavior = prevHtmlOverscroll;
       window.removeEventListener("keydown", handleKeyDown);
       previouslyFocused?.focus?.();
     };

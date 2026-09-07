@@ -4,6 +4,7 @@ import { Suspense } from 'react';
 import './globals.css';
 import Navigation from '@/components/Navigation';
 import ConditionalFooter from '@/components/ConditionalFooter';
+import Footer from '@/components/Footer';
 import { Providers } from '@/components/Providers';
 import InstallPrompt from '@/components/pwa/InstallPrompt';
 import { SW_RECOVERY_SCRIPT } from '@/components/pwa/swRecoveryScript';
@@ -97,8 +98,8 @@ export default function RootLayout({
         <Providers>
           <div className="flex min-h-screen w-full">
             <Navigation />
-            <div className="flex-1 flex flex-col min-w-0 min-h-0 w-full overflow-x-clip">
-              <main id="main-content" role="main" className="flex-1 min-h-0 w-full flex flex-col pt-[calc(3.5rem+env(safe-area-inset-top))] md:pt-0">
+            <div className="flex-1 flex flex-col min-w-0 w-full">
+              <main id="main-content" role="main" className="flex-1 w-full flex flex-col pt-[calc(3.5rem+env(safe-area-inset-top))] md:pt-0">
                 <Suspense
                   fallback={
                     <div
@@ -115,7 +116,9 @@ export default function RootLayout({
                   {children}
                 </Suspense>
               </main>
-              <ConditionalFooter />
+              <Suspense fallback={<Footer />}>
+                <ConditionalFooter />
+              </Suspense>
             </div>
           </div>
           <InstallPrompt />

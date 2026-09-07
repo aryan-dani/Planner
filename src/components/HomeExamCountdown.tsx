@@ -4,9 +4,14 @@ import { useMemo } from "react";
 import Link from "next/link";
 import { CalendarCheck } from "lucide-react";
 import { getSoonestUpcomingExam } from "@/lib/examCountdown";
+import { useIsClient } from "@/lib/clientHooks";
 
 export default function HomeExamCountdown() {
-  const exam = useMemo(() => getSoonestUpcomingExam(), []);
+  const mounted = useIsClient();
+  const exam = useMemo(
+    () => (mounted ? getSoonestUpcomingExam() : null),
+    [mounted],
+  );
 
   if (!exam) return null;
 

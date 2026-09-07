@@ -1,20 +1,54 @@
 import { useSyncExternalStore } from "react";
 
-const noop = () => () => {};
+/**
+ * Becomes true after the hydration commit (timeout 0), not during the first
+ * client render — so getSnapshot matches getServerSnapshot and React #418
+ * is avoided. Shared across hooks that must wait for the client.
+ */
+let clientReady = false;
+const readyListeners = new Set<() => void>();
+let readyScheduled = false;
 
-/** True after hydration; false during SSR. */
+function subscribeClientReady(onStoreChange: () => void) {
+  readyListeners.add(onStoreChange);
+  if (typeof window !== "undefined" && !clientReady && !readyScheduled) {
+    readyScheduled = true;
+    window.setTimeout(() => {
+      clientReady = true;
+      readyListeners.forEach((listener) => listener());
+    }, 0);
+  }
+  return () => {
+    readyListeners.delete(onStoreChange);
+  };
+}
+
+function getClientReady() {
+  return clientReady;
+}
+
+function getClientNotReady() {
+  return false;
+}
+
+/** True after hydration; false during SSR and the first client paint. */
 export function useIsClient(): boolean {
-  return useSyncExternalStore(noop, () => true, () => false);
+  return useSyncExternalStore(
+    subscribeClientReady,
+    getClientReady,
+    getClientNotReady,
+  );
 }
 
 /** macOS vs other platforms for shortcut labels. */
 export function useIsMac(): boolean {
   return useSyncExternalStore(
-    noop,
+    subscribeClientReady,
     () =>
-      navigator.userAgent.includes("Mac") ||
-      navigator.platform.includes("Mac"),
-    () => false,
+      clientReady &&
+      (navigator.userAgent.includes("Mac") ||
+        navigator.platform.includes("Mac")),
+    getClientNotReady,
   );
 }
 
@@ -64,14 +98,27 @@ export function writeLocalStorageBoolean(key: string, value: boolean): void {
   notifyLocalStorageKey(key);
 }
 
-/** SSR-safe localStorage boolean (server snapshot = defaultValue). */
+/**
+ * SSR-safe localStorage boolean. Server and the first client paint use
+ * `defaultValue`; the stored value is applied after hydration.
+ */
 export function useLocalStorageBoolean(
   key: string,
   defaultValue = false,
 ): boolean {
   return useSyncExternalStore(
-    (onStoreChange) => subscribeLocalStorageKey(key, onStoreChange),
-    () => readLocalStorageBoolean(key, defaultValue),
+    (onStoreChange) => {
+      const unsubReady = subscribeClientReady(onStoreChange);
+      const unsubStore = subscribeLocalStorageKey(key, onStoreChange);
+      return () => {
+        unsubReady();
+        unsubStore();
+      };
+    },
+    () =>
+      clientReady
+        ? readLocalStorageBoolean(key, defaultValue)
+        : defaultValue,
     () => defaultValue,
   );
 }
@@ -86,8 +133,16 @@ function subscribeMatchMedia(query: string, callback: () => void): () => void {
 /** Responsive boolean from a `matchMedia` query (SSR-safe default). */
 export function useMediaQuery(query: string, serverDefault = false): boolean {
   return useSyncExternalStore(
-    (onStoreChange) => subscribeMatchMedia(query, onStoreChange),
-    () => window.matchMedia(query).matches,
+    (onStoreChange) => {
+      const unsubReady = subscribeClientReady(onStoreChange);
+      const unsubMq = subscribeMatchMedia(query, onStoreChange);
+      return () => {
+        unsubReady();
+        unsubMq();
+      };
+    },
+    () =>
+      clientReady ? window.matchMedia(query).matches : serverDefault,
     () => serverDefault,
   );
 }

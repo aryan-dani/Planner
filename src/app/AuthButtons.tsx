@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { auth } from "@/lib/firebase";
-import { useIsClient } from "@/lib/clientHooks";
 import { useAcademicStore } from "@/store/academicStore";
 import {
   readStoredWorkspace,
@@ -14,7 +13,6 @@ import {
 
 export default function AuthButtons() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const isClient = useIsClient();
   const storeAcademicYear = useAcademicStore((s) => s.academicYear);
   const storeBranch = useAcademicStore((s) => s.branch);
   const storeSemester = useAcademicStore((s) => s.semester);
@@ -25,8 +23,6 @@ export default function AuthButtons() {
     });
     return () => unsubscribe();
   }, []);
-
-  if (!isClient) return <div className="h-10 w-40" aria-hidden />;
 
   const { academicYear, branch, semester } = resolveWorkspace(
     {

@@ -63,15 +63,18 @@ export function Modal({
       }
     }
     document.addEventListener("keydown", handleKey);
-    const prev = document.body.style.overflow;
+    const prevOverflow = document.body.style.overflow;
+    const prevOverscroll = document.body.style.overscrollBehavior;
     document.body.style.overflow = "hidden";
+    document.body.style.overscrollBehavior = "none";
     requestAnimationFrame(() => {
       const first = panelRef.current?.querySelector<HTMLElement>(FOCUSABLE);
       first?.focus();
     });
     return () => {
       document.removeEventListener("keydown", handleKey);
-      document.body.style.overflow = prev;
+      document.body.style.overflow = prevOverflow;
+      document.body.style.overscrollBehavior = prevOverscroll;
       previouslyFocused.current?.focus?.();
     };
   }, [open, onClose]);

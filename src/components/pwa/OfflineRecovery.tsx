@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 
 const BUST_KEY = "utility-sw-bust";
-const BUST_VER = "2026-09-05-sw-update-toast";
+const BUST_VER = "2026-09-08-hydration-safari";
 
 async function clearNonPdfCaches() {
   if (!("caches" in window)) return;
