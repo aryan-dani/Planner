@@ -64,11 +64,10 @@ export default function PwaUpdater() {
       if (toastShown || updateInFlight) return;
       toastShown = true;
 
-      notify.info('Update available', {
+      notify.update({
         id: TOAST_ID,
-        description: 'New app shell, icons, and fixes are ready.',
         action: {
-          label: 'Update',
+          label: 'Reload',
           onClick: () => {
             if (updateInFlight) return;
             updateInFlight = true;
@@ -85,7 +84,6 @@ export default function PwaUpdater() {
             }, CONTROLLER_FALLBACK_MS);
           },
         },
-        duration: Infinity,
       });
     };
 

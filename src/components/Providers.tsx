@@ -20,13 +20,15 @@ function ToasterProvider() {
       theme={theme as 'light' | 'dark' | 'system'}
       position={isDesktop ? 'bottom-right' : 'bottom-center'}
       closeButton={false}
+      richColors={false}
+      expand={false}
       visibleToasts={4}
       duration={4000}
       offset="max(1rem, env(safe-area-inset-bottom))"
-      gap={10}
+      gap={12}
       toastOptions={{
-        className: 'font-sans !bg-transparent !border-0 !shadow-none !p-0',
         unstyled: true,
+        className: 'app-toast-host',
       }}
     />
   );

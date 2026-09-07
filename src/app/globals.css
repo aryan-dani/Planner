@@ -658,27 +658,47 @@ input[type="range"].accent-slider::-moz-range-thumb:hover {
   animation: warningPulse 1.5s infinite ease-in-out;
 }
 
-/* ── Custom Premium Sonner Toast Styling ───────────────────────────────────────── */
+/* ── Sonner host — AppToast owns all chrome ───────────────────────────────────── */
 [data-sonner-toaster] {
   width: min(100vw - 2rem, 22rem) !important;
   --width: min(100vw - 2rem, 22rem);
+  --normal-bg: transparent;
+  --normal-border: transparent;
+  --normal-text: inherit;
+  --success-bg: transparent;
+  --success-border: transparent;
+  --success-text: inherit;
+  --error-bg: transparent;
+  --error-border: transparent;
+  --error-text: inherit;
+  --info-bg: transparent;
+  --info-border: transparent;
+  --info-text: inherit;
 }
 
-/* Host shell is transparent — AppToast supplies the chrome */
-[data-sonner-toast] {
+[data-sonner-toast],
+[data-sonner-toast][data-styled='true'],
+[data-sonner-toast].app-toast-host {
   background: transparent !important;
   border: none !important;
   box-shadow: none !important;
   padding: 0 !important;
+  margin: 0 !important;
   width: 100% !important;
-}
-
-[data-sonner-toast][data-styled='true'] {
-  background: transparent !important;
+  outline: none !important;
+  transform: none !important;
 }
 
 [data-sonner-toast]:hover {
-  transform: none;
+  transform: none !important;
+}
+
+/* Kill Sonner’s default close / icon / action chrome only — keep custom content */
+[data-sonner-toast] [data-close-button],
+[data-sonner-toast] [data-button],
+[data-sonner-toast] [data-cancel],
+[data-sonner-toast] [data-icon] {
+  display: none !important;
 }
 
 /* ── OS chrome helpers ─────────────────────────────────────────────────────────── */

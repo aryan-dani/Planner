@@ -6,10 +6,13 @@ import {
   Check,
   Info,
   Loader2,
+  RefreshCw,
   Star,
   StarOff,
+  X,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { Button } from "@/components/ui/Button";
 
 export type AppToastKind =
   | "success"
@@ -17,7 +20,8 @@ export type AppToastKind =
   | "info"
   | "star"
   | "unstar"
-  | "loading";
+  | "loading"
+  | "update";
 
 export interface AppToastProps {
   kind?: AppToastKind;
@@ -28,6 +32,8 @@ export interface AppToastProps {
     onClick: () => void;
   };
   icon?: ReactNode;
+  onDismiss?: () => void;
+  showClose?: boolean;
 }
 
 const kindIcon: Record<AppToastKind, ReactNode> = {
@@ -37,6 +43,17 @@ const kindIcon: Record<AppToastKind, ReactNode> = {
   star: <Star className="w-3.5 h-3.5 fill-current" strokeWidth={2} />,
   unstar: <StarOff className="w-3.5 h-3.5" strokeWidth={2.25} />,
   loading: <Loader2 className="w-3.5 h-3.5 animate-spin" strokeWidth={2.25} />,
+  update: <RefreshCw className="w-3.5 h-3.5" strokeWidth={2.25} />,
+};
+
+const kindMeta: Record<AppToastKind, string> = {
+  success: "Success",
+  error: "Error",
+  info: "Notice",
+  star: "Favorites",
+  unstar: "Favorites",
+  loading: "Working",
+  update: "System",
 };
 
 export function AppToast({
@@ -45,48 +62,83 @@ export function AppToast({
   description,
   action,
   icon,
+  onDismiss,
+  showClose = false,
 }: AppToastProps) {
   const isError = kind === "error";
+  const isEmphasis = kind === "star" || kind === "update";
 
   return (
     <div
       className={cn(
-        "pointer-events-auto flex w-[min(100vw-2rem,22rem)] items-start gap-3 rounded-xl border bg-card/95 px-3.5 py-3 shadow-card-hover backdrop-blur-md",
-        isError ? "border-destructive/35" : "border-border/80",
+        "pointer-events-auto w-[min(100vw-2rem,22rem)] overflow-hidden rounded-[var(--radius-2xl)] border bg-card shadow-window",
+        isError ? "border-destructive/45" : "border-border",
       )}
       role="status"
+      style={{ boxShadow: "var(--elev-3)" }}
     >
+      {/* Title bar — matches WindowChrome */}
       <div
         className={cn(
-          "mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border",
+          "flex items-center gap-2 border-b px-3 py-2",
           isError
-            ? "border-destructive/25 bg-destructive/10 text-destructive"
-            : kind === "star"
-              ? "border-border bg-foreground text-background"
-              : "border-border bg-surface text-foreground",
+            ? "border-destructive/25 bg-destructive/5"
+            : "border-border bg-surface/80",
         )}
       >
-        {icon ?? kindIcon[kind]}
+        <div
+          className={cn(
+            "flex h-7 w-7 shrink-0 items-center justify-center rounded-md border",
+            isError
+              ? "border-destructive/30 bg-destructive/10 text-destructive"
+              : isEmphasis
+                ? "border-foreground/20 bg-foreground text-background"
+                : "border-border bg-card text-foreground",
+          )}
+        >
+          {icon ?? kindIcon[kind]}
+        </div>
+        <p
+          className={cn(
+            "min-w-0 flex-1 truncate text-[10px] font-semibold uppercase tracking-[0.14em]",
+            isError ? "text-destructive" : "text-muted",
+          )}
+        >
+          {kindMeta[kind]}
+        </p>
+        {showClose && onDismiss ? (
+          <button
+            type="button"
+            onClick={onDismiss}
+            aria-label="Dismiss"
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border bg-card text-muted transition-colors hover:bg-surface-hover hover:text-foreground"
+          >
+            <X className="h-3.5 w-3.5" strokeWidth={2.25} />
+          </button>
+        ) : null}
       </div>
-      <div className="min-w-0 flex-1 leading-snug">
+
+      <div className="px-3.5 py-3">
         <p className="text-sm font-semibold tracking-tight text-foreground">
           {title}
         </p>
         {description ? (
-          <p className="mt-0.5 text-xs text-foreground-subtle line-clamp-2">
-            {description}
-          </p>
+          <p className="mt-1 text-xs leading-relaxed text-muted">{description}</p>
+        ) : null}
+
+        {action ? (
+          <div className="mt-3 flex justify-end border-t border-border/70 pt-3">
+            <Button
+              size="sm"
+              variant={isError ? "destructive" : "primary"}
+              onClick={action.onClick}
+              className="min-h-8 rounded-lg px-3.5"
+            >
+              {action.label}
+            </Button>
+          </div>
         ) : null}
       </div>
-      {action ? (
-        <button
-          type="button"
-          onClick={action.onClick}
-          className="shrink-0 rounded-lg bg-foreground px-2.5 py-1.5 text-xs font-medium text-background transition-opacity hover:opacity-90"
-        >
-          {action.label}
-        </button>
-      ) : null}
     </div>
   );
 }

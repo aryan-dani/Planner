@@ -10,6 +10,7 @@ type Options = ExternalToast & {
     label: string;
     onClick: () => void;
   };
+  showClose?: boolean;
 };
 
 const ERROR_DURATION_MS = 6000;
@@ -18,13 +19,11 @@ function isOptions(value: unknown): value is Options {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
-function show(
-  kind: AppToastKind,
-  title: string,
-  options?: Options,
-) {
+function show(kind: AppToastKind, title: string, options?: Options) {
   const duration =
     options?.duration ?? (kind === "error" ? ERROR_DURATION_MS : 4000);
+  const showClose =
+    options?.showClose ?? (duration === Infinity || Boolean(options?.action));
 
   return toast.custom(
     (id) =>
@@ -32,6 +31,8 @@ function show(
         kind,
         title,
         description: options?.description,
+        showClose,
+        onDismiss: () => toast.dismiss(id),
         action: options?.action
           ? {
               label: options.action.label,
@@ -45,7 +46,7 @@ function show(
     {
       id: options?.id,
       duration,
-      className: "!bg-transparent !border-0 !shadow-none !p-0",
+      className: "app-toast-host",
       unstyled: true,
     },
   );
@@ -64,6 +65,15 @@ export const notify = {
     return show("info", message, options);
   },
 
+  update(options?: Options) {
+    return show("update", "Update ready", {
+      description: "New app shell, icons, and fixes are waiting.",
+      ...options,
+      duration: options?.duration ?? Infinity,
+      showClose: options?.showClose ?? true,
+    });
+  },
+
   star(fileTitle: string, options?: Options) {
     return show("star", "Starred", {
       description: fileTitle,
@@ -72,10 +82,7 @@ export const notify = {
     });
   },
 
-  unstar(
-    fileTitle: string,
-    options?: Options & { onUndo?: () => void },
-  ) {
+  unstar(fileTitle: string, options?: Options & { onUndo?: () => void }) {
     const { onUndo, action, ...rest } = options || {};
     return show("unstar", "Removed from Favorites", {
       ...rest,
