@@ -409,7 +409,7 @@ export default function AskClient() {
   const [activeSessionId, setActiveSessionId] = useState<string | null>(initialChat.activeSessionId);
   const [sidebarOpen, setSidebarOpen] = useState(() =>
     typeof window !== 'undefined'
-      ? window.matchMedia('(min-width: 768px)').matches
+      ? window.matchMedia('(min-width: 1024px)').matches
       : false,
   );
 
@@ -431,7 +431,7 @@ export default function AskClient() {
   );
 
   useEffect(() => {
-    const mq = window.matchMedia('(min-width: 768px)');
+    const mq = window.matchMedia('(min-width: 1024px)');
     const apply = () => setSidebarOpen(mq.matches);
     mq.addEventListener('change', apply);
     return () => mq.removeEventListener('change', apply);
@@ -1106,9 +1106,9 @@ export default function AskClient() {
                 type="button"
                 aria-label="Close chat history"
                 onClick={() => setSidebarOpen(false)}
-                className="absolute inset-0 bg-black/50 z-30 md:hidden"
+                className="absolute inset-0 bg-black/50 z-30 lg:hidden"
               />
-              <div className="absolute md:relative inset-y-0 left-0 z-40 md:z-auto w-[min(16rem,85vw)] md:w-64 min-h-0 border-r border-border bg-background-subtle flex flex-col shrink-0 shadow-popover md:shadow-none">
+              <div className="absolute lg:relative inset-y-0 left-0 z-40 lg:z-auto w-[min(16rem,85vw)] lg:w-64 min-h-0 border-r border-border bg-background-subtle flex flex-col shrink-0 shadow-popover lg:shadow-none">
               <div className="p-3.5 border-b border-border flex items-center justify-between gap-2">
                 <span className="text-xs uppercase font-bold text-muted tracking-wider">Chat History</span>
                 <div className="flex items-center gap-1">
@@ -1125,7 +1125,7 @@ export default function AskClient() {
                   variant="secondary"
                   size="sm"
                   onClick={() => setSidebarOpen(false)}
-                  className="tap-target md:hidden shrink-0"
+                  className="tap-target lg:hidden shrink-0"
                   title="Close history"
                   aria-label="Close chat history"
                 >

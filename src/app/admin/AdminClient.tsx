@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { auth } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import {
@@ -25,12 +25,14 @@ import {
   ChevronRight,
   Activity,
   Files,
+  Search,
+  PieChart,
 } from "lucide-react";
 import AppLink from "@/components/ui/AppLink";
 import type { Branch, Semester } from "@/lib/academic/scope";
 import { BRANCH_OPTIONS, SEMESTER_OPTIONS } from "@/lib/academic/scope";
 import { Select } from "@/components/ui/Select";
-import { PageHeader, Card, Segmented, Button } from "@/components/ui";
+import { PageHeader, Card, Segmented, Button, Input } from "@/components/ui";
 import { fetchAdminStatus } from "@/lib/adminStatus";
 import { authFetch } from "@/lib/authFetch";
 
@@ -91,7 +93,12 @@ type OverviewStats = {
   activeLast7d: number;
   totalOpens: number;
   filesWithOpens: number;
+  usersWithOpens?: number;
 };
+
+type BranchCount = { branch: string; count: number };
+
+type UserActiveFilter = "all" | "7d" | "30d";
 
 type UserUsageRow = {
   id: string;
@@ -113,11 +120,27 @@ function formatWhen(value: string | undefined): string {
   return d.toLocaleString();
 }
 
+function isActiveWithin(usr: AdminUser, days: number): boolean {
+  const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+  const stamps = [usr.lastActive, usr.lastOpenedAt]
+    .filter(Boolean)
+    .map((s) => new Date(s).getTime())
+    .filter((t) => !Number.isNaN(t));
+  if (stamps.length === 0) return false;
+  return Math.max(...stamps) >= cutoff;
+}
+
 const TAB_OPTIONS: { value: AdminTab; label: string }[] = [
   { value: "overview", label: "Overview" },
   { value: "users", label: "Users" },
   { value: "manage", label: "Files" },
   { value: "drive", label: "Drive" },
+];
+
+const USER_ACTIVE_OPTIONS: { value: UserActiveFilter; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "7d", label: "Active 7d" },
+  { value: "30d", label: "Active 30d" },
 ];
 
 export default function AdminClient({
@@ -145,6 +168,7 @@ export default function AdminClient({
   const [syncingDrive, setSyncingDrive] = useState(false);
 
   const [overview, setOverview] = useState<OverviewStats | null>(null);
+  const [byBranch, setByBranch] = useState<BranchCount[]>([]);
   const [topResources, setTopResources] = useState<TopResource[]>([]);
   const [mostActiveUsers, setMostActiveUsers] = useState<ActiveUser[]>([]);
   const [loadingStats, setLoadingStats] = useState(false);
@@ -152,6 +176,23 @@ export default function AdminClient({
   const [expandedUid, setExpandedUid] = useState<string | null>(null);
   const [userUsage, setUserUsage] = useState<Record<string, UserUsageRow[]>>({});
   const [loadingUsageUid, setLoadingUsageUid] = useState<string | null>(null);
+  const [userSearch, setUserSearch] = useState("");
+  const [userActiveFilter, setUserActiveFilter] =
+    useState<UserActiveFilter>("all");
+  const [removingUid, setRemovingUid] = useState<string | null>(null);
+
+  const currentUid = auth.currentUser?.uid ?? null;
+
+  const filteredUsers = useMemo(() => {
+    const q = userSearch.trim().toLowerCase();
+    return usersList.filter((usr) => {
+      if (userActiveFilter === "7d" && !isActiveWithin(usr, 7)) return false;
+      if (userActiveFilter === "30d" && !isActiveWithin(usr, 30)) return false;
+      if (!q) return true;
+      const hay = `${usr.displayName} ${usr.email} ${usr.uid}`.toLowerCase();
+      return hay.includes(q);
+    });
+  }, [usersList, userSearch, userActiveFilter]);
 
   const fetchUsers = useCallback(async () => {
     await Promise.resolve();
@@ -176,6 +217,7 @@ export default function AdminClient({
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
       setOverview(data.overview || null);
+      setByBranch(data.byBranch || []);
       setTopResources(data.topResources || []);
       setMostActiveUsers(data.mostActiveUsers || []);
     } catch (err) {
@@ -201,6 +243,54 @@ export default function AdminClient({
       setLoadingUsageUid(null);
     }
   }, []);
+
+  const handleRemoveUser = useCallback(
+    async (uid: string, label: string) => {
+      if (uid === currentUid) {
+        setMessage("You cannot remove your own admin profile.");
+        return;
+      }
+      if (
+        !confirm(
+          `Remove ${label} from Utility?\n\nThis deletes their Firestore profile and usage stats. Their Google/GitHub login still works and a fresh profile can return on next visit.`,
+        )
+      ) {
+        return;
+      }
+      setRemovingUid(uid);
+      setMessage("");
+      try {
+        const res = await authFetch(
+          `/api/admin/users?uid=${encodeURIComponent(uid)}`,
+          { method: "DELETE" },
+        );
+        if (!res.ok) {
+          const text = await res.text();
+          let err = text;
+          try {
+            err = JSON.parse(text).error || text;
+          } catch {
+            /* keep text */
+          }
+          throw new Error(err);
+        }
+        setUsersList((prev) => prev.filter((u) => (u.uid || u.id) !== uid));
+        setUserUsage((prev) => {
+          const next = { ...prev };
+          delete next[uid];
+          return next;
+        });
+        if (expandedUid === uid) setExpandedUid(null);
+        setMessage(`✓ Removed profile for ${label}.`);
+        void fetchStats();
+      } catch (err) {
+        setMessage(`Error removing user: ${getErrorMessage(err)}`);
+      } finally {
+        setRemovingUid(null);
+      }
+    },
+    [currentUid, expandedUid, fetchStats],
+  );
 
   const handleTabChange = (next: AdminTab) => {
     setTab(next);
@@ -462,7 +552,7 @@ export default function AdminClient({
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+              <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
                 {[
                   {
                     label: "Signed-in users",
@@ -483,6 +573,11 @@ export default function AdminClient({
                     label: "Files with opens",
                     value: overview?.filesWithOpens ?? 0,
                     Icon: Files,
+                  },
+                  {
+                    label: "Users with opens",
+                    value: overview?.usersWithOpens ?? 0,
+                    Icon: Flame,
                   },
                 ].map(({ label, value, Icon }) => (
                   <Card
@@ -506,6 +601,32 @@ export default function AdminClient({
                   </Card>
                 ))}
               </div>
+
+              {byBranch.length > 0 && (
+                <Card className="rounded-2xl overflow-hidden" padding="none">
+                  <div className="px-5 py-4 border-b border-border bg-surface/40 flex items-center gap-2">
+                    <PieChart className="w-4 h-4 text-foreground" />
+                    <h3 className="text-sm font-bold text-foreground">
+                      Users by branch
+                    </h3>
+                  </div>
+                  <ul className="divide-y divide-border sm:grid sm:grid-cols-2 sm:divide-y-0">
+                    {byBranch.map((row) => (
+                      <li
+                        key={row.branch}
+                        className="px-5 py-3 flex items-center justify-between gap-3 sm:border-b sm:border-border"
+                      >
+                        <span className="text-sm font-semibold text-foreground">
+                          {row.branch}
+                        </span>
+                        <span className="text-sm font-bold tabular-nums text-foreground">
+                          {row.count}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </Card>
+              )}
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
                 <Card className="rounded-2xl overflow-hidden" padding="none">
@@ -840,6 +961,28 @@ export default function AdminClient({
 
       {tab === "users" && (
         <div className="flex flex-col gap-4 animate-fade-in">
+          <Card className="rounded-2xl" padding="md">
+            <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
+              <div className="relative flex-1 min-w-0">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted pointer-events-none" />
+                <Input
+                  value={userSearch}
+                  onChange={(e) => setUserSearch(e.target.value)}
+                  placeholder="Search name or email…"
+                  className="pl-9"
+                  aria-label="Search users"
+                />
+              </div>
+              <Segmented
+                value={userActiveFilter}
+                options={USER_ACTIVE_OPTIONS}
+                onChange={setUserActiveFilter}
+                aria-label="Filter by activity"
+                size="sm"
+              />
+            </div>
+          </Card>
+
           <Card className="rounded-2xl overflow-hidden" padding="none">
             <div className="px-5 py-4 border-b border-border bg-surface/40 flex items-center gap-2">
               <Users className="w-4 h-4 text-foreground" />
@@ -847,7 +990,11 @@ export default function AdminClient({
                 Registered users
               </h3>
               <span className="ml-auto text-2xs text-muted font-medium">
-                Click a row for frequently opened files
+                {filteredUsers.length}
+                {filteredUsers.length !== usersList.length
+                  ? ` of ${usersList.length}`
+                  : ""}{" "}
+                · expand for files · remove deletes Firestore only
               </span>
             </div>
 
@@ -855,9 +1002,11 @@ export default function AdminClient({
               <div className="p-12 flex items-center justify-center">
                 <Loader2 className="w-5 h-5 animate-spin text-muted" />
               </div>
-            ) : usersList.length === 0 ? (
+            ) : filteredUsers.length === 0 ? (
               <div className="p-12 text-center text-muted text-sm">
-                No registered users found in the database.
+                {usersList.length === 0
+                  ? "No registered users found in the database."
+                  : "No users match this search or activity filter."}
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -870,10 +1019,11 @@ export default function AdminClient({
                       <th className="p-4 font-semibold">Opens</th>
                       <th className="p-4 font-semibold">Last file</th>
                       <th className="p-4 font-semibold">Last active</th>
+                      <th className="p-4 font-semibold w-12" />
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border bg-card">
-                    {usersList.map((usr) => {
+                    {filteredUsers.map((usr) => {
                       const uid = usr.uid || usr.id;
                       const expanded = expandedUid === uid;
                       const usageRows = userUsage[uid];
@@ -885,7 +1035,17 @@ export default function AdminClient({
                           expanded={expanded}
                           usageRows={usageRows}
                           loadingUsage={loadingUsageUid === uid}
+                          removing={removingUid === uid}
+                          canRemove={uid !== currentUid}
                           onToggle={() => toggleUserExpand(uid)}
+                          onRemove={() =>
+                            void handleRemoveUser(
+                              uid,
+                              usr.displayName ||
+                                usr.email ||
+                                uid,
+                            )
+                          }
                         />
                       );
                     })}
@@ -906,14 +1066,20 @@ function UserRows({
   expanded,
   usageRows,
   loadingUsage,
+  removing,
+  canRemove,
   onToggle,
+  onRemove,
 }: {
   usr: AdminUser;
   uid: string;
   expanded: boolean;
   usageRows: UserUsageRow[] | undefined;
   loadingUsage: boolean;
+  removing: boolean;
+  canRemove: boolean;
   onToggle: () => void;
+  onRemove: () => void;
 }) {
   return (
     <>
@@ -966,10 +1132,33 @@ function UserRows({
         <td className="p-4 text-muted font-mono whitespace-nowrap">
           {formatWhen(usr.lastActive)}
         </td>
+        <td className="p-4">
+          {canRemove ? (
+            <button
+              type="button"
+              disabled={removing}
+              onClick={(e) => {
+                e.stopPropagation();
+                onRemove();
+              }}
+              className="p-1.5 text-muted hover:text-destructive hover:bg-destructive/10 rounded-lg disabled:opacity-50"
+              title="Remove Firestore profile"
+              aria-label={`Remove ${usr.displayName || usr.email || uid}`}
+            >
+              {removing ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Trash className="w-3.5 h-3.5" />
+              )}
+            </button>
+          ) : (
+            <span className="text-[9px] font-bold uppercase text-muted">You</span>
+          )}
+        </td>
       </tr>
       {expanded && (
         <tr className="bg-surface/20">
-          <td colSpan={6} className="p-4 sm:px-8">
+          <td colSpan={7} className="p-4 sm:px-8">
             {loadingUsage ? (
               <div className="flex items-center gap-2 text-xs text-muted py-2">
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />

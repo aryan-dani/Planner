@@ -59,6 +59,8 @@ export async function GET(request: Request) {
       ]);
 
     let activeLast7d = 0;
+    let usersWithOpens = 0;
+    const byBranch: Record<string, number> = {};
     const activeUsers: ActiveUser[] = [];
 
     for (const doc of usersSnap.docs) {
@@ -67,6 +69,9 @@ export async function GET(request: Request) {
       const lastActive = String(d.lastActive || d.updatedAt || "");
       const lastOpenedAt = String(d.lastOpenedAt || "");
       const resourceOpenCount = Number(d.resourceOpenCount) || 0;
+      const branch = String(d.branch || "Unknown").trim() || "Unknown";
+      byBranch[branch] = (byBranch[branch] || 0) + 1;
+      if (resourceOpenCount > 0) usersWithOpens += 1;
 
       const recent =
         (lastActive && lastActive >= weekAgo) ||
@@ -114,6 +119,10 @@ export async function GET(request: Request) {
     const filesWithOpens =
       totalsCountSnap?.data().count ?? topResources.length;
 
+    const branchBreakdown = Object.entries(byBranch)
+      .map(([branch, count]) => ({ branch, count }))
+      .sort((a, b) => b.count - a.count);
+
     return NextResponse.json(
       {
         overview: {
@@ -121,7 +130,9 @@ export async function GET(request: Request) {
           activeLast7d,
           totalOpens: totalOpensFromStats || totalOpensFallback,
           filesWithOpens,
+          usersWithOpens,
         },
+        byBranch: branchBreakdown,
         topResources,
         mostActiveUsers: activeUsers.slice(0, 15),
       },

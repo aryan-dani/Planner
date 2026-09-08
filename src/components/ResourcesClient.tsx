@@ -889,10 +889,10 @@ export default function ResourcesClient() {
           </p>
         </Card>
       ) : (
-        <div className="flex flex-col md:flex-row gap-8 items-start">
+        <div className="flex flex-col lg:flex-row gap-8 items-start">
           <Card
             padding="none"
-            className="w-full md:w-60 shrink-0 shadow-sm overflow-hidden md:sticky md:top-24 z-10"
+            className="w-full lg:w-60 shrink-0 shadow-sm overflow-hidden lg:sticky lg:top-24 z-10"
           >
             <div className="px-4 py-3 border-b border-border bg-surface/50 flex items-center justify-between">
               <h3 className="font-semibold text-xs uppercase tracking-wider text-muted">

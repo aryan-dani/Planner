@@ -83,8 +83,8 @@ const SYSTEM_LINKS: NavLinkItem[] = [
   { href: "/support", label: "Support", Icon: Heart, desc: "Optional contribution" },
 ];
 
-const SIDEBAR_EXPANDED = "md:w-72";
-const SIDEBAR_COLLAPSED = "md:w-[4.25rem]";
+const SIDEBAR_EXPANDED = "lg:w-72";
+const SIDEBAR_COLLAPSED = "lg:w-[4.25rem]";
 
 function NavSection({
   title,
@@ -399,7 +399,7 @@ function NavigationInner() {
           {isMobile ? (
             <button
               onClick={() => setMobileOpen(false)}
-              className="tap-target rounded-lg text-muted hover:text-foreground hover:bg-surface/50 active:bg-surface border border-transparent transition-colors md:hidden"
+              className="tap-target rounded-lg text-muted hover:text-foreground hover:bg-surface/50 active:bg-surface border border-transparent transition-colors lg:hidden"
               aria-label="Close navigation menu"
             >
               <X className="w-5 h-5" />
@@ -589,7 +589,7 @@ function NavigationInner() {
       {/* 1. Desktop Sticky Sidebar with collapse transition */}
       <aside
         aria-label="Primary"
-        className={`h-screen sticky top-0 left-0 border-r border-border/80 bg-background-subtle z-40 hidden md:flex flex-col shrink-0 transition-all duration-400 ease-[cubic-bezier(0.2,0.8,0.2,1)] w-0 overflow-hidden md:overflow-visible ${
+        className={`h-screen sticky top-0 left-0 border-r border-border/80 bg-background-subtle z-40 hidden lg:flex flex-col shrink-0 transition-all duration-400 ease-[cubic-bezier(0.2,0.8,0.2,1)] w-0 overflow-hidden lg:overflow-visible ${
           collapsed ? SIDEBAR_COLLAPSED : SIDEBAR_EXPANDED
         }`}
         style={{ willChange: "width" }}
@@ -598,7 +598,7 @@ function NavigationInner() {
       </aside>
 
       {/* 2. Mobile Top Header */}
-      <header className="fixed top-0 inset-x-0 w-full max-w-[100vw] h-[calc(3.5rem+env(safe-area-inset-top))] pt-[env(safe-area-inset-top)] border-b border-border/80 bg-background/80 backdrop-blur-md z-sticky flex items-center justify-between gap-3 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] md:hidden transition-colors">
+      <header className="fixed top-0 inset-x-0 w-full max-w-[100vw] h-[calc(3.5rem+env(safe-area-inset-top))] pt-[env(safe-area-inset-top)] border-b border-border/80 bg-background/80 backdrop-blur-md z-sticky flex items-center justify-between gap-3 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] lg:hidden transition-colors">
         <AppLink
           href="/"
           onClick={() => setSearchQuery("")}
@@ -641,7 +641,7 @@ function NavigationInner() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setMobileOpen(false)}
-              className="fixed inset-0 bg-background/80 backdrop-blur-sm z-modal md:hidden"
+              className="fixed inset-0 bg-background/80 backdrop-blur-sm z-modal lg:hidden"
             />
 
             {/* Sidebar drawer content */}
@@ -650,7 +650,7 @@ function NavigationInner() {
               animate={{ x: 0 }}
               exit={{ x: "-100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 300, mass: 0.8 }}
-              className="fixed top-0 bottom-0 left-0 w-80 max-w-[88vw] bg-background-subtle border-r border-border/80 shadow-window z-dropdown md:hidden flex flex-col pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]"
+              className="fixed top-0 bottom-0 left-0 w-80 max-w-[88vw] bg-background-subtle border-r border-border/80 shadow-window z-dropdown lg:hidden flex flex-col pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]"
             >
               {renderSidebarContent(true)}
             </motion.aside>

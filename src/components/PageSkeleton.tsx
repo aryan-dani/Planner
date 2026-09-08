@@ -25,8 +25,8 @@ export default function PageSkeleton({
         <>
           <div className="skeleton h-8 w-56 rounded-lg mb-2" />
           <div className="skeleton h-4 w-64 rounded-md mb-8" />
-          <div className="flex flex-col md:flex-row gap-8 items-start">
-            <div className="w-full md:w-60 shrink-0 border border-border rounded-xl bg-card overflow-hidden">
+          <div className="flex flex-col lg:flex-row gap-8 items-start">
+            <div className="w-full lg:w-60 shrink-0 border border-border rounded-xl bg-card overflow-hidden">
               <div className="px-4 py-3 border-b border-border">
                 <div className="skeleton h-3 w-20 rounded" />
               </div>

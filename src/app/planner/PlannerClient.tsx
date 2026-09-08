@@ -1660,7 +1660,7 @@ export default function PlannerClient() {
       {/* ── Calendar View ── */}
       {plannerView === 'calendar' && (
         <>
-        <Card className="hidden md:block rounded-2xl overflow-hidden animate-fade-in" padding="none">
+        <Card className="hidden lg:block rounded-2xl overflow-hidden animate-fade-in" padding="none">
         <div className="grid grid-cols-7 gap-px bg-border/80">
           {/* Day headers */}
           {DAY_LABELS.map((d) => (
@@ -1787,7 +1787,7 @@ export default function PlannerClient() {
         </div>
         </Card>
 
-        <div className="md:hidden space-y-3 animate-fade-in">
+        <div className="lg:hidden space-y-3 animate-fade-in">
           {(() => {
             const monthDays = calendarDays.filter((d) => d.isCurrentMonth);
             const todayIdx = monthDays.findIndex((d) => d.date === today);

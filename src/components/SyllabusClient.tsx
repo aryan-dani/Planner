@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { SubjectItem, ResourceItem } from '@/lib/dataFetcher';
 import { useAcademicStore } from '@/store/academicStore';
 import { cleanResourceTitle } from '@/lib/titleUtils';
@@ -32,7 +32,6 @@ import {
   AIDS_SEM_4_SUBJECTS,
   AIDS_SEM_5_SUBJECTS,
 } from '@/lib/syllabusData';
-import { motion, AnimatePresence } from 'framer-motion';
 import { auth, db } from '@/lib/firebase';
 import { collection, query, where, getDocs, doc, setDoc, updateDoc } from 'firebase/firestore';
 import { notify } from '@/lib/toast';
@@ -42,7 +41,7 @@ import AcademicBreadcrumb from '@/components/AcademicBreadcrumb';
 import Link from 'next/link';
 import { Button, Card, Badge, Input, Select, Segmented, Modal, PageHeader } from '@/components/ui';
 import { useWorkspaceResources } from '@/lib/useWorkspaceResources';
-import { useIsClient } from '@/lib/clientHooks';
+import PageSkeleton from '@/components/PageSkeleton';
 import type { Task } from '@/app/planner/PlannerClient';
 
 interface ResourceItemExt extends ResourceItem {
@@ -270,15 +269,21 @@ export default function SyllabusClient() {
     [subjectNames, branch, semester],
   );
   const [expandedSubject, setExpandedSubject] = useState<string | null>(null);
-  const [progressMap, setProgressMap] = useState<Record<string, boolean | string>>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) return JSON.parse(saved) as Record<string, boolean | string>;
-    } catch {}
-    return {};
-  });
-  const mounted = useIsClient();
+  const [progressMap, setProgressMap] = useState<Record<string, boolean | string>>({});
   const resources = catalogResources as ResourceItemExt[];
+
+  useEffect(() => {
+    queueMicrotask(() => {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+          setProgressMap(JSON.parse(saved) as Record<string, boolean | string>);
+        }
+      } catch {
+        /* ignore */
+      }
+    });
+  }, []);
 
   // Scheduler Modal State
   const [plannerModalOpen, setPlannerModalOpen] = useState(false);
@@ -424,20 +429,6 @@ export default function SyllabusClient() {
     });
   }, [subjects, academicYear, branch, semester]);
 
-  const matchingResourcesMap = useMemo(() => {
-    const map = new Map<string, ResourceItemExt[]>();
-    for (const subject of displaySubjects) {
-      subject.modules.forEach((mod, modIdx) => {
-        const key = `${subject.id}_${modIdx}`;
-        map.set(
-          key,
-          computeMatchingResources(mod.title, mod.desc, subject.name, resources),
-        );
-      });
-    }
-    return map;
-  }, [displaySubjects, resources]);
-
   const filtered = useMemo(() => {
     if (!searchQuery.trim()) return displaySubjects;
     const q = searchQuery.toLowerCase();
@@ -452,6 +443,21 @@ export default function SyllabusClient() {
     if (!expandedSubject) return null;
     return filtered.some((s) => s.id === expandedSubject) ? expandedSubject : null;
   }, [expandedSubject, filtered]);
+
+  const matchingResourcesMap = useMemo(() => {
+    const map = new Map<string, ResourceItemExt[]>();
+    if (!activeExpandedSubject) return map;
+    const subject = displaySubjects.find((s) => s.id === activeExpandedSubject);
+    if (!subject) return map;
+    subject.modules.forEach((mod, modIdx) => {
+      const key = `${subject.id}_${modIdx}`;
+      map.set(
+        key,
+        computeMatchingResources(mod.title, mod.desc, subject.name, resources),
+      );
+    });
+    return map;
+  }, [displaySubjects, resources, activeExpandedSubject]);
 
   // Calculate Overall Progress
   const totalModules = filtered.reduce((acc, sub) => acc + sub.modules.length, 0);
@@ -481,14 +487,8 @@ export default function SyllabusClient() {
     return BookOpen;
   };
 
-  if (!mounted || catalogLoading) {
-    return (
-      <div className="flex-1 w-full max-w-7xl mx-auto page-gutter py-12 flex justify-center items-center h-[50vh]">
-        <span className="text-sm font-semibold text-muted">
-          {catalogLoading ? "Loading syllabus…" : "Initializing dashboard..."}
-        </span>
-      </div>
-    );
+  if (catalogLoading) {
+    return <PageSkeleton variant="list" />;
   }
 
   return (
@@ -544,11 +544,9 @@ export default function SyllabusClient() {
               <span className="text-primary text-sm font-extrabold">{overallPercentage}%</span>
             </div>
             <div className="h-4 w-full bg-surface border border-border p-0.5 rounded-full overflow-hidden">
-              <motion.div
-                initial={{ width: 0 }}
-                animate={{ width: `${overallPercentage}%` }}
-                transition={{ duration: 0.8, ease: "easeOut" }}
-                className="h-full bg-foreground rounded-full"
+              <div
+                className="h-full bg-foreground rounded-full transition-[width] duration-500 ease-out"
+                style={{ width: `${overallPercentage}%` }}
               />
             </div>
           </div>
@@ -557,7 +555,6 @@ export default function SyllabusClient() {
 
       {/* Subject Cards List */}
       <div className="flex flex-col gap-px bg-border/60 rounded-xl overflow-hidden border border-border/70 shadow-sm relative z-10">
-        <AnimatePresence mode="popLayout">
           {filtered.map((subject) => {
             const isExpanded = activeExpandedSubject === subject.id;
             const subCompleted = subject.modules.reduce((sum, _, idx) => {
@@ -572,14 +569,9 @@ export default function SyllabusClient() {
             const SubjectIcon = getSubjectIcon(subject.name);
 
             return (
-              <motion.div
+              <div
                 key={subject.code || subject.id}
-                layout="position"
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                transition={{ duration: 0.3 }}
-                className={`bg-card transition-all overflow-hidden ${
+                className={`bg-card transition-colors overflow-hidden ${
                   isExpanded 
                     ? 'shadow-md relative z-20 border-y border-border-strong' 
                     : 'hover:bg-surface/30'
@@ -663,15 +655,8 @@ export default function SyllabusClient() {
                 </div>
 
                 {/* Collapsible Subject Modules */}
-                <AnimatePresence initial={false}>
-                  {isExpanded && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: 'auto', opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.25, ease: 'easeInOut' }}
-                      className="border-t border-border/50 bg-surface/10"
-                    >
+                {isExpanded && (
+                    <div className="border-t border-border/50 bg-surface/10">
                       <div className="p-6 space-y-4">
                         <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">
                           <BookOpen className="w-3.5 h-3.5 text-foreground" />
@@ -879,13 +864,11 @@ export default function SyllabusClient() {
                           </div>
                         </div>
                       </div>
-                    </motion.div>
+                    </div>
                   )}
-                </AnimatePresence>
-              </motion.div>
+              </div>
             );
           })}
-        </AnimatePresence>
       </div>
 
       {/* Empty states */}

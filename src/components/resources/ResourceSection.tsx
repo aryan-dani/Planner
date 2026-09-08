@@ -205,7 +205,7 @@ export default function ResourceSection({
               flattenAllSingles ? (
                 <div
                   ref={scrollRef}
-                  className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-px bg-border/60 rounded-xl overflow-hidden border border-border/70 shadow-sm"
+                  className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-px bg-border/60 rounded-xl overflow-hidden border border-border/70 shadow-sm"
                 >
                   {singletonCardItems.map((item, index) => {
                     const folderMatch = folders!.find(
@@ -288,7 +288,7 @@ export default function ResourceSection({
                 </div>
               )
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-px bg-border/60 rounded-xl overflow-hidden border border-border/70 shadow-sm">
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-px bg-border/60 rounded-xl overflow-hidden border border-border/70 shadow-sm">
                 {items.map((item, index) => (
                   <motion.div
                     key={item.id}

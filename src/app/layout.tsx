@@ -99,7 +99,7 @@ export default function RootLayout({
           <div className="flex min-h-screen w-full">
             <Navigation />
             <div className="flex-1 flex flex-col min-w-0 w-full">
-              <main id="main-content" role="main" className="flex-1 w-full flex flex-col pt-[calc(3.5rem+env(safe-area-inset-top))] md:pt-0">
+              <main id="main-content" role="main" className="flex-1 w-full flex flex-col pt-[calc(3.5rem+env(safe-area-inset-top))] lg:pt-0">
                 <Suspense
                   fallback={
                     <div
