@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import AppLink from "@/components/ui/AppLink";
 import { ChevronRight } from "lucide-react";
 
 export interface AcademicCrumb {
@@ -36,12 +36,12 @@ export default function AcademicBreadcrumb({
         <span key={`${crumb.label}-${i}`} className="contents">
           <ChevronRight className="w-3 h-3 flex-shrink-0" />
           {crumb.href ? (
-            <Link
+            <AppLink
               href={crumb.href}
               className="font-medium hover:text-foreground transition-colors truncate max-w-[12rem]"
             >
               {crumb.label}
-            </Link>
+            </AppLink>
           ) : (
             <span className="font-semibold text-foreground truncate max-w-[12rem]">
               {crumb.label}

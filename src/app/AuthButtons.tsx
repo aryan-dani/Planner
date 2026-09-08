@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import AppLink from "@/components/ui/AppLink";
 import { ArrowRight } from "lucide-react";
 import { auth } from "@/lib/firebase";
 import { useAcademicStore } from "@/store/academicStore";
@@ -41,16 +41,16 @@ export default function AuthButtons() {
 
   return isLoggedIn ? (
     <div className="flex flex-wrap gap-3">
-      <Link href={`/planner?${qs}`} className={primary}>
+      <AppLink href={`/planner?${qs}`} className={primary}>
         Open Planner <ArrowRight className="w-4 h-4" />
-      </Link>
-      <Link href={`/resources?${qs}`} className={secondary}>
+      </AppLink>
+      <AppLink href={`/resources?${qs}`} className={secondary}>
         Browse Resources
-      </Link>
+      </AppLink>
     </div>
   ) : (
-    <Link href="/login" className={primary}>
+    <AppLink href="/login" className={primary}>
       Get Started <ArrowRight className="w-4 h-4" />
-    </Link>
+    </AppLink>
   );
 }

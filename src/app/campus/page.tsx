@@ -1,4 +1,4 @@
-import Link from "next/link";
+import AppLink from "@/components/ui/AppLink";
 import {
   MapPin,
   BookUser,
@@ -43,7 +43,7 @@ export default function CampusHubPage() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         {CAMPUS_LINKS.map(({ href, label, description, Icon }) => (
-          <Link
+          <AppLink
             key={href}
             href={href}
             className="group flex flex-col gap-4 rounded-xl border border-border bg-card p-5 sm:p-6 text-left transition-colors hover:bg-surface/60 active:bg-surface hover:border-border-strong focus-visible:outline-offset-2"
@@ -58,7 +58,7 @@ export default function CampusHubPage() {
               </div>
               <p className="text-xs text-muted leading-relaxed">{description}</p>
             </div>
-          </Link>
+          </AppLink>
         ))}
       </div>
     </div>

@@ -5,7 +5,7 @@ const GPAClient = dynamic(() => import("./GPAClientComponent"), {
   loading: () => <PageSkeleton variant="simple" />,
 });
 
-export const revalidate = 3600;
+export const revalidate = 86400;
 
 export default async function GPAPage() {
   return (

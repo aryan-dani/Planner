@@ -21,6 +21,7 @@ import { getSoonestUpcomingExam } from '@/lib/examCountdown';
 import { useIsClient } from '@/lib/clientHooks';
 import { toggleTaskRecurring as applyRecurringToggle } from '@/lib/planner/recurrence';
 import { normalizeImportedPlan } from '@/lib/planner/importPlan';
+import { generateId } from '@/lib/id';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -70,10 +71,6 @@ const CATEGORY_COLORS: Record<string, { bg: string, text: string, border: string
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
-
-function generateId() {
-  return Math.random().toString(36).slice(2, 11);
-}
 
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',

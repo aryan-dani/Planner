@@ -4,6 +4,7 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { logActivity } from '@/lib/activity';
 import { localDateKey } from '@/lib/dateLocal';
 import { applyGrade } from '@/lib/srs/scheduling';
+import { generateId } from '@/lib/id';
 
 export interface Flashcard {
   id: string;
@@ -164,7 +165,7 @@ export const useSRSStore = create<SRSState>((set, get) => ({
 
   createDeck: (name) => {
     const newDeck: Deck = {
-      id: Math.random().toString(36).slice(2, 11),
+      id: generateId(),
       name,
       createdAt: new Date().toISOString(),
     };
@@ -189,7 +190,7 @@ export const useSRSStore = create<SRSState>((set, get) => ({
 
   addCard: (deckId, question, answer) => {
     const newCard: Flashcard = {
-      id: Math.random().toString(36).slice(2, 11),
+      id: generateId(),
       deckId,
       question,
       answer,
@@ -206,7 +207,7 @@ export const useSRSStore = create<SRSState>((set, get) => ({
 
   addMultipleCards: (deckId, items) => {
     const newCards: Flashcard[] = items.map((item) => ({
-      id: Math.random().toString(36).slice(2, 11),
+      id: generateId(),
       deckId,
       question: item.question,
       answer: item.answer,

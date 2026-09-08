@@ -6,7 +6,7 @@ const AskClient = dynamic(() => import("./AskClientComponent"), {
   loading: () => <PageSkeleton variant="simple" />,
 });
 
-export const revalidate = 3600;
+export const revalidate = 86400;
 
 export default function AskPage() {
   return (

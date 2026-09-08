@@ -61,8 +61,9 @@ async function triggerGithubSyncWorkflow() {
     throw new Error("GH_PAT (or GITHUB_TOKEN) is not configured.");
   }
 
+  const repo = process.env.GITHUB_REPO || "aryan-dani/Utility";
   const res = await fetch(
-    "https://api.github.com/repos/aryan-dani/Utility/actions/workflows/storage-sync.yml/dispatches",
+    `https://api.github.com/repos/${repo}/actions/workflows/storage-sync.yml/dispatches`,
     {
       method: "POST",
       headers: {

@@ -48,6 +48,7 @@ import type { RetrievalSource } from '@/lib/rag/types';
 import { stripInvalidCitations, validMarkerSet } from '@/lib/agent/router';
 import { authFetch, getAuthHeaders } from '@/lib/authFetch';
 import { useWorkspaceResources } from '@/lib/useWorkspaceResources';
+import { generateId } from '@/lib/id';
 
 /** Legacy persisted messages may include a plain `content` field. */
 type ChatMessage = UIMessage & { content?: string };
@@ -352,7 +353,7 @@ export interface ChatSession {
 }
 
 function createInitialChatSession(): ChatSession {
-  const initialId = Math.random().toString(36).slice(2, 11);
+  const initialId = generateId();
   return {
     id: initialId,
     title: 'New Chat',
@@ -676,7 +677,7 @@ export default function AskClient() {
   // Sync current messages back to active session — persisted via localStorage effect above
 
   const handleNewChat = () => {
-    const newId = Math.random().toString(36).slice(2, 11);
+    const newId = generateId();
     const newSession: ChatSession = {
       id: newId,
       title: 'New Chat',
@@ -695,7 +696,7 @@ export default function AskClient() {
       if (updated.length > 0) {
         setActiveSessionId(updated[0].id);
       } else {
-        const newId = Math.random().toString(36).slice(2, 11);
+        const newId = generateId();
         const newSession = {
           id: newId,
           title: 'New Chat',

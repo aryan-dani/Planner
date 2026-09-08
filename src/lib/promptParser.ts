@@ -9,6 +9,8 @@
  * Into structured calendar entries with tasks and subtasks.
  */
 
+import { generateId } from '@/lib/id';
+
 export type SubTask = {
   id: string;
   text: string;
@@ -26,10 +28,6 @@ export type ParsedEntry = {
   date: string;   // ISO date "2026-05-27"
   tasks: Task[];
 };
-
-function generateId(): string {
-  return Math.random().toString(36).slice(2, 11);
-}
 
 /**
  * Parse a single line like "27th -> DET unit 3 and 4 complete notes"

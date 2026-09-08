@@ -22,17 +22,24 @@ export async function GET(
     const d = deckDoc.data() || {};
     const flashcards = Array.isArray(d.flashcards) ? d.flashcards : [];
 
-    return NextResponse.json({
-      id: deckDoc.id,
-      title: d.title || "",
-      branch: d.branch || "",
-      semester: Number(d.semester || 0),
-      author_name: d.author_name || "",
-      author_uid: d.author_uid || "",
-      upvotes: Number(d.upvotes || 0),
-      cardCount: flashcards.length,
-      flashcards,
-    });
+    return NextResponse.json(
+      {
+        id: deckDoc.id,
+        title: d.title || "",
+        branch: d.branch || "",
+        semester: Number(d.semester || 0),
+        author_name: d.author_name || "",
+        author_uid: d.author_uid || "",
+        upvotes: Number(d.upvotes || 0),
+        cardCount: flashcards.length,
+        flashcards,
+      },
+      {
+        headers: {
+          "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=86400",
+        },
+      },
+    );
   } catch (error) {
     console.error("Error fetching deck:", error);
     return NextResponse.json(

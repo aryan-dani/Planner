@@ -5,7 +5,7 @@ const PlannerClient = dynamic(() => import("./PlannerClient"), {
   loading: () => <PageSkeleton variant="simple" />,
 });
 
-export const revalidate = 3600;
+export const revalidate = 86400;
 
 export default function PlannerPage() {
   return <PlannerClient />;

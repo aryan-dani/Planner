@@ -3,7 +3,7 @@ import CommunityClient, { type CommunityDeck, type CommunityFlashcard } from "./
 import { Suspense } from "react";
 import { devLog } from "@/lib/devLog";
 
-export const revalidate = 3600;
+export const revalidate = 86400;
 
 export default async function CommunityPage() {
   let decks: CommunityDeck[] = [];

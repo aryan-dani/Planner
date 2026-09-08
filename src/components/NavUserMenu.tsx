@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
-import Link from "next/link";
+import AppLink from "@/components/ui/AppLink";
 import { ChevronDown, LogOut, User } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { auth, db } from "@/lib/firebase";
@@ -174,14 +174,14 @@ export default function NavUserMenu({
 
   if (!user) {
     return (
-      <Link
+      <AppLink
         href="/login"
         aria-label="Sign In"
         className={`flex items-center justify-center ${collapsed ? "w-8 h-8 rounded-lg" : "w-full py-2 rounded-xl"} bg-foreground text-background font-semibold text-xs hover:opacity-90 transition-all shadow-xs`}
         title={collapsed ? "Sign In" : undefined}
       >
         {collapsed ? <LogOut className="w-3.5 h-3.5 rotate-180" /> : "Sign in"}
-      </Link>
+      </AppLink>
     );
   }
 
@@ -234,14 +234,14 @@ export default function NavUserMenu({
             transition={{ duration: 0.1, ease: "easeOut" }}
             className={`absolute bottom-full mb-2 bg-card border border-border rounded-xl shadow-popover overflow-hidden z-50 p-1 flex flex-col gap-0.5 ${collapsed ? "w-32 left-1/2 -translate-x-1/2" : "left-0 right-0"}`}
           >
-            <Link
+            <AppLink
               href="/profile"
               onClick={() => setUserMenuOpen(false)}
               className="flex items-center gap-2.5 w-full px-2.5 py-2 text-xs font-semibold text-foreground hover:bg-surface rounded-lg transition-colors text-left"
             >
               <User className="w-3.5 h-3.5 shrink-0 text-muted" />
               <span>Profile Settings</span>
-            </Link>
+            </AppLink>
             <button
               onClick={handleLogout}
               className="flex items-center gap-2.5 w-full px-2.5 py-2 text-xs font-semibold text-destructive hover:bg-destructive/10 rounded-lg transition-colors text-left"

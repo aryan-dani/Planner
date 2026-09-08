@@ -62,6 +62,8 @@ const nextConfig = {
             key: "Strict-Transport-Security",
             value: "max-age=63072000; includeSubDomains; preload",
           },
+          // CSP stays Report-Only. Do not rename to Content-Security-Policy without a
+          // staging smoke of Google login, Drive viewer, chat, and the PWA worker.
           {
             key: "Content-Security-Policy-Report-Only",
             value: csp,

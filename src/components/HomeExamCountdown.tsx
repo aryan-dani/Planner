@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import Link from "next/link";
+import AppLink from "@/components/ui/AppLink";
 import { CalendarCheck } from "lucide-react";
 import { getSoonestUpcomingExam } from "@/lib/examCountdown";
 import { useIsClient } from "@/lib/clientHooks";
@@ -23,7 +23,7 @@ export default function HomeExamCountdown() {
         : `Exam in ${exam.daysUntil} days`;
 
   return (
-    <Link
+    <AppLink
       href="/planner"
       className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3.5 py-1.5 text-xs font-semibold text-foreground shadow-xs hover:bg-surface transition-colors"
       title={exam.text}
@@ -33,6 +33,6 @@ export default function HomeExamCountdown() {
       <span className="text-muted font-medium truncate max-w-[12rem]">
         · {exam.text}
       </span>
-    </Link>
+    </AppLink>
   );
 }

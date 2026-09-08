@@ -5,6 +5,8 @@ import { notify } from '@/lib/toast';
 
 const TOAST_ID = 'utility-sw-update';
 const CONTROLLER_FALLBACK_MS = 1500;
+/** Focus/visibility SW checks — keep mount + hourly interval uncapped. */
+const VISIBILITY_UPDATE_DEBOUNCE_MS = 20 * 60 * 1000;
 
 /** Clear SW/runtime caches on update; never touch utility-pdf-v2 (Drive PDF Cache API). */
 async function clearWorkboxCaches() {
@@ -55,6 +57,7 @@ export default function PwaUpdater() {
     let updateInFlight = false;
     let fallbackTimer: ReturnType<typeof setTimeout> | null = null;
     let refreshing = false;
+    let lastVisibilityUpdateAt = 0;
 
     const applyWaiting = (worker: ServiceWorker, { force }: { force: boolean }) => {
       if (force || isOfflineShellWhileOnline()) {
@@ -87,7 +90,16 @@ export default function PwaUpdater() {
       });
     };
 
-    const checkForUpdates = async () => {
+    const checkForUpdates = async ({ force = false }: { force?: boolean } = {}) => {
+      const now = Date.now();
+      if (
+        !force &&
+        lastVisibilityUpdateAt > 0 &&
+        now - lastVisibilityUpdateAt < VISIBILITY_UPDATE_DEBOUNCE_MS
+      ) {
+        return;
+      }
+      lastVisibilityUpdateAt = now;
       try {
         const reg = await navigator.serviceWorker.ready;
         await reg.update();
@@ -126,7 +138,9 @@ export default function PwaUpdater() {
       }
     });
 
-    const intervalId = setInterval(checkForUpdates, 3600000);
+    const intervalId = setInterval(() => {
+      void checkForUpdates({ force: true });
+    }, 3600000);
 
     const onVisible = () => {
       if (document.visibilityState === 'visible') {
@@ -136,7 +150,7 @@ export default function PwaUpdater() {
     document.addEventListener('visibilitychange', onVisible);
     window.addEventListener('focus', onVisible);
     // Catch the deploy soon after open (icon/SW revision change).
-    void checkForUpdates();
+    void checkForUpdates({ force: true });
 
     const handleControllerChange = async () => {
       if (refreshing) return;

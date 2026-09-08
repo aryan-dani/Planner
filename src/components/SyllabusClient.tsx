@@ -41,6 +41,7 @@ import AcademicBreadcrumb from '@/components/AcademicBreadcrumb';
 import Link from 'next/link';
 import { Button, Card, Badge, Input, Select, Segmented, Modal, PageHeader } from '@/components/ui';
 import { useWorkspaceResources } from '@/lib/useWorkspaceResources';
+import { generateId } from '@/lib/id';
 import PageSkeleton from '@/components/PageSkeleton';
 import type { Task } from '@/app/planner/PlannerClient';
 
@@ -316,7 +317,7 @@ export default function SyllabusClient() {
     const taskText = scheduleTitle || `Study: ${schedulingModule.subjectName} - ${schedulingModule.moduleTitle}`;
     
     const newTask: Task = {
-      id: Math.random().toString(36).slice(2, 11),
+      id: generateId(),
       text: taskText,
       done: false,
       subtasks: [],

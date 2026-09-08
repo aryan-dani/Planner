@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { isAuthFailure, requireUser } from "@/lib/apiAuth";
+import { enforceUserRateLimit } from "@/lib/rateLimit";
 import { z } from "zod";
 
 export const dynamic = "force-dynamic";
@@ -12,6 +13,14 @@ export async function POST(request: Request) {
   try {
     const auth = await requireUser(request);
     if (isAuthFailure(auth)) return auth;
+
+    const rate = await enforceUserRateLimit(auth.uid, "planner-collaborators", 30, 60_000);
+    if (!rate.allowed) {
+      return NextResponse.json(
+        { error: "Rate limit exceeded" },
+        { status: 429, headers: { "Retry-After": String(rate.retryAfterSec) } },
+      );
+    }
 
     const body = await request.json();
     const planId = typeof body.planId === "string" ? body.planId.trim() : "";
@@ -83,12 +92,20 @@ export async function DELETE(request: Request) {
     const auth = await requireUser(request);
     if (isAuthFailure(auth)) return auth;
 
+    const rate = await enforceUserRateLimit(auth.uid, "planner-collaborators", 30, 60_000);
+    if (!rate.allowed) {
+      return NextResponse.json(
+        { error: "Rate limit exceeded" },
+        { status: 429, headers: { "Retry-After": String(rate.retryAfterSec) } },
+      );
+    }
+
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
 
-    if (!id) {
+    if (!id || id.length > 128) {
       return NextResponse.json(
-        { error: "Collaborator ID is required" },
+        { error: "Valid collaborator ID is required" },
         { status: 400 },
       );
     }

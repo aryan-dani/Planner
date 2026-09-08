@@ -94,6 +94,8 @@ function cachedStreamResponse(text: string, sources?: RetrievalSource[]) {
   const stream = createUIMessageStream({
     execute({ writer }) {
       if (sources?.length) {
+        // Cast as never: 'data-sources' is a custom protocol event parsed by the client
+        // that is not part of the AI SDK's built-in UIMessageStream writer event union.
         writer.write({
           type: "data-sources",
           data: sources,
@@ -333,9 +335,13 @@ export async function POST(req: Request) {
   const stream = createUIMessageStream({
     execute: async ({ writer }) => {
       if (sources.length > 0) {
+        // Cast as never: 'data-sources' is a custom protocol event parsed by the client
+        // that is not part of the AI SDK's built-in UIMessageStream writer event union.
         writer.write({ type: "data-sources", data: sources } as never);
       }
       if (retrieval?.widened) {
+        // Cast as never: 'data-scope' is a custom protocol event parsed by the client
+        // that is not part of the AI SDK's built-in UIMessageStream writer event union.
         writer.write({
           type: "data-scope",
           data: { branch, semester, widened: true },

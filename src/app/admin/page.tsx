@@ -1,6 +1,6 @@
 import AdminClient from "./AdminClient";
 
-export const revalidate = 3600;
+export const revalidate = 86400;
 
 function utilityDriveFolderUrl(): string | null {
   const id = process.env.GOOGLE_DRIVE_FOLDER_ID?.trim();
