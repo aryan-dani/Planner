@@ -66,6 +66,7 @@ import {
   type FavoriteResource,
 } from "@/lib/favoriteResources";
 import { getReadingProgress } from "@/lib/readingProgress";
+import { logResourceOpen } from "@/lib/activity";
 import { authFetch } from "@/lib/authFetch";
 import { useWorkspaceResources } from "@/lib/useWorkspaceResources";
 import { Button, Card, Badge, PageHeader, Input, IconButton } from "@/components/ui";
@@ -394,6 +395,11 @@ export default function ResourcesClient() {
       setRecentResources(
         pushRecentResource(match, { academicYear, branch, semester }),
       );
+      logResourceOpen({
+        id: match.id,
+        title: match.title,
+        subject: match.subject_name,
+      });
       if (match.subject_name) {
         setLastUserSubject(match.subject_name);
         setSelectedSubject(match.subject_name);
@@ -491,6 +497,11 @@ export default function ResourcesClient() {
       setRecentResources(
         pushRecentResource(item, { academicYear, branch, semester }),
       );
+      logResourceOpen({
+        id: item.id,
+        title: item.title,
+        subject: item.subject_name,
+      });
     },
     [
       academicYear,

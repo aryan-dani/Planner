@@ -23,6 +23,10 @@ export async function GET(request: Request) {
           branch: d.branch || "",
           semester: d.semester || null,
           lastActive: d.lastActive || d.updatedAt || "",
+          photoURL: d.photoURL || "",
+          resourceOpenCount: Number(d.resourceOpenCount) || 0,
+          lastOpenedTitle: d.lastOpenedTitle || "",
+          lastOpenedAt: d.lastOpenedAt || "",
         };
       })
       .sort((a, b) => {

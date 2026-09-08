@@ -30,17 +30,150 @@ const ALLOWED_ACTIONS = new Set([
   "summary_generated",
 ]);
 
-const postSchema = z.object({
+const actionSchema = z.object({
   actionType: z
     .string()
     .refine((v) => ALLOWED_ACTIONS.has(v), { message: "Invalid actionType" }),
   count: z.number().int().min(1).max(100),
 });
 
+const openSchema = z.object({
+  id: z.string().min(1).max(128),
+  title: z.string().max(200).optional().default(""),
+  subject: z.string().max(120).optional().default(""),
+  count: z.number().int().min(1).max(100),
+});
+
+const legacyPostSchema = actionSchema;
+
+const batchPostSchema = z
+  .object({
+    actions: z.array(actionSchema).max(20).optional(),
+    opens: z.array(openSchema).max(15).optional(),
+  })
+  .refine(
+    (v) => (v.actions?.length ?? 0) + (v.opens?.length ?? 0) > 0,
+    { message: "Empty batch" },
+  );
+
 function daysAgoLocal(days: number): string {
   const d = new Date();
   d.setDate(d.getDate() - days);
   return localDateKey(d);
+}
+
+function truncate(value: string, max: number): string {
+  const trimmed = value.trim();
+  if (trimmed.length <= max) return trimmed;
+  return trimmed.slice(0, max);
+}
+
+async function writeActionLog(
+  userId: string,
+  actionType: string,
+  count: number,
+  today: string,
+) {
+  const db = adminDb();
+  const docId = `${userId}_${actionType}_${today}`;
+  await db
+    .collection("activity_logs")
+    .doc(docId)
+    .set(
+      {
+        user_id: userId,
+        action_type: actionType,
+        count: FieldValue.increment(Math.floor(count)),
+        logged_date: today,
+      },
+      { merge: true },
+    );
+}
+
+async function writeResourceOpens(
+  userId: string,
+  opens: z.infer<typeof openSchema>[],
+  today: string,
+) {
+  const db = adminDb();
+  const nowIso = new Date().toISOString();
+  let totalOpenIncrements = 0;
+
+  for (const open of opens) {
+    const resourceId = truncate(open.id, 128);
+    if (!resourceId) continue;
+    const count = Math.floor(open.count);
+    const title = truncate(open.title || "", 200);
+    const subject = truncate(open.subject || "", 120);
+    const usageId = `${userId}_${resourceId}`;
+    const usageRef = db.collection("resource_usage").doc(usageId);
+    const totalsRef = db.collection("resource_totals").doc(resourceId);
+
+    await db.runTransaction(async (tx) => {
+      const usageSnap = await tx.get(usageRef);
+      const isNew = !usageSnap.exists;
+
+      tx.set(
+        usageRef,
+        {
+          user_id: userId,
+          resource_id: resourceId,
+          count: FieldValue.increment(count),
+          lastOpenedAt: nowIso,
+          ...(title ? { title } : {}),
+          ...(subject ? { subject } : {}),
+        },
+        { merge: true },
+      );
+
+      tx.set(
+        totalsRef,
+        {
+          resource_id: resourceId,
+          opens: FieldValue.increment(count),
+          lastOpenedAt: nowIso,
+          ...(title ? { title } : {}),
+          ...(subject ? { subject } : {}),
+          ...(isNew ? { uniqueOpeners: FieldValue.increment(1) } : {}),
+        },
+        { merge: true },
+      );
+    });
+
+    totalOpenIncrements += count;
+  }
+
+  if (totalOpenIncrements <= 0) return;
+
+  const last = opens[opens.length - 1];
+  const lastTitle = truncate(last?.title || "", 200);
+  const lastId = truncate(last?.id || "", 128);
+
+  await Promise.all([
+    writeActionLog(userId, "resource_open", totalOpenIncrements, today),
+    db
+      .collection("users")
+      .doc(userId)
+      .set(
+        {
+          resourceOpenCount: FieldValue.increment(totalOpenIncrements),
+          lastOpenedAt: nowIso,
+          ...(lastTitle ? { lastOpenedTitle: lastTitle } : {}),
+          ...(lastId ? { lastOpenedResourceId: lastId } : {}),
+        },
+        { merge: true },
+      ),
+    db
+      .collection("stats")
+      .doc("usage")
+      .set(
+        {
+          totalOpens: FieldValue.increment(totalOpenIncrements),
+          updatedAt: nowIso,
+        },
+        { merge: true },
+      ),
+  ]);
 }
 
 export async function GET(request: Request) {
@@ -109,29 +242,36 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
     }
 
-    const parsed = postSchema.safeParse(body);
-    if (!parsed.success) {
+    const today = localDateKey();
+    const legacy = legacyPostSchema.safeParse(body);
+    if (legacy.success) {
+      await writeActionLog(
+        userId,
+        legacy.data.actionType,
+        legacy.data.count,
+        today,
+      );
+      return NextResponse.json({ success: true });
+    }
+
+    const batch = batchPostSchema.safeParse(body);
+    if (!batch.success) {
       return NextResponse.json(
-        { error: "Invalid actionType or count" },
+        { error: "Invalid actionType, count, or opens batch" },
         { status: 400 },
       );
     }
 
-    const { actionType, count } = parsed.data;
-    const today = localDateKey();
-    const docId = `${userId}_${actionType}_${today}`;
-    const db = adminDb();
-    const logRef = db.collection("activity_logs").doc(docId);
+    const actions = batch.data.actions ?? [];
+    const opens = batch.data.opens ?? [];
 
-    await logRef.set(
-      {
-        user_id: userId,
-        action_type: actionType,
-        count: FieldValue.increment(Math.floor(count)),
-        logged_date: today,
-      },
-      { merge: true },
+    await Promise.all(
+      actions.map((a) => writeActionLog(userId, a.actionType, a.count, today)),
     );
+
+    if (opens.length > 0) {
+      await writeResourceOpens(userId, opens, today);
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {

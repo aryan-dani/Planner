@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback, Suspense, startTransition } from "react";
-import Link from "next/link";
+import AppLink from "@/components/ui/AppLink";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTheme } from "next-themes";
 import {
@@ -337,7 +337,7 @@ function NavigationInner() {
     const finalHref = `${link.href}?year=${encodeURIComponent(academicYear)}&branch=${branch}&semester=${semester}`;
     const active = isActive(link.href);
     return (
-      <Link
+      <AppLink
         key={link.href}
         href={finalHref}
         onClick={() => setSearchQuery("")}
@@ -368,7 +368,7 @@ function NavigationInner() {
             Core
           </span>
         )}
-      </Link>
+      </AppLink>
     );
   }, [isActive, setSearchQuery, academicYear, branch, semester]);
 
@@ -379,7 +379,7 @@ function NavigationInner() {
       <div className="flex flex-col h-full select-none">
         {/* Brand / Logo */}
         <div className={`px-3 py-3.5 flex ${isCollapsed ? "flex-col items-center justify-center gap-3" : "items-center justify-between gap-2"} border-b border-border/50 min-h-[3.75rem]`}>
-          <Link
+          <AppLink
             href="/"
             onClick={() => setSearchQuery("")}
             aria-label="Utility OS Home"
@@ -394,7 +394,7 @@ function NavigationInner() {
                 <span className="ml-1 text-[0.7em] font-sans font-semibold text-muted tracking-wide">OS</span>
               </span>
             )}
-          </Link>
+          </AppLink>
 
           {isMobile ? (
             <button
@@ -498,7 +498,7 @@ function NavigationInner() {
           <NavSection title="System" collapsed={isCollapsed}>
             {SYSTEM_LINKS.map(link)}
             {isAdmin && (
-              <Link
+              <AppLink
                 href="/admin"
                 onClick={() => setSearchQuery("")}
                 title={isCollapsed ? "Admin Dashboard" : undefined}
@@ -511,7 +511,7 @@ function NavigationInner() {
               >
                 <ShieldCheck className="w-[17px] h-[17px] text-muted group-hover:text-foreground" />
                 {!isCollapsed && <span>Admin Dashboard</span>}
-              </Link>
+              </AppLink>
             )}
           </NavSection>
         </div>
@@ -599,7 +599,7 @@ function NavigationInner() {
 
       {/* 2. Mobile Top Header */}
       <header className="fixed top-0 inset-x-0 w-full max-w-[100vw] h-[calc(3.5rem+env(safe-area-inset-top))] pt-[env(safe-area-inset-top)] border-b border-border/80 bg-background/80 backdrop-blur-md z-sticky flex items-center justify-between gap-3 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] md:hidden transition-colors">
-        <Link
+        <AppLink
           href="/"
           onClick={() => setSearchQuery("")}
           className="text-sm font-bold tracking-tight text-foreground flex items-center gap-2 min-h-11 min-w-0"
@@ -608,7 +608,7 @@ function NavigationInner() {
             <Layers className="w-3.5 h-3.5" />
           </div>
           <span className="font-display font-medium truncate">Utility</span>
-        </Link>
+        </AppLink>
 
         <div className="flex items-center gap-1 shrink-0">
           <button

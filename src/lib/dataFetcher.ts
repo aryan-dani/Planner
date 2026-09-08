@@ -313,7 +313,7 @@ export const getSubjectsFromDB = (
 ) => unstable_cache(
   () => fetchSubjectsFromDB(academicYear, branch, semester),
   ["subjects-cache", academicYear, branch, semester.toString()],
-  { revalidate: 600, tags: ["subjects"] }
+  { revalidate: 3600, tags: ["subjects"] }
 )();
 
 export const getResourcesFromDB = (
@@ -323,7 +323,7 @@ export const getResourcesFromDB = (
 ) => unstable_cache(
   () => fetchResourcesFromDB(academicYear, branch, semester),
   ["resources-cache", academicYear, branch, semester.toString()],
-  { revalidate: 600, tags: ["resources"] }
+  { revalidate: 3600, tags: ["resources"] }
 )();
 
 export const getSyllabusFile = (
@@ -371,5 +371,5 @@ export const getHomeStats = () =>
   unstable_cache(
     () => fetchHomeStatsFromGlobal(),
     ["home-stats-global"],
-    { revalidate: 600, tags: ["subjects", "resources"] },
+    { revalidate: 3600, tags: ["subjects", "resources"] },
   )();

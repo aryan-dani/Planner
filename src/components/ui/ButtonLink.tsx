@@ -32,6 +32,7 @@ export function ButtonLink({
   size = "md",
   className,
   children,
+  prefetch = false,
   ...props
 }: ButtonLinkProps) {
   return (
@@ -43,6 +44,7 @@ export function ButtonLink({
         className,
       )}
       {...props}
+      prefetch={prefetch}
     >
       {children}
     </Link>

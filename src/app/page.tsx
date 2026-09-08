@@ -1,4 +1,4 @@
-import Link from "next/link";
+import AppLink from "@/components/ui/AppLink";
 import {
   CalendarCheck,
   BookOpen,
@@ -21,7 +21,7 @@ import {
   DEFAULT_SEMESTER,
 } from "@/lib/workspace";
 
-export const revalidate = 600;
+export const revalidate = 3600;
 
 const FLOW = [
   { href: "/syllabus", title: "Syllabus", hint: "Units & topics" },
@@ -166,7 +166,7 @@ export default async function Home() {
         </p>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-px rounded-xl overflow-hidden border border-border bg-border shadow-sm">
           {FLOW.map(({ href, title, hint }, index) => (
-            <Link
+            <AppLink
               key={href}
               href={href}
               className="group bg-card hover:bg-surface active:bg-surface-hover p-4 sm:p-5 min-h-[5.5rem] flex flex-col justify-between gap-3 transition-colors"
@@ -181,7 +181,7 @@ export default async function Home() {
                 <p className="text-sm font-semibold text-foreground">{title}</p>
                 <p className="text-xs text-muted mt-0.5">{hint}</p>
               </div>
-            </Link>
+            </AppLink>
           ))}
         </div>
       </section>
@@ -190,7 +190,7 @@ export default async function Home() {
       <section className="w-full max-w-7xl mx-auto page-gutter pb-12 sm:pb-20">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-px bg-border rounded-xl overflow-hidden border border-border shadow-sm">
           {FEATURES.map(({ href, label, number, Icon, description }) => (
-            <Link
+            <AppLink
               key={href}
               href={href}
               className="group block bg-card hover:bg-surface card-premium-hover transition-all duration-300"
@@ -221,7 +221,7 @@ export default async function Home() {
                   <ArrowRight className="w-3 h-3 translate-x-0 group-hover:translate-x-1.5 transition-transform duration-300" />
                 </div>
               </div>
-            </Link>
+            </AppLink>
           ))}
         </div>
       </section>

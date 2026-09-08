@@ -87,19 +87,19 @@ export default function ActivityHeatmap() {
       if (!cancelled) setLoading(false);
     })();
 
-    let timeoutId: NodeJS.Timeout;
     const handleLocalLog = () => {
-      clearTimeout(timeoutId);
-      timeoutId = setTimeout(() => {
-        void fetchActivity();
-      }, 300);
+      try {
+        const local = localStorage.getItem(STORAGE_KEY);
+        if (local) {
+          setActivityMap(JSON.parse(local) as Record<string, number>);
+        }
+      } catch {}
     };
 
     window.addEventListener('activity_logged', handleLocalLog);
     return () => {
       cancelled = true;
       window.removeEventListener('activity_logged', handleLocalLog);
-      clearTimeout(timeoutId);
     };
   }, []);
 

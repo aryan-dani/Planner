@@ -3,16 +3,14 @@
 import Image from "next/image";
 import { useState, useEffect, useCallback } from "react";
 import { auth } from "@/lib/firebase";
-import { onAuthStateChanged, signOut } from "firebase/auth";
+import { onAuthStateChanged } from "firebase/auth";
 import {
   Trash,
   Edit2,
   Check,
   X,
   File as FileIcon,
-  LogOut,
   ShieldCheck,
-  ArrowLeft,
   Loader2,
   CheckCircle2,
   CloudFog,
@@ -20,13 +18,19 @@ import {
   HardDrive,
   ShieldAlert,
   Users,
+  BarChart3,
+  Flame,
+  Eye,
+  ChevronDown,
+  ChevronRight,
+  Activity,
+  Files,
 } from "lucide-react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+import AppLink from "@/components/ui/AppLink";
 import type { Branch, Semester } from "@/lib/academic/scope";
 import { BRANCH_OPTIONS, SEMESTER_OPTIONS } from "@/lib/academic/scope";
 import { Select } from "@/components/ui/Select";
-import { PageHeader } from "@/components/ui";
+import { PageHeader, Card, Segmented, Button } from "@/components/ui";
 import { fetchAdminStatus } from "@/lib/adminStatus";
 import { authFetch } from "@/lib/authFetch";
 
@@ -45,10 +49,7 @@ interface Resource {
   is_indexed?: boolean;
 }
 
-function getErrorMessage(error: unknown): string {
-  if (error instanceof Error) return error.message;
-  return "An unknown error occurred.";
-}
+type AdminTab = "overview" | "users" | "manage" | "drive";
 
 type AdminUser = {
   id: string;
@@ -60,11 +61,71 @@ type AdminUser = {
   semester: number | null;
   lastActive: string;
   photoURL?: string;
+  resourceOpenCount: number;
+  lastOpenedTitle: string;
+  lastOpenedAt: string;
 };
 
-export default function AdminClient() {
-  const router = useRouter();
-  const [tab, setTab] = useState<"drive" | "manage" | "users">("drive");
+type TopResource = {
+  id: string;
+  title: string;
+  subject: string;
+  opens: number;
+  uniqueOpeners: number;
+  lastOpenedAt: string;
+};
+
+type ActiveUser = {
+  uid: string;
+  email: string;
+  displayName: string;
+  photoURL?: string;
+  resourceOpenCount: number;
+  lastOpenedTitle: string;
+  lastOpenedAt: string;
+  lastActive: string;
+};
+
+type OverviewStats = {
+  userCount: number;
+  activeLast7d: number;
+  totalOpens: number;
+  filesWithOpens: number;
+};
+
+type UserUsageRow = {
+  id: string;
+  title: string;
+  subject: string;
+  count: number;
+  lastOpenedAt: string;
+};
+
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  return "An unknown error occurred.";
+}
+
+function formatWhen(value: string | undefined): string {
+  if (!value) return "Never";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return "Never";
+  return d.toLocaleString();
+}
+
+const TAB_OPTIONS: { value: AdminTab; label: string }[] = [
+  { value: "overview", label: "Overview" },
+  { value: "users", label: "Users" },
+  { value: "manage", label: "Files" },
+  { value: "drive", label: "Drive" },
+];
+
+export default function AdminClient({
+  driveFolderUrl,
+}: {
+  driveFolderUrl?: string | null;
+}) {
+  const [tab, setTab] = useState<AdminTab>("overview");
   const [usersList, setUsersList] = useState<AdminUser[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -74,7 +135,6 @@ export default function AdminClient() {
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [loadingAuth, setLoadingAuth] = useState(true);
 
-  // Manage State
   const [resources, setResources] = useState<Resource[]>([]);
   const [loadingResources, setLoadingResources] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -83,6 +143,15 @@ export default function AdminClient() {
 
   const [message, setMessage] = useState("");
   const [syncingDrive, setSyncingDrive] = useState(false);
+
+  const [overview, setOverview] = useState<OverviewStats | null>(null);
+  const [topResources, setTopResources] = useState<TopResource[]>([]);
+  const [mostActiveUsers, setMostActiveUsers] = useState<ActiveUser[]>([]);
+  const [loadingStats, setLoadingStats] = useState(false);
+
+  const [expandedUid, setExpandedUid] = useState<string | null>(null);
+  const [userUsage, setUserUsage] = useState<Record<string, UserUsageRow[]>>({});
+  const [loadingUsageUid, setLoadingUsageUid] = useState<string | null>(null);
 
   const fetchUsers = useCallback(async () => {
     await Promise.resolve();
@@ -99,11 +168,44 @@ export default function AdminClient() {
     }
   }, []);
 
-  const handleTabChange = (next: "drive" | "manage" | "users") => {
-    setTab(next);
-    if (next === "users") {
-      void fetchUsers();
+  const fetchStats = useCallback(async () => {
+    await Promise.resolve();
+    setLoadingStats(true);
+    try {
+      const res = await authFetch("/api/admin/stats");
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
+      setOverview(data.overview || null);
+      setTopResources(data.topResources || []);
+      setMostActiveUsers(data.mostActiveUsers || []);
+    } catch (err) {
+      console.error("Error fetching admin stats:", err);
+    } finally {
+      setLoadingStats(false);
     }
+  }, []);
+
+  const fetchUserUsage = useCallback(async (uid: string) => {
+    setLoadingUsageUid(uid);
+    try {
+      const res = await authFetch(
+        `/api/admin/users/${encodeURIComponent(uid)}/usage`,
+      );
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
+      setUserUsage((prev) => ({ ...prev, [uid]: data.resources || [] }));
+    } catch (err) {
+      console.error("Error fetching user usage:", err);
+      setUserUsage((prev) => ({ ...prev, [uid]: [] }));
+    } finally {
+      setLoadingUsageUid(null);
+    }
+  }, []);
+
+  const handleTabChange = (next: AdminTab) => {
+    setTab(next);
+    if (next === "users") void fetchUsers();
+    if (next === "overview") void fetchStats();
   };
 
   useEffect(() => {
@@ -120,6 +222,9 @@ export default function AdminClient() {
           user.uid,
         );
         setIsAdmin(admin);
+        if (admin) {
+          void fetchStats();
+        }
       } catch {
         setIsAdmin(false);
       } finally {
@@ -127,12 +232,7 @@ export default function AdminClient() {
       }
     });
     return () => unsubscribe();
-  }, []);
-
-  const handleLogout = async () => {
-    await signOut(auth);
-    router.push("/");
-  };
+  }, [fetchStats]);
 
   const handleSyncDrive = async () => {
     setSyncingDrive(true);
@@ -150,7 +250,7 @@ export default function AdminClient() {
         data = JSON.parse(text);
       } catch {
         throw new Error(
-          `Server returned status ${response.status} (Not JSON). Response snippet: ${text.substring(0, 300)}`
+          `Server returned status ${response.status} (Not JSON). Response snippet: ${text.substring(0, 300)}`,
         );
       }
       if (response.ok && data.success) {
@@ -254,6 +354,17 @@ export default function AdminClient() {
     }
   };
 
+  const toggleUserExpand = (uid: string) => {
+    if (expandedUid === uid) {
+      setExpandedUid(null);
+      return;
+    }
+    setExpandedUid(uid);
+    if (!userUsage[uid]) {
+      void fetchUserUsage(uid);
+    }
+  };
+
   if (loadingAuth) {
     return (
       <div className="flex-1 flex items-center justify-center min-h-[60vh] w-full">
@@ -267,206 +378,288 @@ export default function AdminClient() {
 
   if (!isAdmin) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center min-h-screen w-full p-6 text-center">
-        <div className="max-w-md w-full bg-card border border-border p-8 rounded-2xl shadow-sm flex flex-col items-center">
+      <div className="flex-1 flex flex-col items-center justify-center w-full page-gutter py-16 text-center">
+        <Card className="max-w-md w-full rounded-2xl p-8 flex flex-col items-center" padding="none">
           <ShieldAlert className="w-12 h-12 text-destructive mb-4 animate-pulse" />
           <PageHeader
             className="text-center sm:flex-col sm:items-center [&_p]:mx-auto mb-2"
             title="Access Denied"
             description="You do not have permissions to access the admin dashboard. Please sign in with an authorized administrator account."
           />
-          <Link
+          <AppLink
             href="/"
             className="mt-6 px-4 py-2 bg-foreground text-background font-semibold text-xs rounded-xl hover:opacity-90 transition-all shadow-xs"
           >
             Return Home
-          </Link>
-        </div>
+          </AppLink>
+        </Card>
       </div>
     );
   }
 
   return (
-    <div className="flex w-full min-h-screen">
-      {/* Sidebar */}
-      <div className="w-64 border-r border-border bg-card p-6 flex-col hidden md:flex h-screen sticky top-0 justify-between">
-        <div className="flex flex-col flex-1 min-h-0">
-          <Link
-            href="/"
-            className="flex items-center gap-2 mb-8 text-muted hover:text-foreground transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            <span className="text-sm font-semibold tracking-tight">
-              Return Home
-            </span>
-          </Link>
-          <div className="flex items-center gap-2 mb-8">
-            <ShieldCheck className="w-5 h-5 text-foreground" />
-            <h2 className="font-display text-xl tracking-tight text-foreground">
-              Admin
-            </h2>
+    <div className="w-full max-w-7xl mx-auto page-gutter py-6 sm:py-10 flex flex-col gap-6">
+      <PageHeader
+        eyebrow="System"
+        title="Admin"
+        description={
+          userEmail
+            ? `Signed in as ${userEmail}. Track who uses the vault and manage Drive sync.`
+            : "Platform operations and signed-in usage."
+        }
+        actions={
+          <div className="flex items-center gap-2 text-xs text-muted">
+            <ShieldCheck className="w-4 h-4 text-foreground" />
+            <span className="font-semibold tracking-tight">Admin access</span>
           </div>
+        }
+      />
 
-          <nav className="flex flex-col gap-px bg-border/60 rounded-xl overflow-hidden border border-border/70 shadow-sm shrink-0">
-            <button
-              onClick={() => handleTabChange("drive")}
-              className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors bg-card ${
-                tab === "drive"
-                  ? "bg-surface text-foreground font-semibold"
-                  : "text-muted hover:text-foreground hover:bg-surface/50"
-              }`}
-            >
-              <CloudFog className="w-4 h-4" />
-              Drive Manager
-            </button>
-
-            <button
-              onClick={() => handleTabChange("manage")}
-              className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors bg-card ${
-                tab === "manage"
-                  ? "bg-surface text-foreground font-semibold"
-                  : "text-muted hover:text-foreground hover:bg-surface/50"
-              }`}
-            >
-              <HardDrive className="w-4 h-4" />
-              File Manager
-            </button>
-
-            <button
-              onClick={() => handleTabChange("users")}
-              className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors bg-card ${
-                tab === "users"
-                  ? "bg-surface text-foreground font-semibold"
-                  : "text-muted hover:text-foreground hover:bg-surface/50"
-              }`}
-            >
-              <Users className="w-4 h-4" />
-              User Manager
-            </button>
-          </nav>
-        </div>
-
-        <div className="mt-auto pt-6 border-t border-border">
-          {userEmail && (
-            <p className="text-xs text-muted font-medium mb-3 truncate px-1">
-              {userEmail}
-            </p>
-          )}
-          <button
-            onClick={handleLogout}
-            className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-muted hover:text-destructive border border-transparent hover:border-destructive/20 rounded-xl hover:bg-destructive/5 transition-all mb-4"
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+        <Segmented
+          value={tab}
+          options={TAB_OPTIONS}
+          onChange={handleTabChange}
+          aria-label="Admin sections"
+          className="w-full sm:w-auto"
+        />
+        {tab === "overview" && (
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => void fetchStats()}
+            disabled={loadingStats}
+            className="sm:ml-auto"
           >
-            <LogOut className="w-3.5 h-3.5" />
-            <span>Sign out</span>
-          </button>
-          <p className="text-[10px] text-muted/50 text-center tracking-tight font-semibold pt-3 border-t border-border/20">
-            Crafted by{" "}
-            <a
-              href="https://www.aryandani.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-extrabold hover:underline hover:text-foreground text-muted/80 transition-colors"
-            >
-              Aryan Dani
-            </a>
-          </p>
-        </div>
+            {loadingStats ? "Refreshing…" : "Refresh"}
+          </Button>
+        )}
+        {tab === "users" && (
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => void fetchUsers()}
+            disabled={loadingUsers}
+            className="sm:ml-auto"
+          >
+            {loadingUsers ? "Refreshing…" : "Refresh"}
+          </Button>
+        )}
       </div>
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col p-6 sm:p-10 w-full">
-        <div className="md:hidden flex items-center gap-3 mb-6 pb-6 border-b border-border">
-          <Link
-            href="/"
-            className="p-2 rounded-lg bg-surface border border-border text-muted"
-          >
-            <ArrowLeft className="w-4 h-4" />
-          </Link>
-          <PageHeader
-            className="min-w-0 flex-1"
-            title="Admin"
-            description={userEmail ?? undefined}
-          />
-
-          <div className="ml-auto flex items-center gap-px bg-border/60 rounded-xl overflow-hidden border border-border/70 shadow-sm shrink-0">
-            <button
-              onClick={() => handleTabChange("drive")}
-              className={`p-2 bg-card ${tab === "drive" ? "bg-surface text-foreground" : "text-muted hover:bg-surface/50"} `}
-              title="Drive Manager"
-            >
-              <CloudFog className="w-4.5 h-4.5" />
-            </button>
-            <button
-              onClick={() => handleTabChange("manage")}
-              className={`p-2 bg-card ${tab === "manage" ? "bg-surface text-foreground" : "text-muted hover:bg-surface/50"} `}
-              title="File Manager"
-            >
-              <HardDrive className="w-4.5 h-4.5" />
-            </button>
-            <button
-              onClick={() => handleTabChange("users")}
-              className={`p-2 bg-card ${tab === "users" ? "bg-surface text-foreground" : "text-muted hover:bg-surface/50"} `}
-              title="User Manager"
-            >
-              <Users className="w-4.5 h-4.5" />
-            </button>
-          </div>
+      {message && (
+        <div className="p-4 rounded-2xl text-sm font-medium border bg-card border-border text-foreground flex items-start gap-3 shadow-card">
+          <CheckCircle2 className="w-5 h-5 shrink-0" />
+          <p>{message}</p>
         </div>
+      )}
 
-        {/* Global Message */}
-        {message && (
-          <div className="mb-6 p-4 rounded-xl text-sm font-medium border bg-surface border-border-strong text-foreground flex items-start gap-3 shadow-xs">
-            <CheckCircle2 className="w-5 h-5 shrink-0" />
-            <p>{message}</p>
-          </div>
-        )}
-
-        {tab === "drive" && (
-          <div className="flex flex-col gap-6 animate-fade-in">
-            <div className="bg-card border border-border rounded-2xl p-8 shadow-sm">
-              <div className="flex items-center gap-3 mb-4">
-                <CloudFog className="w-6 h-6 text-foreground" />
-                <h3 className="text-xl font-bold tracking-tight text-foreground">
-                  Google Drive Integration
-                </h3>
-              </div>
-              <p className="text-sm text-muted mb-8 max-w-2xl leading-relaxed">
-                Utility uses Google Drive as the single source of truth. Do not
-                upload files here. Instead, upload your PDFs, DOCs, and PPTs
-                into the Google Drive folder. Once uploaded, click &quot;Sync Now&quot; to
-                ingest them into Firebase and start AI indexing.
-              </p>
-
-              <div className="flex flex-col sm:flex-row gap-4">
-                <a
-                  href="https://drive.google.com" // Provide a proper URL in env var later if needed
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-center gap-2 bg-foreground text-background font-semibold text-sm px-6 py-3 rounded-xl hover:opacity-90 transition-opacity"
-                >
-                  <span>Open Google Drive</span>
-                  <ExternalLink className="w-4 h-4" />
-                </a>
-                <button
-                  onClick={handleSyncDrive}
-                  disabled={syncingDrive}
-                  className="flex items-center justify-center gap-2 bg-surface text-foreground border border-border font-semibold text-sm px-6 py-3 rounded-xl hover:bg-surface-hover hover:border-border-strong transition-all disabled:opacity-50"
-                >
-                  {syncingDrive ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <HardDrive className="w-4 h-4" />
-                  )}
-                  <span>{syncingDrive ? "Syncing..." : "Sync Now"}</span>
-                </button>
-              </div>
+      {tab === "overview" && (
+        <div className="flex flex-col gap-6 animate-fade-in">
+          {loadingStats && !overview ? (
+            <div className="py-16 flex items-center justify-center">
+              <Loader2 className="w-5 h-5 animate-spin text-muted" />
             </div>
-          </div>
-        )}
+          ) : (
+            <>
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                {[
+                  {
+                    label: "Signed-in users",
+                    value: overview?.userCount ?? 0,
+                    Icon: Users,
+                  },
+                  {
+                    label: "Active (7 days)",
+                    value: overview?.activeLast7d ?? 0,
+                    Icon: Activity,
+                  },
+                  {
+                    label: "Resource opens",
+                    value: overview?.totalOpens ?? 0,
+                    Icon: Eye,
+                  },
+                  {
+                    label: "Files with opens",
+                    value: overview?.filesWithOpens ?? 0,
+                    Icon: Files,
+                  },
+                ].map(({ label, value, Icon }) => (
+                  <Card
+                    key={label}
+                    className="rounded-2xl !p-4 sm:!p-5"
+                    padding="none"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-muted">
+                          {label}
+                        </p>
+                        <p className="mt-2 text-2xl sm:text-3xl font-display tracking-tight text-foreground">
+                          {value.toLocaleString()}
+                        </p>
+                      </div>
+                      <div className="w-9 h-9 rounded-xl bg-surface border border-border flex items-center justify-center shrink-0">
+                        <Icon className="w-4 h-4 text-foreground" />
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+              </div>
 
-        {tab === "manage" && (
-          <div className="flex flex-col gap-6 animate-fade-in flex-1 min-h-0">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-surface p-5 rounded-2xl border border-border shadow-sm shrink-0">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+                <Card className="rounded-2xl overflow-hidden" padding="none">
+                  <div className="px-5 py-4 border-b border-border bg-surface/40 flex items-center gap-2">
+                    <BarChart3 className="w-4 h-4 text-foreground" />
+                    <h3 className="text-sm font-bold text-foreground">
+                      Top resources
+                    </h3>
+                  </div>
+                  {topResources.length === 0 ? (
+                    <div className="p-10 text-center text-sm text-muted">
+                      No signed-in viewer opens yet. Opens are counted when a
+                      signed-in user opens a file in the vault.
+                    </div>
+                  ) : (
+                    <ul className="divide-y divide-border">
+                      {topResources.map((r, index) => (
+                        <li
+                          key={r.id}
+                          className="px-5 py-3.5 flex items-center gap-3 hover:bg-surface/30 transition-colors"
+                        >
+                          <span className="text-[10px] font-mono text-muted w-5 shrink-0">
+                            {String(index + 1).padStart(2, "0")}
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-semibold text-foreground truncate">
+                              {r.title}
+                            </p>
+                            <p className="text-2xs text-muted truncate">
+                              {r.subject || "Uncategorized"}
+                              {r.uniqueOpeners > 0
+                                ? ` · ${r.uniqueOpeners} openers`
+                                : ""}
+                            </p>
+                          </div>
+                          <span className="text-sm font-bold text-foreground tabular-nums shrink-0">
+                            {r.opens}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </Card>
+
+                <Card className="rounded-2xl overflow-hidden" padding="none">
+                  <div className="px-5 py-4 border-b border-border bg-surface/40 flex items-center gap-2">
+                    <Flame className="w-4 h-4 text-foreground" />
+                    <h3 className="text-sm font-bold text-foreground">
+                      Most active users
+                    </h3>
+                  </div>
+                  {mostActiveUsers.filter((u) => u.resourceOpenCount > 0)
+                    .length === 0 ? (
+                    <div className="p-10 text-center text-sm text-muted">
+                      Usage will appear here after signed-in students open
+                      resources in the app.
+                    </div>
+                  ) : (
+                    <ul className="divide-y divide-border">
+                      {mostActiveUsers
+                        .filter((u) => u.resourceOpenCount > 0)
+                        .map((u) => (
+                          <li
+                            key={u.uid}
+                            className="px-5 py-3.5 flex items-center gap-3 hover:bg-surface/30 transition-colors"
+                          >
+                            <div className="w-8 h-8 rounded-lg bg-foreground text-background flex items-center justify-center text-xs font-black overflow-hidden border border-border/60 shrink-0">
+                              {u.photoURL ? (
+                                <Image
+                                  src={u.photoURL}
+                                  alt=""
+                                  width={32}
+                                  height={32}
+                                  className="w-full h-full object-cover"
+                                  referrerPolicy="no-referrer"
+                                  unoptimized
+                                />
+                              ) : (
+                                u.displayName?.[0] ?? u.email?.[0] ?? "?"
+                              )}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm font-semibold text-foreground truncate">
+                                {u.displayName ||
+                                  u.email?.split("@")[0] ||
+                                  "Student"}
+                              </p>
+                              <p className="text-2xs text-muted truncate">
+                                {u.lastOpenedTitle || u.email || "No file yet"}
+                              </p>
+                            </div>
+                            <span className="text-sm font-bold text-foreground tabular-nums shrink-0">
+                              {u.resourceOpenCount}
+                            </span>
+                          </li>
+                        ))}
+                    </ul>
+                  )}
+                </Card>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {tab === "drive" && (
+        <div className="flex flex-col gap-6 animate-fade-in">
+          <Card className="rounded-2xl" padding="lg">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-surface border border-border flex items-center justify-center">
+                <CloudFog className="w-5 h-5 text-foreground" />
+              </div>
+              <h3 className="text-xl font-bold tracking-tight text-foreground">
+                Google Drive Integration
+              </h3>
+            </div>
+            <p className="text-sm text-muted mb-8 max-w-2xl leading-relaxed">
+              Utility uses Google Drive as the single source of truth. Do not
+              upload files here. Instead, upload your PDFs, DOCs, and PPTs into
+              the Google Drive folder. Once uploaded, click &quot;Sync Now&quot; to
+              ingest them into Firebase and start AI indexing.
+            </p>
+
+            <div className="flex flex-col sm:flex-row gap-3">
+              <a
+                href={driveFolderUrl || "https://drive.google.com/drive/my-drive"}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center gap-2 bg-foreground text-background font-semibold text-sm px-6 py-3 rounded-xl hover:opacity-90 transition-opacity"
+              >
+                <span>Open Utility Drive</span>
+                <ExternalLink className="w-4 h-4" />
+              </a>
+              <button
+                onClick={handleSyncDrive}
+                disabled={syncingDrive}
+                className="inline-flex items-center justify-center gap-2 bg-surface text-foreground border border-border font-semibold text-sm px-6 py-3 rounded-xl hover:bg-surface-hover hover:border-border-strong transition-all disabled:opacity-50"
+              >
+                {syncingDrive ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <HardDrive className="w-4 h-4" />
+                )}
+                <span>{syncingDrive ? "Syncing..." : "Sync Now"}</span>
+              </button>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {tab === "manage" && (
+        <div className="flex flex-col gap-4 sm:gap-6 animate-fade-in">
+          <Card className="rounded-2xl" padding="md">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-2xs font-bold uppercase tracking-widest text-muted mb-2 ml-1">
                   Branch
@@ -490,238 +683,330 @@ export default function AdminClient() {
                 />
               </div>
             </div>
+          </Card>
 
-            <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden flex flex-col flex-1 min-h-0">
-              {loadingResources ? (
-                <div className="p-12 flex items-center justify-center flex-1">
-                  <Loader2 className="w-5 h-5 animate-spin text-muted" />
-                </div>
-              ) : resources.length === 0 ? (
-                <div className="p-12 text-center text-muted text-sm flex-1">
-                  No files found for this branch and semester.
-                </div>
-              ) : (
-                <div className="divide-y divide-border overflow-y-auto flex-1 min-h-0">
-                  {resources.map((resource) => {
-                    const subject = subjects.find(
-                      (s) => s.id === resource.subject_id,
-                    );
-                    const isEditing = editingId === resource.id;
-                    return (
-                      <div
-                        key={resource.id}
-                        className="p-4 flex items-center justify-between hover:bg-surface/30 transition-all"
-                      >
-                        <div className="flex-1 mr-4 min-w-0">
-                          {isEditing ? (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                              <input
-                                type="text"
-                                value={editTitle}
-                                onChange={(e) => setEditTitle(e.target.value)}
-                                className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm font-medium outline-none focus:border-primary text-foreground"
-                                placeholder="Resource Title"
-                              />
-                              <div className="relative">
-                                <select
-                                  value={editSubjectId}
-                                  onChange={(e) =>
-                                    setEditSubjectId(e.target.value)
-                                  }
-                                  className="ui-select w-full pr-8"
-                                >
-                                  {subjects.map((sub) => (
-                                    <option key={sub.id} value={sub.id}>
-                                      {sub.name}
-                                    </option>
-                                  ))}
-                                </select>
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="flex items-center gap-3">
-                              <FileIcon className="w-4 h-4 text-foreground shrink-0" />
-                              <div className="min-w-0">
-                                <h3 className="font-bold text-foreground text-sm tracking-tight truncate">
-                                  {resource.title}
-                                </h3>
-                                <div className="flex items-center flex-wrap gap-2 mt-1">
-                                  <span className="text-[10px] font-bold uppercase tracking-widest text-muted">
-                                    {subject?.name || "Uncategorized"}
-                                  </span>
-                                  {(() => {
-                                    const indexableExts = ['.pdf', '.docx', '.pptx', '.doc', '.ppt'];
-                                    const isIndexable = indexableExts.some(ext => 
-                                      resource.title.toLowerCase().endsWith(ext)
-                                    );
-                                    if (resource.is_indexed) {
-                                      return (
-                                        <span className="text-[9px] font-bold uppercase tracking-wider text-foreground flex items-center gap-1">
-                                          <span className="w-1 h-1 rounded-full bg-foreground"></span>
-                                          Indexed
-                                        </span>
-                                      );
-                                    } else if (isIndexable) {
-                                      return (
-                                        <span className="text-[9px] font-bold uppercase tracking-wider text-muted flex items-center gap-1 animate-pulse">
-                                          <span className="w-1 h-1 rounded-full bg-muted"></span>
-                                          Indexing...
-                                        </span>
-                                      );
-                                    } else {
-                                      return (
-                                        <span className="text-[9px] font-bold uppercase tracking-wider text-muted/70 flex items-center gap-1">
-                                          <span className="w-1 h-1 rounded-full bg-muted/50"></span>
-                                          Static / Non-Indexable
-                                        </span>
-                                      );
-                                    }
-                                  })()}
-                                </div>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="flex items-center gap-1 shrink-0">
-                          {isEditing ? (
-                            <>
-                              <button
-                                onClick={() => saveEdit(resource.id)}
-                                className="p-1.5 bg-foreground text-background rounded-lg hover:opacity-90"
-                                title="Save"
-                              >
-                                <Check className="w-3.5 h-3.5" />
-                              </button>
-                              <button
-                                onClick={() => setEditingId(null)}
-                                className="p-1.5 bg-surface border border-border text-muted hover:text-foreground rounded-lg"
-                                title="Cancel"
-                              >
-                                <X className="w-3.5 h-3.5" />
-                              </button>
-                            </>
-                          ) : (
-                            <>
-                              <a
-                                href={resource.file_url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="p-1.5 text-muted hover:text-foreground hover:bg-surface rounded-lg"
-                              >
-                                <ExternalLink className="w-3.5 h-3.5" />
-                              </a>
-                              <button
-                                onClick={() => startEdit(resource)}
-                                className="p-1.5 text-muted hover:text-foreground hover:bg-surface rounded-lg"
-                              >
-                                <Edit2 className="w-3.5 h-3.5" />
-                              </button>
-                              <button
-                                onClick={() => handleDelete(resource.id)}
-                                className="p-1.5 text-muted hover:text-destructive hover:bg-destructive/10 rounded-lg"
-                              >
-                                <Trash className="w-3.5 h-3.5" />
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {tab === "users" && (
-          <div className="flex flex-col gap-6 animate-fade-in flex-1 min-h-0">
-            <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden flex flex-col flex-1 min-h-0">
-              <div className="p-6 border-b border-border bg-surface/30 flex items-center justify-between shrink-0">
-                <div className="flex items-center gap-2">
-                  <Users className="w-5 h-5 text-foreground" />
-                  <h3 className="text-base font-bold text-foreground">Registered Users</h3>
-                </div>
-                <button
-                  onClick={fetchUsers}
-                  disabled={loadingUsers}
-                  className="px-4 py-2 border border-border bg-surface hover:bg-surface-hover text-foreground text-xs font-semibold rounded-xl transition-all"
-                >
-                  {loadingUsers ? "Refreshing..." : "Refresh"}
-                </button>
+          <Card className="rounded-2xl overflow-hidden" padding="none">
+            {loadingResources ? (
+              <div className="p-12 flex items-center justify-center">
+                <Loader2 className="w-5 h-5 animate-spin text-muted" />
               </div>
-
-              {loadingUsers ? (
-                <div className="p-12 flex items-center justify-center flex-1">
-                  <Loader2 className="w-5 h-5 animate-spin text-muted" />
-                </div>
-              ) : usersList.length === 0 ? (
-                <div className="p-12 text-center text-muted text-sm flex-1">
-                  No registered users found in the database.
-                </div>
-              ) : (
-                <div className="overflow-x-auto flex-1">
-                  <table className="w-full text-left border-collapse text-xs">
-                    <thead>
-                      <tr className="bg-surface/40 border-b border-border text-muted font-bold uppercase tracking-wider select-none">
-                        <th className="p-4 font-semibold">User</th>
-                        <th className="p-4 font-semibold">Email</th>
-                        <th className="p-4 font-semibold">Provider</th>
-                        <th className="p-4 font-semibold">Preferences</th>
-                        <th className="p-4 font-semibold">Last Active</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border bg-card">
-                      {usersList.map((usr) => (
-                        <tr key={usr.id} className="hover:bg-surface/10 transition-colors">
-                          <td className="p-4 flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-lg bg-foreground text-background flex items-center justify-center text-xs font-black overflow-hidden border border-border/60 shrink-0">
-                              {usr.photoURL ? (
-                                <Image
-                                  src={usr.photoURL}
-                                  alt="Avatar"
-                                  width={32}
-                                  height={32}
-                                  className="w-full h-full object-cover"
-                                  referrerPolicy="no-referrer"
-                                  unoptimized
-                                />
-                              ) : (
-                                usr.displayName?.[0] ?? usr.email?.[0] ?? "?"
-                              )}
+            ) : resources.length === 0 ? (
+              <div className="p-12 text-center text-muted text-sm">
+                No files found for this branch and semester.
+              </div>
+            ) : (
+              <div className="divide-y divide-border max-h-[70vh] overflow-y-auto">
+                {resources.map((resource) => {
+                  const subject = subjects.find(
+                    (s) => s.id === resource.subject_id,
+                  );
+                  const isEditing = editingId === resource.id;
+                  return (
+                    <div
+                      key={resource.id}
+                      className="p-4 flex items-center justify-between hover:bg-surface/30 transition-all"
+                    >
+                      <div className="flex-1 mr-4 min-w-0">
+                        {isEditing ? (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <input
+                              type="text"
+                              value={editTitle}
+                              onChange={(e) => setEditTitle(e.target.value)}
+                              className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm font-medium outline-none focus:border-primary text-foreground"
+                              placeholder="Resource Title"
+                            />
+                            <div className="relative">
+                              <select
+                                value={editSubjectId}
+                                onChange={(e) =>
+                                  setEditSubjectId(e.target.value)
+                                }
+                                className="ui-select w-full pr-8"
+                              >
+                                {subjects.map((sub) => (
+                                  <option key={sub.id} value={sub.id}>
+                                    {sub.name}
+                                  </option>
+                                ))}
+                              </select>
                             </div>
-                            <span className="font-bold text-foreground">
-                              {usr.displayName || usr.email?.split("@")[0] || "Student"}
-                            </span>
-                          </td>
-                          <td className="p-4 text-muted font-mono">{usr.email || "No email shared"}</td>
-                          <td className="p-4">
-                            <span className="inline-flex items-center text-[9px] font-extrabold uppercase tracking-wide px-2 py-0.5 rounded-full bg-surface/50 border border-border text-muted">
-                              {usr.provider || "Unknown"}
-                            </span>
-                          </td>
-                          <td className="p-4">
-                            <span className="font-bold text-foreground">
-                              {usr.branch || "AIDS"}
-                            </span>
-                            <span className="text-muted ml-1.5 font-medium">
-                              (Sem {usr.semester || 4})
-                            </span>
-                          </td>
-                          <td className="p-4 text-muted font-mono">
-                            {usr.lastActive ? new Date(usr.lastActive).toLocaleString() : "Never"}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-3">
+                            <FileIcon className="w-4 h-4 text-foreground shrink-0" />
+                            <div className="min-w-0">
+                              <h3 className="font-bold text-foreground text-sm tracking-tight truncate">
+                                {resource.title}
+                              </h3>
+                              <div className="flex items-center flex-wrap gap-2 mt-1">
+                                <span className="text-[10px] font-bold uppercase tracking-widest text-muted">
+                                  {subject?.name || "Uncategorized"}
+                                </span>
+                                {(() => {
+                                  const indexableExts = [
+                                    ".pdf",
+                                    ".docx",
+                                    ".pptx",
+                                    ".doc",
+                                    ".ppt",
+                                  ];
+                                  const isIndexable = indexableExts.some(
+                                    (ext) =>
+                                      resource.title
+                                        .toLowerCase()
+                                        .endsWith(ext),
+                                  );
+                                  if (resource.is_indexed) {
+                                    return (
+                                      <span className="text-[9px] font-bold uppercase tracking-wider text-foreground flex items-center gap-1">
+                                        <span className="w-1 h-1 rounded-full bg-foreground" />
+                                        Indexed
+                                      </span>
+                                    );
+                                  }
+                                  if (isIndexable) {
+                                    return (
+                                      <span className="text-[9px] font-bold uppercase tracking-wider text-muted flex items-center gap-1 animate-pulse">
+                                        <span className="w-1 h-1 rounded-full bg-muted" />
+                                        Indexing...
+                                      </span>
+                                    );
+                                  }
+                                  return (
+                                    <span className="text-[9px] font-bold uppercase tracking-wider text-muted/70 flex items-center gap-1">
+                                      <span className="w-1 h-1 rounded-full bg-muted/50" />
+                                      Static / Non-Indexable
+                                    </span>
+                                  );
+                                })()}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-1 shrink-0">
+                        {isEditing ? (
+                          <>
+                            <button
+                              onClick={() => saveEdit(resource.id)}
+                              className="p-1.5 bg-foreground text-background rounded-lg hover:opacity-90"
+                              title="Save"
+                            >
+                              <Check className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => setEditingId(null)}
+                              className="p-1.5 bg-surface border border-border text-muted hover:text-foreground rounded-lg"
+                              title="Cancel"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <a
+                              href={resource.file_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="p-1.5 text-muted hover:text-foreground hover:bg-surface rounded-lg"
+                            >
+                              <ExternalLink className="w-3.5 h-3.5" />
+                            </a>
+                            <button
+                              onClick={() => startEdit(resource)}
+                              className="p-1.5 text-muted hover:text-foreground hover:bg-surface rounded-lg"
+                            >
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(resource.id)}
+                              className="p-1.5 text-muted hover:text-destructive hover:bg-destructive/10 rounded-lg"
+                            >
+                              <Trash className="w-3.5 h-3.5" />
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </Card>
+        </div>
+      )}
+
+      {tab === "users" && (
+        <div className="flex flex-col gap-4 animate-fade-in">
+          <Card className="rounded-2xl overflow-hidden" padding="none">
+            <div className="px-5 py-4 border-b border-border bg-surface/40 flex items-center gap-2">
+              <Users className="w-4 h-4 text-foreground" />
+              <h3 className="text-sm font-bold text-foreground">
+                Registered users
+              </h3>
+              <span className="ml-auto text-2xs text-muted font-medium">
+                Click a row for frequently opened files
+              </span>
+            </div>
+
+            {loadingUsers ? (
+              <div className="p-12 flex items-center justify-center">
+                <Loader2 className="w-5 h-5 animate-spin text-muted" />
+              </div>
+            ) : usersList.length === 0 ? (
+              <div className="p-12 text-center text-muted text-sm">
+                No registered users found in the database.
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="bg-surface/40 border-b border-border text-muted font-bold uppercase tracking-wider select-none">
+                      <th className="p-4 font-semibold w-8" />
+                      <th className="p-4 font-semibold">User</th>
+                      <th className="p-4 font-semibold">Email</th>
+                      <th className="p-4 font-semibold">Opens</th>
+                      <th className="p-4 font-semibold">Last file</th>
+                      <th className="p-4 font-semibold">Last active</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border bg-card">
+                    {usersList.map((usr) => {
+                      const uid = usr.uid || usr.id;
+                      const expanded = expandedUid === uid;
+                      const usageRows = userUsage[uid];
+                      return (
+                        <UserRows
+                          key={usr.id}
+                          usr={usr}
+                          uid={uid}
+                          expanded={expanded}
+                          usageRows={usageRows}
+                          loadingUsage={loadingUsageUid === uid}
+                          onToggle={() => toggleUserExpand(uid)}
+                        />
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </Card>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function UserRows({
+  usr,
+  uid,
+  expanded,
+  usageRows,
+  loadingUsage,
+  onToggle,
+}: {
+  usr: AdminUser;
+  uid: string;
+  expanded: boolean;
+  usageRows: UserUsageRow[] | undefined;
+  loadingUsage: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <>
+      <tr
+        className="hover:bg-surface/10 transition-colors cursor-pointer"
+        onClick={onToggle}
+      >
+        <td className="p-4 text-muted">
+          {expanded ? (
+            <ChevronDown className="w-3.5 h-3.5" />
+          ) : (
+            <ChevronRight className="w-3.5 h-3.5" />
+          )}
+        </td>
+        <td className="p-4">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-foreground text-background flex items-center justify-center text-xs font-black overflow-hidden border border-border/60 shrink-0">
+              {usr.photoURL ? (
+                <Image
+                  src={usr.photoURL}
+                  alt=""
+                  width={32}
+                  height={32}
+                  className="w-full h-full object-cover"
+                  referrerPolicy="no-referrer"
+                  unoptimized
+                />
+              ) : (
+                usr.displayName?.[0] ?? usr.email?.[0] ?? "?"
               )}
             </div>
+            <div className="min-w-0">
+              <span className="font-bold text-foreground block truncate">
+                {usr.displayName || usr.email?.split("@")[0] || "Student"}
+              </span>
+              <span className="text-[9px] font-extrabold uppercase tracking-wide text-muted">
+                {usr.provider || "Unknown"} · {usr.branch || "AIDS"} Sem{" "}
+                {usr.semester || "—"}
+              </span>
+            </div>
           </div>
-        )}
-      </div>
-    </div>
+        </td>
+        <td className="p-4 text-muted font-mono">{usr.email || "No email"}</td>
+        <td className="p-4 font-bold text-foreground tabular-nums">
+          {usr.resourceOpenCount || 0}
+        </td>
+        <td className="p-4 text-muted max-w-[12rem] truncate">
+          {usr.lastOpenedTitle || "—"}
+        </td>
+        <td className="p-4 text-muted font-mono whitespace-nowrap">
+          {formatWhen(usr.lastActive)}
+        </td>
+      </tr>
+      {expanded && (
+        <tr className="bg-surface/20">
+          <td colSpan={6} className="p-4 sm:px-8">
+            {loadingUsage ? (
+              <div className="flex items-center gap-2 text-xs text-muted py-2">
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                Loading frequent files…
+              </div>
+            ) : !usageRows || usageRows.length === 0 ? (
+              <p className="text-xs text-muted py-2">
+                No in-app resource opens recorded for this user yet.
+              </p>
+            ) : (
+              <ul className="space-y-2">
+                {usageRows.map((row) => (
+                  <li
+                    key={`${uid}-${row.id}`}
+                    className="flex items-center justify-between gap-3 text-xs rounded-xl border border-border/70 bg-card px-3 py-2"
+                  >
+                    <div className="min-w-0">
+                      <p className="font-semibold text-foreground truncate">
+                        {row.title}
+                      </p>
+                      <p className="text-2xs text-muted truncate">
+                        {row.subject || "Uncategorized"}
+                        {row.lastOpenedAt
+                          ? ` · ${formatWhen(row.lastOpenedAt)}`
+                          : ""}
+                      </p>
+                    </div>
+                    <span className="font-bold tabular-nums text-foreground shrink-0">
+                      {row.count}×
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </td>
+        </tr>
+      )}
+    </>
   );
 }

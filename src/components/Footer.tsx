@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import AppLink from '@/components/ui/AppLink';
 import { useAcademicStore } from '@/store/academicStore';
 
 export default function Footer() {
@@ -26,9 +26,9 @@ export default function Footer() {
       <div className="max-w-7xl mx-auto page-gutter py-12">
         <div className="flex flex-col md:flex-row justify-between items-start gap-12 mb-12">
           <div className="max-w-xs">
-            <Link href={getLinkWithParams('/')} className="font-display text-xl tracking-tight text-foreground flex items-center gap-2 mb-3">
+            <AppLink href={getLinkWithParams('/')} className="font-display text-xl tracking-tight text-foreground flex items-center gap-2 mb-3">
               Utility
-            </Link>
+            </AppLink>
             <p className="text-sm text-muted leading-relaxed">
               Academic workspace for syllabus, resources, and planning.
             </p>
@@ -38,25 +38,25 @@ export default function Footer() {
             <div className="space-y-4">
               <h4 className="text-[10px] font-bold uppercase tracking-widest text-foreground/50">Workspace</h4>
               <nav className="flex flex-col gap-2.5">
-                <Link href={getLinkWithParams('/syllabus')} className="text-sm text-muted hover:text-foreground transition-colors">Syllabus</Link>
-                <Link href={getLinkWithParams('/resources')} className="text-sm text-muted hover:text-foreground transition-colors">Resources</Link>
-                <Link href={getLinkWithParams('/ask')} className="text-sm text-muted hover:text-foreground transition-colors">Ask AI</Link>
-                <Link href="/campus" className="text-sm text-muted hover:text-foreground transition-colors">Campus</Link>
+                <AppLink href={getLinkWithParams('/syllabus')} className="text-sm text-muted hover:text-foreground transition-colors">Syllabus</AppLink>
+                <AppLink href={getLinkWithParams('/resources')} className="text-sm text-muted hover:text-foreground transition-colors">Resources</AppLink>
+                <AppLink href={getLinkWithParams('/ask')} className="text-sm text-muted hover:text-foreground transition-colors">Ask AI</AppLink>
+                <AppLink href="/campus" className="text-sm text-muted hover:text-foreground transition-colors">Campus</AppLink>
               </nav>
             </div>
             <div className="space-y-4">
               <h4 className="text-[10px] font-bold uppercase tracking-widest text-foreground/50">Tools</h4>
               <nav className="flex flex-col gap-2.5">
-                <Link href={getLinkWithParams('/gpa')} className="text-sm text-muted hover:text-foreground transition-colors">GPA Calculator</Link>
-                <Link href={getLinkWithParams('/planner')} className="text-sm text-muted hover:text-foreground transition-colors">Weekly Planner</Link>
-                <Link href={getLinkWithParams('/timer')} className="text-sm text-muted hover:text-foreground transition-colors">Focus Timer</Link>
+                <AppLink href={getLinkWithParams('/gpa')} className="text-sm text-muted hover:text-foreground transition-colors">GPA Calculator</AppLink>
+                <AppLink href={getLinkWithParams('/planner')} className="text-sm text-muted hover:text-foreground transition-colors">Weekly Planner</AppLink>
+                <AppLink href={getLinkWithParams('/timer')} className="text-sm text-muted hover:text-foreground transition-colors">Focus Timer</AppLink>
               </nav>
             </div>
             <div className="space-y-4">
               <h4 className="text-[10px] font-bold uppercase tracking-widest text-foreground/50">Company</h4>
               <nav className="flex flex-col gap-2.5">
-                <Link href={getLinkWithParams('/support')} className="text-sm text-muted hover:text-foreground transition-colors">Support</Link>
-                <Link href={getLinkWithParams('/community')} className="text-sm text-muted hover:text-foreground transition-colors">Community</Link>
+                <AppLink href={getLinkWithParams('/support')} className="text-sm text-muted hover:text-foreground transition-colors">Support</AppLink>
+                <AppLink href={getLinkWithParams('/community')} className="text-sm text-muted hover:text-foreground transition-colors">Community</AppLink>
                 <a
                   href="https://chat.whatsapp.com/IptJTcvj4F848iY2riZ3YZ"
                   target="_blank"

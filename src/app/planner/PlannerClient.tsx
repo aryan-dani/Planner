@@ -14,7 +14,8 @@ import { logActivity } from '@/lib/activity';
 import { parsePrompt, mergeEntries } from '@/lib/promptParser';
 import { plannerStorageKey } from '@/lib/plannerStorage';
 import { notify } from '@/lib/toast';
-import { Button, Modal, PageHeader } from '@/components/ui';
+import { Button, Modal, PageHeader, Card, Segmented } from '@/components/ui';
+import AppLink from '@/components/ui/AppLink';
 import { authFetch } from '@/lib/authFetch';
 import { getSoonestUpcomingExam } from '@/lib/examCountdown';
 import { useIsClient } from '@/lib/clientHooks';
@@ -1441,11 +1442,12 @@ export default function PlannerClient() {
   if (!mounted) return null;
 
   return (
-    <div className="flex-1 w-full min-w-0 page-gutter py-8 max-w-7xl mx-auto min-h-[80vh]">
-      {/* ── Header ── */}
-      <div className="flex flex-col gap-4 mb-6 pb-5 border-b border-border min-w-0">
+    <div className="flex-1 w-full min-w-0 page-gutter py-6 sm:py-8 max-w-5xl mx-auto flex flex-col gap-5 sm:gap-6 pb-12">
+      {/* ── Header toolkit ── */}
+      <Card className="rounded-2xl" padding="lg">
         <PageHeader
           className="min-w-0"
+          eyebrow="Productivity"
           title={
             editingTitle ? (
               <input
@@ -1466,8 +1468,9 @@ export default function PlannerClient() {
               </span>
             )
           }
+          description="Plan the month, then switch to list or board when you need focus."
           actions={
-            <div className="flex flex-wrap items-center gap-2 min-w-0 w-full sm:w-auto">
+            <div className="flex flex-wrap items-center gap-2 min-w-0 w-full sm:w-auto sm:justify-end">
             {upcomingExam && (
               <span
                 className="inline-flex items-center gap-1.5 text-xs font-semibold text-foreground border border-border rounded-full px-2.5 py-1 bg-surface"
@@ -1483,7 +1486,7 @@ export default function PlannerClient() {
             )}
             {/* Cloud sync */}
             {user ? (
-              <div className="flex items-center gap-1.5 text-xs text-muted">
+              <div className="flex items-center gap-1.5 text-xs text-muted px-2 py-1.5 rounded-lg bg-surface border border-border/70">
                 {syncing ? (
                   <>
                     <div className="w-3 h-3 border border-muted border-t-foreground rounded-full animate-spin" />
@@ -1502,20 +1505,21 @@ export default function PlannerClient() {
                 )}
               </div>
             ) : (
-              <Link
+              <AppLink
                 href="/login"
                 className="inline-flex items-center gap-1.5 text-xs text-muted hover:text-foreground border border-border rounded-lg px-2.5 py-2 min-h-11 hover:bg-surface transition-colors"
               >
                 <CloudOff className="w-3.5 h-3.5" />
                 Sign in to sync
                 <LogIn className="w-3 h-3" />
-              </Link>
+              </AppLink>
             )}
 
             <button
               onClick={() => setPromptOpen(true)}
-              className="inline-flex items-center gap-1.5 text-xs font-semibold text-foreground border border-border rounded-lg px-2.5 py-2 min-h-11 hover:bg-surface active:bg-surface-hover transition-colors"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-background bg-foreground border border-foreground rounded-lg px-2.5 py-2 min-h-11 hover:opacity-90 transition-opacity"
             >
+              <Plus className="w-3.5 h-3.5" />
               Add from Prompt
             </button>
 
@@ -1594,95 +1598,73 @@ export default function PlannerClient() {
             </div>
           }
         />
+      </Card>
 
-        {/* Month nav + progress */}
-        <div className="flex flex-col gap-3 min-w-0">
-          <div className="flex items-center gap-1.5 min-w-0">
-            <button
-              onClick={goPrevMonth}
-              className="tap-target shrink-0 rounded-lg bg-surface border border-border text-muted hover:text-foreground hover:bg-surface-hover transition-colors"
-              aria-label="Previous month"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            <div className="flex-1 min-w-0 px-1 text-center">
-              <span className="text-base sm:text-lg font-bold text-foreground">{MONTH_NAMES[month - 1]}</span>
-              <span className="text-base sm:text-lg font-light text-muted ml-1.5">{year}</span>
-            </div>
-            <button
-              onClick={goNextMonth}
-              className="tap-target shrink-0 rounded-lg bg-surface border border-border text-muted hover:text-foreground hover:bg-surface-hover transition-colors"
-              aria-label="Next month"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
-            <button
-              onClick={goToday}
-              className="shrink-0 min-h-11 px-3 rounded-lg text-[11px] font-semibold text-muted hover:text-foreground bg-surface border border-border hover:bg-surface-hover transition-colors"
-            >
-              Today
-            </button>
-          </div>
+      {/* ── Controls toolkit ── */}
+      <Card className="rounded-2xl" padding="md">
+        <div className="flex flex-col gap-3 sm:gap-4 min-w-0">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 min-w-0">
+            <Segmented
+              value={plannerView}
+              onChange={setPlannerView}
+              aria-label="Planner view"
+              options={[
+                { value: 'calendar', label: (<span className="inline-flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5" /><span className="hidden sm:inline">Calendar</span></span>) },
+                { value: 'list', label: (<span className="inline-flex items-center gap-1.5"><List className="w-3.5 h-3.5" /><span className="hidden sm:inline">List</span></span>) },
+                { value: 'kanban', label: (<span className="inline-flex items-center gap-1.5"><Columns className="w-3.5 h-3.5" /><span className="hidden sm:inline">Kanban</span></span>) },
+              ]}
+            />
 
-          <div className="flex flex-wrap items-center justify-between gap-3 min-w-0">
-            <div className="flex items-center bg-surface border border-border rounded-lg p-0.5">
+            <div className="flex items-center gap-1.5 min-w-0 sm:flex-1 sm:justify-center">
               <button
-                onClick={() => setPlannerView('calendar')}
-                className={`flex items-center justify-center gap-1 min-h-11 min-w-11 sm:min-w-0 px-2.5 rounded-md text-[11px] font-semibold transition-all ${
-                  plannerView === 'calendar'
-                    ? 'bg-foreground text-background shadow-xs'
-                    : 'text-muted hover:text-foreground'
-                }`}
+                onClick={goPrevMonth}
+                className="tap-target shrink-0 rounded-lg bg-surface border border-border text-muted hover:text-foreground hover:bg-surface-hover transition-colors"
+                aria-label="Previous month"
               >
-                <Calendar className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Calendar</span>
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <div className="min-w-0 px-2 text-center">
+                <span className="text-sm sm:text-base font-bold text-foreground">{MONTH_NAMES[month - 1]}</span>
+                <span className="text-sm sm:text-base font-light text-muted ml-1.5">{year}</span>
+              </div>
+              <button
+                onClick={goNextMonth}
+                className="tap-target shrink-0 rounded-lg bg-surface border border-border text-muted hover:text-foreground hover:bg-surface-hover transition-colors"
+                aria-label="Next month"
+              >
+                <ChevronRight className="w-4 h-4" />
               </button>
               <button
-                onClick={() => setPlannerView('list')}
-                className={`flex items-center justify-center gap-1 min-h-11 min-w-11 sm:min-w-0 px-2.5 rounded-md text-[11px] font-semibold transition-all ${
-                  plannerView === 'list'
-                    ? 'bg-foreground text-background shadow-xs'
-                    : 'text-muted hover:text-foreground'
-                }`}
+                onClick={goToday}
+                className="shrink-0 min-h-9 px-3 rounded-lg text-[11px] font-semibold text-muted hover:text-foreground bg-surface border border-border hover:bg-surface-hover transition-colors"
               >
-                <List className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">List</span>
-              </button>
-              <button
-                onClick={() => setPlannerView('kanban')}
-                className={`flex items-center justify-center gap-1 min-h-11 min-w-11 sm:min-w-0 px-2.5 rounded-md text-[11px] font-semibold transition-all ${
-                  plannerView === 'kanban'
-                    ? 'bg-foreground text-background shadow-xs'
-                    : 'text-muted hover:text-foreground'
-                }`}
-              >
-                <Columns className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Kanban</span>
+                Today
               </button>
             </div>
 
-            <div className="flex items-center gap-3 min-w-0 flex-1 sm:flex-initial sm:w-auto">
-              <div className="flex-1 sm:w-48 h-2 bg-surface rounded-full overflow-hidden border border-border">
+            <div className="flex items-center gap-3 min-w-0 sm:w-48 sm:shrink-0">
+              <div className="flex-1 h-2 bg-surface rounded-full overflow-hidden border border-border">
                 <div
                   className="h-full bg-foreground rounded-full transition-all duration-500"
                   style={{ width: `${progressPct}%` }}
                 />
               </div>
               <span className="text-xs font-semibold text-muted whitespace-nowrap">
-                {doneTasks}/{totalTasks} tasks
+                {doneTasks}/{totalTasks}
               </span>
             </div>
           </div>
         </div>
-      </div>
+      </Card>
 
       {/* ── Calendar View ── */}
       {plannerView === 'calendar' && (
         <>
-        <div className="hidden md:grid grid-cols-7 gap-px bg-border rounded-xl overflow-hidden border border-border shadow-card animate-fade-in">
+        <Card className="hidden md:block rounded-2xl overflow-hidden animate-fade-in" padding="none">
+        <div className="grid grid-cols-7 gap-px bg-border/80">
           {/* Day headers */}
           {DAY_LABELS.map((d) => (
-            <div key={d} className="bg-surface py-2.5 text-center">
+            <div key={d} className="bg-surface/80 py-3 text-center">
               <span className="text-[11px] font-bold text-muted uppercase tracking-wider">{d}</span>
             </div>
           ))}
@@ -1698,12 +1680,12 @@ export default function PlannerClient() {
               <div
                 key={date}
                 onClick={() => setSelectedDate(date)}
-                className={`bg-background min-h-[100px] sm:min-h-[120px] p-1.5 sm:p-2 flex flex-col cursor-pointer transition-all hover:bg-surface/50 group/cell relative ${
-                  !isCurrentMonth ? 'opacity-40' : ''
-                }`}
+                className={`min-h-[108px] sm:min-h-[124px] p-2 sm:p-2.5 flex flex-col cursor-pointer transition-all hover:bg-surface/60 group/cell relative ${
+                  isCurrentMonth ? 'bg-card' : 'bg-surface/40 opacity-55'
+                } ${isToday ? 'ring-1 ring-inset ring-foreground/25' : ''}`}
               >
                 {/* Date number */}
-                <div className="flex items-center justify-between mb-1">
+                <div className="flex items-center justify-between mb-1.5">
                   <span className={`text-xs font-bold leading-none w-6 h-6 rounded-lg flex items-center justify-center transition-colors ${
                     isToday
                       ? 'bg-foreground text-background'
@@ -1803,6 +1785,7 @@ export default function PlannerClient() {
             );
           })}
         </div>
+        </Card>
 
         <div className="md:hidden space-y-3 animate-fade-in">
           {(() => {
@@ -1983,7 +1966,7 @@ export default function PlannerClient() {
       {plannerView === 'kanban' && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start animate-fade-in">
           {/* TO DO COLUMN */}
-          <div className="bg-surface/40 border border-border rounded-xl p-4 flex flex-col max-h-[80vh]">
+          <div className="bg-card border border-border rounded-2xl shadow-card p-4 flex flex-col max-h-[80vh]">
             <div className="flex items-center justify-between pb-3 border-b border-border/60 mb-3">
               <div className="flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-destructive" />
@@ -2034,7 +2017,7 @@ export default function PlannerClient() {
           </div>
 
           {/* IN PROGRESS COLUMN */}
-          <div className="bg-surface/40 border border-border rounded-xl p-4 flex flex-col max-h-[80vh]">
+          <div className="bg-card border border-border rounded-2xl shadow-card p-4 flex flex-col max-h-[80vh]">
             <div className="flex items-center justify-between pb-3 border-b border-border/60 mb-3">
               <div className="flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-muted" />
@@ -2085,7 +2068,7 @@ export default function PlannerClient() {
           </div>
 
           {/* DONE COLUMN */}
-          <div className="bg-surface/40 border border-border rounded-xl p-4 flex flex-col max-h-[80vh]">
+          <div className="bg-card border border-border rounded-2xl shadow-card p-4 flex flex-col max-h-[80vh]">
             <div className="flex items-center justify-between pb-3 border-b border-border/60 mb-3">
               <div className="flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-foreground" />

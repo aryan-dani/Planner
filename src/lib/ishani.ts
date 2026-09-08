@@ -86,7 +86,7 @@ export async function ishaniGet<T>(
     const res = await fetch(url, {
       method: "GET",
       headers: { Accept: "application/json" },
-      next: { revalidate: 60 },
+      next: { revalidate: 86400 },
       signal: controller.signal,
     });
     if (!res.ok) {

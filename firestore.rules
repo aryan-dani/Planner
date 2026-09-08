@@ -90,6 +90,18 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    match /resource_usage/{id} {
+      allow read, write: if false;
+    }
+
+    match /resource_totals/{id} {
+      allow read, write: if false;
+    }
+
+    match /stats/{id} {
+      allow read, write: if false;
+    }
+
     match /visualize_grids/{id} {
       allow read, write: if false;
     }

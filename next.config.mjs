@@ -10,6 +10,7 @@ const nextConfig = {
   // Stop next dev from writing AGENTS.md / CLAUDE.md into the repo root.
   agentRules: false,
   images: {
+    unoptimized: true,
     remotePatterns: [
       { protocol: "https", hostname: "lh3.googleusercontent.com" },
       { protocol: "https", hostname: "avatars.githubusercontent.com" },
@@ -108,6 +109,26 @@ const config = isDev
         clientsClaim: true,
         exclude: [/\.map$/, /^manifest.*\.js$/],
         runtimeCaching: [
+          {
+            urlPattern: ({ url, sameOrigin }) =>
+              sameOrigin && url.pathname.startsWith("/_next/static/"),
+            handler: "CacheFirst",
+            options: {
+              cacheName: "next-static",
+              expiration: {
+                maxEntries: 128,
+                maxAgeSeconds: 60 * 60 * 24 * 365,
+              },
+            },
+          },
+          {
+            urlPattern: ({ url, sameOrigin }) =>
+              sameOrigin && url.pathname.startsWith("/api/"),
+            handler: "NetworkOnly",
+            options: {
+              cacheName: "apis",
+            },
+          },
           {
             urlPattern: ({ url, sameOrigin }) => {
               if (sameOrigin) return false;

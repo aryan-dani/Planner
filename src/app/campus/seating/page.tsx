@@ -3,7 +3,7 @@ import PageSkeleton from "@/components/PageSkeleton";
 import { getFacultySeating, isIshaniConfigured } from "@/lib/ishani";
 import SeatingClient from "./SeatingClient";
 
-export const revalidate = 60;
+export const revalidate = 86400;
 
 export default async function FacultySeatingPage() {
   const configured = isIshaniConfigured();
